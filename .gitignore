@@ -4,3 +4,6 @@ node_modules
 dist
 build
 .husky/_
+# Workspace sub-lockfiles (root package-lock.json is the single source of truth)
+frontend/package-lock.json
+backend/package-lock.json
