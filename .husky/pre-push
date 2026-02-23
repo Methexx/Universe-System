@@ -1,4 +1,4 @@
-echo "🧪 Running backend tests..."
+#echo "🧪 Running backend tests..."
 
 # if ! npm run test; then
 #   echo "❌ Tests failed. Push aborted."
@@ -6,7 +6,7 @@ echo "🧪 Running backend tests..."
 #   exit 1
 # fi
 
-echo "✅ Tests passed."
+#echo "✅ Tests passed."
 
 echo "🏗️  Running production build before push..."
 
