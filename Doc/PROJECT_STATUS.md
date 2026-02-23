@@ -43,7 +43,13 @@ UniVerse-Platform/
 ├── Doc/
 │   └── PROJECT_STATUS.md     ✅ This file
 ├── mobile/                   ⏳ Flutter app — pending
+├── .husky/
+│   ├── pre-commit            ✅ Runs lint-staged
+│   └── commit-msg            ✅ Runs commitlint
 ├── .gitignore                ✅ Created
+├── .prettierrc               ✅ Created
+├── commitlint.config.js      ✅ Created
+├── package.json              ✅ Root monorepo (npm workspaces)
 ├── README.md                 ✅ Created
 └── docker-compose.dev.yml    ✅ Created
 ```
@@ -94,8 +100,16 @@ UniVerse-Platform/
   - `NEXT_PUBLIC_API_URL=http://backend:5000` passed to frontend
 
 ### ✅ Step 5 — Git Setup
-- `.gitignore` at root: `node_modules`, `.env`, `.next`, `dist`, `build`
+- `.gitignore` at root: `node_modules`, `.env`, `.next`, `dist`, `build`, `.husky/_`
 - Repository initialized and pushed to remote (`release/development` branch)
+
+### ✅ Step 6 — Root Monorepo Tooling
+- Root `package.json` with npm workspaces (`frontend`, `backend`)
+- **Husky v9** — git hooks for pre-commit and commit-msg
+- **lint-staged** — runs linters on staged files before commit
+- **commitlint** — enforces conventional commit messages (`feat:`, `fix:`, `chore:`, etc.)
+- **Prettier** — code formatting (single quotes, semicolons, 100 print width)
+- Scripts: `frontend:dev`, `frontend:build`, `frontend:lint`, `backend:dev`, `backend:test`
 
 ---
 
@@ -116,22 +130,22 @@ docker compose -f docker-compose.dev.yml up --build
 
 ## Next Steps (Pending)
 
-- [ ] **Step 6** — Supabase integration (connect DB, set up schema)
-- [ ] **Step 7** — Auth module (`backend/src/modules/auth/`)
-- [ ] **Step 8** — Users module (`backend/src/modules/users/`)
-- [ ] **Step 9** — Announcements module
-- [ ] **Step 10** — Attendance module
-- [ ] **Step 11** — Complaints module
-- [ ] **Step 12** — Messages module
-- [ ] **Step 13** — Notifications module
-- [ ] **Step 14** — AI module (OpenAI integration)
-- [ ] **Step 15** — Frontend pages & API integration
-- [ ] **Step 16** — Firebase push notifications
-- [ ] **Step 17** — Flutter mobile app setup (`mobile/` folder, `pubspec.yaml`, folder structure)
-- [ ] **Step 18** — Flutter: Auth screens (login / register)
-- [ ] **Step 19** — Flutter: Role-based dashboards (Student / Lecturer / Admin)
-- [ ] **Step 20** — Flutter: Announcements, Attendance, Messaging screens
-- [ ] **Step 21** — Flutter: Firebase FCM push notifications
-- [ ] **Step 22** — Flutter: AI chat screen
-- [ ] **Step 23** — Production Docker setup
-- [ ] **Step 24** — CI/CD pipeline
+- [ ] **Step 7** — Supabase integration (connect DB, set up schema)
+- [ ] **Step 8** — Auth module (`backend/src/modules/auth/`)
+- [ ] **Step 9** — Users module (`backend/src/modules/users/`)
+- [ ] **Step 10** — Announcements module
+- [ ] **Step 11** — Attendance module
+- [ ] **Step 12** — Complaints module
+- [ ] **Step 13** — Messages module
+- [ ] **Step 14** — Notifications module
+- [ ] **Step 15** — AI module (OpenAI integration)
+- [ ] **Step 16** — Frontend pages & API integration
+- [ ] **Step 17** — Firebase push notifications
+- [ ] **Step 18** — Flutter mobile app setup (`mobile/` folder, `pubspec.yaml`, folder structure)
+- [ ] **Step 19** — Flutter: Auth screens (login / register)
+- [ ] **Step 20** — Flutter: Role-based dashboards (Student / Lecturer / Admin)
+- [ ] **Step 21** — Flutter: Announcements, Attendance, Messaging screens
+- [ ] **Step 22** — Flutter: Firebase FCM push notifications
+- [ ] **Step 23** — Flutter: AI chat screen
+- [ ] **Step 24** — Production Docker setup
+- [ ] **Step 25** — CI/CD pipeline
