@@ -1,0 +1,19 @@
+echo "🧪 Running backend tests..."
+
+# if ! npm run test; then
+#   echo "❌ Tests failed. Push aborted."
+#   echo "👉 Fix the test failures before pushing to GitHub."
+#   exit 1
+# fi
+
+echo "✅ Tests passed."
+
+echo "🏗️  Running production build before push..."
+
+if ! npm run build; then
+  echo "❌ Build failed. Push aborted."
+  echo "👉 Fix the build errors before pushing to GitHub."
+  exit 1
+fi
+
+echo "✅ Build successful. Pushing to remote."

@@ -16,6 +16,7 @@
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.0.2",
+    "@supabase/supabase-js": "^2.97.0",
     "dotenv": "^17.3.1",
     "fastify": "^5.7.4"
   },
