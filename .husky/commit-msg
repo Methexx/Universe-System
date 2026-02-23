@@ -1,1 +1,15 @@
-npx --no -- commitlint --edit "$1"
+echo "📝 Checking commit message format..."
+
+if ! npx --no -- commitlint --edit "$1"; then
+  echo ""
+  echo "❌ Invalid commit message."
+  echo ""
+  echo "✅ Use conventional commit format, for example:"
+  echo "   feat: add user authentication"
+  echo "   fix: resolve token refresh bug"
+  echo "   chore: setup ci pipeline"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Commit message format is valid."
