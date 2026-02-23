@@ -40,6 +40,12 @@ UniVerse-Platform/
 │   ├── next.config.ts        ✅ Configured
 │   ├── package.json          ✅ Configured
 │   └── tsconfig.json         ✅ Configured
+├── supabase/
+│   └── migrations/
+│       ├── 001_initial_schema.sql ✅ Full DB schema
+│       └── 002_seed_data.sql      ✅ Dev seed data
+├── .vscode/
+│   └── mcp.json              ✅ Supabase MCP config
 ├── Doc/
 │   └── PROJECT_STATUS.md     ✅ This file
 ├── mobile/                   ⏳ Flutter app — pending
@@ -111,6 +117,19 @@ UniVerse-Platform/
 - **Prettier** — code formatting (single quotes, semicolons, 100 print width)
 - Scripts: `frontend:dev`, `frontend:build`, `frontend:lint`, `backend:dev`, `backend:test`
 
+### ✅ Step 7 — Supabase Database Schema
+- **Project:** `universe-platform` (ref: `aabjnadvxiexodbvmzuc`)
+- **VS Code MCP** configured at `.vscode/mcp.json`
+- `@supabase/supabase-js` installed in backend
+- `backend/src/config/supabase.ts` — exports `supabase` (RLS) and `supabaseAdmin` (service role) clients
+- **Migration `001_initial_schema.sql`** — full schema:
+  - Enums: `user_role`, `complaint_status`, `attendance_status`, `notification_type`
+  - Tables: `profiles`, `courses`, `course_enrollments`, `announcements`, `attendance_sessions`, `attendance_records`, `conversations`, `conversation_participants`, `messages`, `complaints`, `notifications`, `fcm_tokens`, `ai_conversations`
+  - RLS enabled on all tables with policies
+  - Trigger: auto-create `profile` on Supabase Auth signup
+  - 12+ indexes for query performance
+- **Migration `002_seed_data.sql`** — 5 sample courses for dev
+
 ---
 
 ## Currently Running
@@ -130,7 +149,6 @@ docker compose -f docker-compose.dev.yml up --build
 
 ## Next Steps (Pending)
 
-- [ ] **Step 7** — Supabase integration (connect DB, set up schema)
 - [ ] **Step 8** — Auth module (`backend/src/modules/auth/`)
 - [ ] **Step 9** — Users module (`backend/src/modules/users/`)
 - [ ] **Step 10** — Announcements module
