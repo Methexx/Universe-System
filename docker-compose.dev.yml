@@ -11,7 +11,7 @@ services:
       - ./backend:/app
       - /app/node_modules
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
 
   frontend:
     build:
@@ -24,5 +24,7 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    env_file:
+      - ./frontend/.env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5000
