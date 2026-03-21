@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Add your Prisma models below, then run:
+// - npm run prisma:migrate:dev  (for local schema migrations)
+// - npm run prisma:push         (to sync without migration files)
