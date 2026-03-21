@@ -121,6 +121,7 @@ Edit `backend/.env`:
 
 ```env
 PORT=5000
+DATABASE_URL=postgresql://postgres:your_password@db.your-project-ref.supabase.co:5432/postgres?schema=public
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_KEY=your_service_role_key
@@ -159,6 +160,7 @@ docker compose -f docker-compose.dev.yml down
 ```bash
 cd backend
 npm install
+npm run prisma:generate
 npx nodemon
 ```
 
