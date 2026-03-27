@@ -1,14 +1,14 @@
 import { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 import { ZodError } from 'zod';
 
-export const errorHandler = (error: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
+export const errorHandler = (error: FastifyError | ZodError | any, request: FastifyRequest, reply: FastifyReply) => {
   request.log.error(error);
 
   if (error instanceof ZodError) {
     return reply.status(400).send({
       success: false,
       message: 'Validation error',
-      errors: error.errors,
+      errors: error.issues,
     });
   }
 
