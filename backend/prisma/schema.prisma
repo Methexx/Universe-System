@@ -26,6 +26,9 @@ model User {
   created_at     DateTime  @default(now()) @db.Timestamptz()
   updated_at     DateTime  @default(now()) @db.Timestamptz()
 
+  classes_taught Class[]
+  parent_links   ParentStudent[]
+
   @@index([role])
   @@index([email])
   @@map("users")
@@ -42,4 +45,75 @@ model OtpVerification {
 
   @@index([email])
   @@map("otp_verifications")
+}
+
+// ==========================================
+// PHASE 2: CORE (Profiles, Students, Classes)
+// ==========================================
+
+model SchoolGrade {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name       String   @unique
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  classes    Class[]
+
+  @@map("school_grades")
+}
+
+model Class {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  school_grade_id String       @db.Uuid
+  school_grade    SchoolGrade  @relation(fields: [school_grade_id], references: [id], onDelete: Cascade)
+  name            String
+  teacher_id      String?      @db.Uuid
+  teacher         User?        @relation(fields: [teacher_id], references: [id])
+  subject         String?
+  created_at      DateTime     @default(now()) @db.Timestamptz()
+
+  students        Student[]
+
+  @@unique([school_grade_id, name])
+  @@index([teacher_id])
+  @@index([school_grade_id])
+  @@map("classes")
+}
+
+model Student {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  full_name        String
+  date_of_birth    DateTime          @db.Date
+  photo_url        String?
+  student_id_no    String            @unique
+  qr_code          String            @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id         String?           @db.Uuid
+  class            Class?            @relation(fields: [class_id], references: [id])
+  parent_email     String?
+  parent_mobile    String?
+  is_parent_linked Boolean           @default(false)
+  is_active        Boolean           @default(true)
+  created_at       DateTime          @default(now()) @db.Timestamptz()
+  updated_at       DateTime          @default(now()) @db.Timestamptz()
+
+  parents          ParentStudent[]
+
+  @@index([student_id_no])
+  @@index([class_id])
+  @@index([qr_code])
+  @@map("students")
+}
+
+model ParentStudent {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id    String    @db.Uuid
+  parent       User      @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id   String    @unique @db.Uuid
+  student      Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  relation     String?
+  verified_via String?
+  linked_at    DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([parent_id])
+  @@index([student_id])
+  @@map("parent_students")
 }
