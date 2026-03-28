@@ -92,7 +92,7 @@ Tasks:
       AI absence alert (3+ consecutive days) → admin
       PUT excuse note from parent
       GET attendance history (class + student + date range)
-  → Messages module:
+  ✅ Messages module:
       GET inbox / thread
       POST send message (+ FCM to receiver)
       PUT mark as read
