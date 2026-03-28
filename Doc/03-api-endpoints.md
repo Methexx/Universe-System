@@ -531,3 +531,13 @@ Response 200 (low confidence):
 |--------|----------|--------|-------------|
 | POST | /attendance/mark | admin, teacher | Upsert student attendance ('present', 'absent', 'late', 'excused') |
 | GET | /attendance | admin, teacher, security | Fetch attendance records with optional ?date=YYYY-MM-DD & ?class_id=X filters |
+
+---
+
+## ?? Announcements — /api/announcements
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| POST | /announcements | admin, teacher | Broadcast a new school-wide or class-level announcement |
+| GET | /announcements?scope=X | all roles | Fetch paginated announcements (optional filters: scope, class_id) |
+| DELETE | /announcements/:id | admin, teacher | Delete a previously posted announcement (admin or creator only) |

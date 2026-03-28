@@ -106,10 +106,11 @@ Deliverable: Attendance session created → gate-aware list →
 ### Week 5 — Announcements + Complaints + Grades
 ```
 Tasks:
-  → Announcements module:
+  ✅ Announcements module:
       POST with scope (school_wide / class) + target
       GET filtered by user role
       DELETE (admin can delete any)
+  → Announcements extra (pending):
       FCM on new announcement
   → Complaints module:
       POST submit (parent)
