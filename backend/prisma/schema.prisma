@@ -30,6 +30,7 @@ model User {
   classes_taught Class[]
   parent_links   ParentStudent[]
   gate_scans     GateEvent[]
+  attendance_marked AttendanceRecord[]
 
   @@index([role])
   @@index([email])
@@ -99,6 +100,7 @@ model Student {
 
   parents     ParentStudent[]
   gate_events GateEvent[]
+  attendance_records AttendanceRecord[]
 
   @@index([student_id_no])
   @@index([class_id])
@@ -140,4 +142,22 @@ model GateEvent {
   @@index([direction])
   @@index([timestamp])
   @@map("gate_events")
+}
+
+model AttendanceRecord {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id      String   @db.Uuid
+  student         Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  date            DateTime @db.Date
+  status          String   @default("absent") // 'present', 'absent', 'late', 'excused'
+  marked_by_id    String?  @db.Uuid
+  marked_by       User?    @relation(fields: [marked_by_id], references: [id])
+  remarks         String?  @db.Text
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @db.Timestamptz()
+
+  @@unique([student_id, date])
+  @@index([date])
+  @@index([status])
+  @@map("attendance_records")
 }

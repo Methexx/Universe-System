@@ -7,7 +7,7 @@ async function loginAdmin() {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'methum@admin.com', password: 'password123' })
+    body: JSON.stringify({ email: 'admin@school.lk', password: 'adminpassword' })
   });
   const data = await res.json();
   if (data.success) {

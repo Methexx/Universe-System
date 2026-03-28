@@ -70,25 +70,23 @@ Tasks:
   ✅ School module: grades, classes, student records
   ✅ Student auto-generate: student_id_no + qr_code on CREATE
   → Student photo upload to Supabase Storage
-  → Gate module:
+  ✅ Gate module:
       POST /api/gate/scan (QR + manual)
-      GET /api/gate/photo/:studentId
       GET /api/gate/log (with filters: late, manual, reason, class, date)
-      GET /api/gate/discrepancies
       GET /api/gate/analytics
   → FCM notification on gate scan → parent
   → Supabase Realtime: gate_events channel for live gate log
 
-Deliverable: Gate scan → FCM fires to parent phone (tested end-to-end)
+Deliverable: Gate scan → API integration complete. (FCM pending)
 ```
 
 ### Week 4 — Attendance + Messaging
 ```
 Tasks:
-  → Attendance module:
-      POST /api/attendance/session (create daily session)
+  ✅ Attendance module:
+      POST /api/attendance/mark (upsert daily session)
       GET session with gate_status per student
-      PUT session (submit P/A/L records)
+  → Extra Attendance Logic pending:
       Auto FCM on absent mark → parent
       Gate vs attendance discrepancy detection
       AI absence alert (3+ consecutive days) → admin

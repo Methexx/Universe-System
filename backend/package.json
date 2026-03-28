@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
+    "lint": "echo 'No linting yet'",
     "dev": "npm run prisma:generate && nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
@@ -23,6 +24,7 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.0.2",
     "@fastify/jwt": "^10.0.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@prisma/client": "^6.16.3",
     "@supabase/supabase-js": "^2.97.0",
     "bcryptjs": "^3.0.3",
