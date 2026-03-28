@@ -43,16 +43,16 @@ Deliverable: Backend running, DB connected, middleware verified
 ### Week 2 — Auth Module Complete
 ```
 Tasks:
-  → POST /api/auth/register + OTP flow
-  → POST /api/auth/verify-otp
-  → POST /api/auth/login (email + password + JWT)
+  ✅ POST /api/auth/register + OTP flow
+  ✅ POST /api/auth/verify-otp
+  ✅ POST /api/auth/login (email + password + JWT)
   → POST /api/auth/logout + logout-all (token_version bump)
   → POST /api/auth/forgot-password + reset-password
   → PUT /api/auth/link-child (Student ID + email OTP)
   → PUT /api/auth/fcm-token
   → All-sessions logout (token_version)
-  → Users module (GET/PUT me, admin user management)
-  → Admin: promote pending account to teacher/security/admin
+  ✅ Users module (GET/PUT me, admin user management)
+  ✅ Admin: promote pending account to teacher/security/admin
 
 Deliverable: Full auth flow tested in Postman
              Register → OTP → login → JWT working
@@ -67,8 +67,8 @@ Deliverable: Full auth flow tested in Postman
 ### Week 3 — School Structure + Gate
 ```
 Tasks:
-  → School module: grades, classes, student records
-  → Student auto-generate: student_id_no + qr_code on CREATE
+  ✅ School module: grades, classes, student records
+  ✅ Student auto-generate: student_id_no + qr_code on CREATE
   → Student photo upload to Supabase Storage
   → Gate module:
       POST /api/gate/scan (QR + manual)
