@@ -32,6 +32,8 @@ model User {
   gate_scans        GateEvent[]
   attendance_marked AttendanceRecord[]
   announcements     Announcement[]
+  messages_sent     Message[]          @relation("MessagesSent")
+  messages_received Message[]          @relation("MessagesReceived")
 
   @@index([role])
   @@index([email])
@@ -103,6 +105,7 @@ model Student {
   parents            ParentStudent[]
   gate_events        GateEvent[]
   attendance_records AttendanceRecord[]
+  messages           Message[]
 
   @@index([student_id_no])
   @@index([class_id])
@@ -185,4 +188,26 @@ model Announcement {
   @@index([class_id])
   @@index([scope])
   @@map("announcements")
+}
+
+// ==========================================
+// PHASE 4: MESSAGES
+// ==========================================
+
+model Message {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sender_id   String   @db.Uuid
+  sender      User     @relation("MessagesSent", fields: [sender_id], references: [id], onDelete: Cascade)
+  receiver_id String   @db.Uuid
+  receiver    User     @relation("MessagesReceived", fields: [receiver_id], references: [id], onDelete: Cascade)
+  student_id  String?  @db.Uuid
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  is_read     Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([sender_id])
+  @@index([receiver_id])
+  @@index([student_id])
+  @@map("messages")
 }
