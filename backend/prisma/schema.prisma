@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
   extensions = [vector, uuid_ossp(map: "uuid-ossp")]
 }
 
@@ -14,20 +15,21 @@ datasource db {
 // ==========================================
 
 model User {
-  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email          String    @unique
-  password_hash  String
-  role           String    @default("pending") // 'pending' | 'teacher' | 'security' | 'admin' | 'parent'
-  full_name      String?
-  avatar_url     String?
-  fcm_token      String?
-  is_active      Boolean   @default(true)
-  is_suspended   Boolean   @default(false)
-  created_at     DateTime  @default(now()) @db.Timestamptz()
-  updated_at     DateTime  @default(now()) @db.Timestamptz()
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email         String   @unique
+  password_hash String
+  role          String   @default("pending") // 'pending' | 'teacher' | 'security' | 'admin' | 'parent'
+  full_name     String?
+  avatar_url    String?
+  fcm_token     String?
+  is_active     Boolean  @default(true)
+  is_suspended  Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @db.Timestamptz()
 
   classes_taught Class[]
   parent_links   ParentStudent[]
+  gate_scans     GateEvent[]
 
   @@index([role])
   @@index([email])
@@ -56,22 +58,22 @@ model SchoolGrade {
   name       String   @unique
   created_at DateTime @default(now()) @db.Timestamptz()
 
-  classes    Class[]
+  classes Class[]
 
   @@map("school_grades")
 }
 
 model Class {
-  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  school_grade_id String       @db.Uuid
-  school_grade    SchoolGrade  @relation(fields: [school_grade_id], references: [id], onDelete: Cascade)
+  id              String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  school_grade_id String      @db.Uuid
+  school_grade    SchoolGrade @relation(fields: [school_grade_id], references: [id], onDelete: Cascade)
   name            String
-  teacher_id      String?      @db.Uuid
-  teacher         User?        @relation(fields: [teacher_id], references: [id])
+  teacher_id      String?     @db.Uuid
+  teacher         User?       @relation(fields: [teacher_id], references: [id])
   subject         String?
-  created_at      DateTime     @default(now()) @db.Timestamptz()
+  created_at      DateTime    @default(now()) @db.Timestamptz()
 
-  students        Student[]
+  students Student[]
 
   @@unique([school_grade_id, name])
   @@index([teacher_id])
@@ -80,22 +82,23 @@ model Class {
 }
 
 model Student {
-  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   full_name        String
-  date_of_birth    DateTime          @db.Date
+  date_of_birth    DateTime @db.Date
   photo_url        String?
-  student_id_no    String            @unique
-  qr_code          String            @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  class_id         String?           @db.Uuid
-  class            Class?            @relation(fields: [class_id], references: [id])
+  student_id_no    String   @unique
+  qr_code          String   @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id         String?  @db.Uuid
+  class            Class?   @relation(fields: [class_id], references: [id])
   parent_email     String?
   parent_mobile    String?
-  is_parent_linked Boolean           @default(false)
-  is_active        Boolean           @default(true)
-  created_at       DateTime          @default(now()) @db.Timestamptz()
-  updated_at       DateTime          @default(now()) @db.Timestamptz()
+  is_parent_linked Boolean  @default(false)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @db.Timestamptz()
 
-  parents          ParentStudent[]
+  parents     ParentStudent[]
+  gate_events GateEvent[]
 
   @@index([student_id_no])
   @@index([class_id])
@@ -104,16 +107,37 @@ model Student {
 }
 
 model ParentStudent {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  parent_id    String    @db.Uuid
-  parent       User      @relation(fields: [parent_id], references: [id], onDelete: Cascade)
-  student_id   String    @unique @db.Uuid
-  student      Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id    String   @db.Uuid
+  parent       User     @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id   String   @unique @db.Uuid
+  student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
   relation     String?
   verified_via String?
-  linked_at    DateTime  @default(now()) @db.Timestamptz()
+  linked_at    DateTime @default(now()) @db.Timestamptz()
 
   @@index([parent_id])
   @@index([student_id])
   @@map("parent_students")
+}
+
+// ==========================================
+// PHASE 3: GATE & ATTENDANCE 
+// ==========================================
+
+model GateEvent {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id    String   @db.Uuid
+  student       Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  scanned_by_id String?  @db.Uuid
+  scanned_by    User?    @relation(fields: [scanned_by_id], references: [id])
+  direction     String // 'IN' | 'OUT'
+  method        String   @default("qr") // 'qr' | 'manual'
+  manual_reason String?
+  timestamp     DateTime @default(now()) @db.Timestamptz()
+
+  @@index([student_id])
+  @@index([direction])
+  @@index([timestamp])
+  @@map("gate_events")
 }
