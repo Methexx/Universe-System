@@ -230,10 +230,74 @@ a {
   border: 0;
   border-radius: 10px;
   padding: 0.82rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.95rem;
   color: #7f5920;
   background: #f8efe0;
   font-weight: 600;
   cursor: pointer;
+}
+
+.google-icon {
+  flex: 0 0 auto;
+}
+
+.register-form {
+  margin-top: 26px;
+  display: grid;
+  gap: 14px;
+}
+
+.register-grid-2 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.flip-card-enter {
+  transform-origin: center center;
+  animation: flipInCard 0.75s cubic-bezier(0.2, 0.72, 0.16, 1);
+}
+
+.flip-card-enter-back {
+  transform-origin: center center;
+  animation: flipInCardBack 0.75s cubic-bezier(0.2, 0.72, 0.16, 1);
+}
+
+@keyframes flipInCard {
+  0% {
+    opacity: 0.2;
+    transform: perspective(1200px) rotateY(-85deg) translateY(14px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(10deg) translateY(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0deg) translateY(0);
+  }
+}
+
+@keyframes flipInCardBack {
+  0% {
+    opacity: 0.2;
+    transform: perspective(1200px) rotateY(85deg) translateY(14px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(-10deg) translateY(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0deg) translateY(0);
+  }
 }
 
 @media (max-width: 950px) {
@@ -260,5 +324,9 @@ a {
 
   .login-subtitle {
     font-size: 2.2rem;
+  }
+
+  .register-grid-2 {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,8 +1,33 @@
+"use client";
+
 import { LoginForm } from '@/features/auth/components/login-form';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const flipParam = searchParams.get('flip');
+    const lastPage = sessionStorage.getItem('auth-last-page');
+    const shouldAnimateBack = flipParam === 'back' || lastPage === 'register';
+
+    if (cardRef.current) {
+      cardRef.current.classList.remove('flip-card-enter-back');
+
+      if (shouldAnimateBack) {
+        // Restart animation on route change by forcing reflow.
+        void cardRef.current.offsetWidth;
+        cardRef.current.classList.add('flip-card-enter-back');
+      }
+    }
+
+    sessionStorage.setItem('auth-last-page', 'login');
+  }, [searchParams]);
+
   return (
     <section className="login-scene">
       <p className="login-logo">Your Logo</p>
@@ -22,17 +47,17 @@ export default function LoginPage() {
         height={340}
       />
 
-      <div className="login-card">
+      <div ref={cardRef} className="login-card">
         <div className="login-header">
           <div>
-            <p className="login-top-note">Welcome to Lorem</p>
+            <p className="login-top-note">Welcome to Universe Platform</p>
             <h1 className="login-subtitle">Sign in</h1>
           </div>
 
           <p className="login-mini-link">
             No Account ?
             <br />
-            <Link href="/register">Sign up</Link>
+            <Link href="/register?flip=1">Sign up</Link>
           </p>
         </div>
 

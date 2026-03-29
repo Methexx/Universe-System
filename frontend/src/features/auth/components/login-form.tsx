@@ -2,6 +2,7 @@
 
 import { APP_ROUTES } from '@/core/constants/routes';
 import Link from 'next/link';
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { validateLogin } from '../lib/validators';
 import { LoginFormValues } from '../types/auth';
@@ -81,6 +82,7 @@ export function LoginForm() {
       <p className="login-divider">OR</p>
 
       <button type="button" className="google-button">
+        <Image src="/Assets/google.svg" alt="Google" width={28} height={28} className="google-icon" />
         Sign in with Google
       </button>
     </form>
