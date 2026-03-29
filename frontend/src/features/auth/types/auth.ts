@@ -4,8 +4,8 @@ export type LoginFormValues = {
 };
 
 export type RegisterFormValues = {
-  fullName: string;
-  email: string;
+  emailOrUsername: string;
+  userName: string;
+  contactNumber: string;
   password: string;
-  confirmPassword: string;
 };

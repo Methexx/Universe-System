@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta-sans",
   subsets: ["latin"],
 });
 
@@ -25,8 +20,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${manrope.variable} ${spaceGrotesk.variable} antialiased`}
-        style={{ fontFamily: "var(--font-manrope), sans-serif" }}
+        className={`${plusJakartaSans.variable} antialiased`}
+        style={{ fontFamily: "var(--font-plus-jakarta-sans), sans-serif" }}
       >
         {children}
       </body>

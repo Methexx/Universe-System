@@ -20,20 +20,20 @@ export function validateLogin(values: LoginFormValues) {
 export function validateRegister(values: RegisterFormValues) {
   const errors: Partial<Record<keyof RegisterFormValues, string>> = {};
 
-  if (values.fullName.trim().length < 3) {
-    errors.fullName = 'Full name must be at least 3 characters';
+  if (values.emailOrUsername.trim().length < 3) {
+    errors.emailOrUsername = 'Username or email is required';
   }
 
-  if (!emailRegex.test(values.email.trim())) {
-    errors.email = 'Enter a valid email address';
+  if (values.userName.trim().length < 3) {
+    errors.userName = 'User name must be at least 3 characters';
+  }
+
+  if (values.contactNumber.trim().length < 7) {
+    errors.contactNumber = 'Enter a valid contact number';
   }
 
   if (values.password.length < appConfig.auth.minPasswordLength) {
     errors.password = `Password must be at least ${appConfig.auth.minPasswordLength} characters`;
-  }
-
-  if (values.confirmPassword !== values.password) {
-    errors.confirmPassword = 'Passwords do not match';
   }
 
   return errors;

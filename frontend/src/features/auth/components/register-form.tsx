@@ -1,18 +1,16 @@
 'use client';
 
 import { APP_ROUTES } from '@/core/constants/routes';
-import { PrimaryButton } from '@/shared/components/ui/primary-button';
-import { TextInput } from '@/shared/components/ui/text-input';
 import React, { useState } from 'react';
 import { validateRegister } from '../lib/validators';
 import { RegisterFormValues } from '../types/auth';
 
 export function RegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>({
-    fullName: '',
-    email: '',
+    emailOrUsername: '',
+    userName: '',
+    contactNumber: '',
     password: '',
-    confirmPassword: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormValues, string>>>({});
 
@@ -34,53 +32,72 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <TextInput
-        id="register-name"
-        name="fullName"
-        label="Full Name"
-        value={values.fullName}
+    <form onSubmit={onSubmit} className="register-form">
+      <label htmlFor="register-email-or-username" className="login-label">
+        Enter your username or email address
+      </label>
+      <input
+        id="register-email-or-username"
+        name="emailOrUsername"
+        type="text"
+        value={values.emailOrUsername}
         onChange={onInputChange}
-        placeholder="School Principal"
-        error={errors.fullName}
+        placeholder="Username or email address"
+        className="auth-input"
       />
+      {errors.emailOrUsername ? <span className="form-error">{errors.emailOrUsername}</span> : null}
 
-      <TextInput
-        id="register-email"
-        name="email"
-        label="Email"
-        type="email"
-        value={values.email}
-        onChange={onInputChange}
-        placeholder="you@school.lk"
-        error={errors.email}
-      />
+      <div className="register-grid-2">
+        <div>
+          <label htmlFor="register-user-name" className="login-label">
+            User name
+          </label>
+          <input
+            id="register-user-name"
+            name="userName"
+            type="text"
+            value={values.userName}
+            onChange={onInputChange}
+            placeholder="User name"
+            className="auth-input"
+          />
+          {errors.userName ? <span className="form-error">{errors.userName}</span> : null}
+        </div>
 
-      <TextInput
+        <div>
+          <label htmlFor="register-contact-number" className="login-label">
+            Contact Number
+          </label>
+          <input
+            id="register-contact-number"
+            name="contactNumber"
+            type="text"
+            value={values.contactNumber}
+            onChange={onInputChange}
+            placeholder="Contact Number"
+            className="auth-input"
+          />
+          {errors.contactNumber ? <span className="form-error">{errors.contactNumber}</span> : null}
+        </div>
+      </div>
+
+      <label htmlFor="register-password" className="login-label">
+        Enter your Password
+      </label>
+      <input
         id="register-password"
         name="password"
-        label="Password"
         type="password"
         value={values.password}
         onChange={onInputChange}
-        placeholder="Create a secure password"
-        error={errors.password}
+        placeholder="Password"
+        className="auth-input"
       />
+      {errors.password ? <span className="form-error">{errors.password}</span> : null}
 
-      <TextInput
-        id="register-confirm-password"
-        name="confirmPassword"
-        label="Confirm Password"
-        type="password"
-        value={values.confirmPassword}
-        onChange={onInputChange}
-        placeholder="Re-enter your password"
-        error={errors.confirmPassword}
-      />
-
-      <div className="mt-2">
-        <PrimaryButton type="submit">Create Account</PrimaryButton>
-      </div>
+      <button type="submit" className="auth-button mt-2">
+        Sign up
+      </button>
     </form>
   );
 }
