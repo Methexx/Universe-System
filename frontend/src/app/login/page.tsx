@@ -4,14 +4,13 @@ import { LoginForm } from '@/features/auth/components/login-form';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const flipParam = searchParams.get('flip');
+    const query = new URLSearchParams(window.location.search);
+    const flipParam = query.get('flip');
     const lastPage = sessionStorage.getItem('auth-last-page');
     const shouldAnimateBack = flipParam === 'back' || lastPage === 'register';
 
@@ -26,7 +25,7 @@ export default function LoginPage() {
     }
 
     sessionStorage.setItem('auth-last-page', 'login');
-  }, [searchParams]);
+  }, []);
 
   return (
     <section className="login-scene">
