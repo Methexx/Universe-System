@@ -27,15 +27,17 @@ model User {
   created_at    DateTime @default(now()) @db.Timestamptz()
   updated_at    DateTime @default(now()) @db.Timestamptz()
 
-  classes_taught    Class[]
-  parent_links      ParentStudent[]
-  gate_scans        GateEvent[]
-  attendance_marked AttendanceRecord[]
-  announcements     Announcement[]
-  messages_sent     Message[]          @relation("MessagesSent")
-  messages_received Message[]          @relation("MessagesReceived")
+  classes_taught      Class[]
+  parent_links        ParentStudent[]
+  gate_scans          GateEvent[]
+  attendance_marked   AttendanceRecord[]
+  announcements       Announcement[]
+  messages_sent       Message[]          @relation("MessagesSent")
+  messages_received   Message[]          @relation("MessagesReceived")
+  complaints_filed    Complaint[]        @relation("ComplaintsFiled")
+  complaints_assigned Complaint[]        @relation("ComplaintsAssigned")
+  complaints_resolved Complaint[]        @relation("ComplaintsResolved")
 
-  @@index([role])
   @@index([email])
   @@map("users")
 }
@@ -106,10 +108,8 @@ model Student {
   gate_events        GateEvent[]
   attendance_records AttendanceRecord[]
   messages           Message[]
+  complaints         Complaint[]
 
-  @@index([student_id_no])
-  @@index([class_id])
-  @@index([qr_code])
   @@map("students")
 }
 
@@ -210,4 +210,28 @@ model Message {
   @@index([receiver_id])
   @@index([student_id])
   @@map("messages")
+}
+
+model Complaint {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id      String    @db.Uuid
+  parent         User      @relation("ComplaintsFiled", fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id     String?   @db.Uuid
+  student        Student?  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  category       String
+  description    String    @db.Text
+  status         String    @default("pending")
+  assigned_to_id String?   @db.Uuid
+  assigned_to    User?     @relation("ComplaintsAssigned", fields: [assigned_to_id], references: [id])
+  assigned_at    DateTime? @db.Timestamptz()
+  reply_note     String?   @db.Text
+  resolved_by_id String?   @db.Uuid
+  resolved_by    User?     @relation("ComplaintsResolved", fields: [resolved_by_id], references: [id])
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([parent_id])
+  @@index([status])
+  @@index([assigned_to_id])
+  @@map("complaints")
 }
