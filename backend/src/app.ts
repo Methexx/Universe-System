@@ -9,6 +9,7 @@ import gateRoutes from './modules/gate/gate.routes';
 import attendanceRoutes from './modules/attendance/attendance.routes';
 import announcementRoutes from './modules/announcements/announcements.routes';  
 import messageRoutes from './modules/messages/messages.routes';
+import complaintsRoutes from './modules/complaints/complaints.routes';
 import { errorHandler } from './common/middleware/errorHandler';
 
 const app = Fastify({
@@ -33,6 +34,7 @@ app.register(gateRoutes, { prefix: '/api/gate' });
 app.register(attendanceRoutes, { prefix: '/api/attendance' });
 app.register(announcementRoutes, { prefix: '/api/announcements' });
 app.register(messageRoutes, { prefix: '/api/messages' });
+app.register(complaintsRoutes, { prefix: '/api/complaints' });
 
 app.get('/health', async () => {
   return { status: 'ok', message: 'Universe API is running' };
