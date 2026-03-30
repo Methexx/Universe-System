@@ -2,7 +2,7 @@
 
 A full-stack university management platform built with **Fastify** (backend), **Next.js** (web frontend), and **Flutter** (mobile app).
 
----
+--- 
   
 ## What is UniVerse?
 
