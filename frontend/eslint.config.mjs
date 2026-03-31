@@ -17,6 +17,9 @@ const eslintConfig = defineConfig([
     "yarn.lock",
     "pnpm-lock.yaml",
     "node_modules/**",
+    // Ignore build output
+    ".turbo/**",
+    ".vercel/**",
   ]),
 ]);
 

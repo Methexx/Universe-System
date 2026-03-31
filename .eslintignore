@@ -4,9 +4,13 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+.next/**
 .next/
 out/
 build/
 dist/
 .env*
 .husky/
+.turbo/
+.vercel/
+C**/
