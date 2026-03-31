@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore lock files and node_modules
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "node_modules/**",
+    // Ignore build output
+    ".turbo/**",
+    ".vercel/**",
   ]),
 ]);
 

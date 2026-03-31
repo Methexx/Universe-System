@@ -36,7 +36,7 @@ export default function LoginPage() {
         alt="Scooter illustration"
         className="login-asset login-asset-left"
         width={380}
-        height={320}
+        height={320} 
       />
       <Image
         src="/Assets/rightside.svg"
