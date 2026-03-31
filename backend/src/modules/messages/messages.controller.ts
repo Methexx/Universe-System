@@ -2,43 +2,48 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { sendSchema, aiDraftSchema } from './messages.schema';
 import { z } from 'zod';
+import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
 export const getInbox = async (request: FastifyRequest, reply: FastifyReply) => {
   const user = (request as any).user;
   const userId = user.userId;
 
   try {
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          { sender_id: userId },
-          { receiver_id: userId },
-        ],
-      },
-      include: {
-        sender: { select: { full_name: true, role: true } },
-        receiver: { select: { full_name: true, role: true } },
-        student: { select: { full_name: true } },
-      },
-      orderBy: { created_at: 'desc' },
+    const threads = await getOrSetCache(`messages:inbox:${userId}`, async () => {
+      const messages = await prisma.message.findMany({
+        where: {
+          OR: [
+            { sender_id: userId },
+            { receiver_id: userId },
+          ],
+        },
+        include: {
+          sender: { select: { full_name: true, role: true } },
+          receiver: { select: { full_name: true, role: true } },
+          student: { select: { full_name: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      const grouped = messages.reduce((acc, message: any) => {
+        const otherUserId = message.sender_id === userId ? message.receiver_id : message.sender_id;
+        if (!acc[otherUserId]) {
+          acc[otherUserId] = {
+            user: message.sender_id === userId ? message.receiver : message.sender,
+            lastMessage: message,
+            unreadCount: 0,
+          };
+        }
+        if (message.receiver_id === userId && !message.is_read) {
+          acc[otherUserId].unreadCount += 1;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      return Object.values(grouped);
     });
 
-    const threads = messages.reduce((acc, message: any) => {
-      const otherUserId = message.sender_id === userId ? message.receiver_id : message.sender_id;
-      if (!acc[otherUserId]) {
-        acc[otherUserId] = {
-          user: message.sender_id === userId ? message.receiver : message.sender,
-          lastMessage: message,
-          unreadCount: 0,
-        };
-      }
-      if (message.receiver_id === userId && !message.is_read) {
-        acc[otherUserId].unreadCount += 1;
-      }
-      return acc;
-    }, {} as Record<string, any>);
-
-    return reply.status(200).send({ success: true, threads: Object.values(threads) });
+    return reply.status(200).send({ success: true, threads });
   } catch (error: any) {
     return reply.status(500).send({ success: false, message: 'Failed to fetch inbox', error: error.message });
   }
@@ -50,19 +55,22 @@ export const getThread = async (request: FastifyRequest<{ Params: { userId: stri
   const { userId } = request.params;
 
   try {
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          { sender_id: currentUserId, receiver_id: userId },
-          { sender_id: userId, receiver_id: currentUserId },
-        ],
-      },
-      include: {
-        sender: { select: { full_name: true, role: true } },
-        receiver: { select: { full_name: true, role: true } },
-      },
-      orderBy: { created_at: 'asc' },
-    });
+    const cacheKey = `messages:thread:${currentUserId}:${userId}`;
+    const messages = await getOrSetCache(cacheKey, () =>
+      prisma.message.findMany({
+        where: {
+          OR: [
+            { sender_id: currentUserId, receiver_id: userId },
+            { sender_id: userId, receiver_id: currentUserId },
+          ],
+        },
+        include: {
+          sender: { select: { full_name: true, role: true } },
+          receiver: { select: { full_name: true, role: true } },
+        },
+        orderBy: { created_at: 'asc' },
+      })
+    );
 
     return reply.status(200).send({ success: true, messages });
   } catch (error: any) {
@@ -86,6 +94,11 @@ export const sendMessage = async (request: FastifyRequest, reply: FastifyReply) 
       },
     });
 
+    await delCacheByPattern(`messages:inbox:${senderId}`);
+    await delCacheByPattern(`messages:inbox:${data.receiver_id}`);
+    await delCacheByPattern(`messages:thread:${senderId}:*`);
+    await delCacheByPattern(`messages:thread:${data.receiver_id}:*`);
+
     return reply.status(201).send({ success: true, message_id: message.id, fcm_sent: true });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -100,10 +113,15 @@ export const markAsRead = async (request: FastifyRequest<{ Params: { id: string 
   const { id } = request.params;
 
   try {
-    await prisma.message.update({
+    const updated = await prisma.message.update({
       where: { id },
       data: { is_read: true },
     });
+
+    await delCacheByPattern(`messages:inbox:${user.userId}`);
+    await delCacheByPattern(`messages:inbox:${updated.sender_id}`);
+    await delCacheByPattern(`messages:thread:${user.userId}:*`);
+    await delCacheByPattern(`messages:thread:${updated.sender_id}:*`);
 
     return reply.status(200).send({ success: true });
   } catch (error: any) {

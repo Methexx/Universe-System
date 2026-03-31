@@ -1,6 +1,11 @@
-version: '3.8'
-
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   backend:
     build:
       context: ./backend
@@ -12,6 +17,10 @@ services:
       - /app/node_modules
     env_file:
       - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
 
   frontend:
     build:
@@ -28,3 +37,6 @@ services:
       - ./frontend/.env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5000
+
+volumes:
+  redis_data:

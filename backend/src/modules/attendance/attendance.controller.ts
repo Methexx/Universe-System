@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { markAttendanceSchema, getAttendanceSchema } from './attendance.schema';
+import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
 export const markAttendance = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -30,6 +31,8 @@ export const markAttendance = async (request: FastifyRequest, reply: FastifyRepl
       }
     });
 
+    await delCacheByPattern('attendance:*');
+
     return reply.status(200).send({
       success: true,
       message: `Attendance marked as ${data.status} successfully`,
@@ -52,21 +55,25 @@ export const getAttendance = async (request: FastifyRequest, reply: FastifyReply
     // Default to today if date not provided
     const dateFilter = query.date ? new Date(query.date) : new Date(new Date().setUTCHours(0,0,0,0));
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: {
-        date: dateFilter,
-        ...(query.class_id ? { student: { class_id: query.class_id } } : {})
-      },
-      include: {
-        student: {
-          select: { full_name: true, student_id_no: true }
+    const cacheKey = `attendance:${query.date ?? 'today'}:${query.class_id ?? 'all'}`;
+
+    const records = await getOrSetCache(cacheKey, () =>
+      prisma.attendanceRecord.findMany({
+        where: {
+          date: dateFilter,
+          ...(query.class_id ? { student: { class_id: query.class_id } } : {})
         },
-        marked_by: {
-          select: { full_name: true, role: true }
-        }
-      },
-      orderBy: { created_at: 'desc' }
-    });
+        include: {
+          student: {
+            select: { full_name: true, student_id_no: true }
+          },
+          marked_by: {
+            select: { full_name: true, role: true }
+          }
+        },
+        orderBy: { created_at: 'desc' }
+      })
+    );
 
     return reply.status(200).send({
       success: true,
