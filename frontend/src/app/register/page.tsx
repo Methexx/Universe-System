@@ -49,7 +49,7 @@ export default function RegisterPage() {
       <div ref={cardRef} className="login-card">
         <div className="login-header">
           <div>
-            <p className="login-top-note">Welcome to Lorem</p>
+            <p className="login-top-note">Welcome to Universe Platform</p>
             <h1 className="login-subtitle">Sign up</h1>
           </div>
 

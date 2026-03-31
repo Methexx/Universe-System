@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { createAnnouncementSchema, getAnnouncementsSchema } from './announcements.schema';
+import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
 export const createAnnouncement = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -19,6 +20,8 @@ export const createAnnouncement = async (request: FastifyRequest, reply: Fastify
     });
 
     // TODO: Trigger Firebase Push Notifications (FCM) based on scope/target
+
+    await delCacheByPattern('announcements:*');
 
     return reply.status(201).send({
       success: true,
@@ -51,31 +54,38 @@ export const getAnnouncements = async (request: FastifyRequest, reply: FastifyRe
       whereClause.class_id = query.class_id;
     }
 
-    const announcements = await prisma.announcement.findMany({
-      where: whereClause,
-      include: {
-        author: {
-          select: { full_name: true, role: true, avatar_url: true }
+    const cacheKey = `announcements:${user.userId}:${query.scope ?? 'all'}:${query.class_id ?? 'all'}:${query.page}:${query.limit}`;
+    const cachedPayload = await getOrSetCache(cacheKey, async () => {
+      const announcements = await prisma.announcement.findMany({
+        where: whereClause,
+        include: {
+          author: {
+            select: { full_name: true, role: true, avatar_url: true }
+          },
+          class: {
+            select: { name: true, subject: true }
+          }
         },
-        class: {
-          select: { name: true, subject: true }
-        }
-      },
-      orderBy: { created_at: 'desc' },
-      skip,
-      take: query.limit
-    });
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: query.limit
+      });
 
-    const total = await prisma.announcement.count({ where: whereClause });
+      const total = await prisma.announcement.count({ where: whereClause });
+      return {
+        announcements,
+        total,
+      };
+    });
 
     return reply.status(200).send({
       success: true,
-      data: announcements,
+      data: cachedPayload.announcements,
       meta: {
-        total,
+        total: cachedPayload.total,
         page: query.page,
         limit: query.limit,
-        totalPages: Math.ceil(total / query.limit)
+        totalPages: Math.ceil(cachedPayload.total / query.limit)
       }
     });
   } catch (error) {
@@ -102,6 +112,7 @@ export const deleteAnnouncement = async (request: FastifyRequest, reply: Fastify
     }
 
     await prisma.announcement.delete({ where: { id } });
+    await delCacheByPattern('announcements:*');
 
     return reply.status(200).send({
       success: true,

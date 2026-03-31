@@ -1,0 +1,16 @@
+node_modules/
+*.lock
+*.lock.json
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.next/**
+.next/
+out/
+build/
+dist/
+.env*
+.husky/
+.turbo/
+.vercel/
+C**/
