@@ -1,49 +1,159 @@
 import { prisma } from '../../config/prisma';
 import { generateOTP } from '../../common/utils/otp';
 import { hashPassword, comparePassword } from '../../common/utils/hash';
-import { RegisterInput, VerifyOtpInput, LoginInput } from './auth.schema';
+import {
+  ForgotPasswordInput,
+  LinkChildInput,
+  LoginInput,
+  RegisterInput,
+  ResendOtpInput,
+  ResetPasswordInput,
+  UpdateFcmTokenInput,
+  VerifyOtpInput,
+} from './auth.schema';
 import { generateToken } from '../../common/utils/jwt';
+import { delCache, getCache, setCache } from '../../common/utils/cache';
+
+type PendingRegistration = {
+  full_name: string;
+  email: string;
+  password: string;
+  role: 'teacher' | 'security' | 'parent';
+  student_id_no?: string;
+};
+
+type JwtClaims = {
+  userId: string;
+  role: string;
+  email: string;
+};
+
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const pendingRegistrationMemory = new Map<string, PendingRegistration>();
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const registrationCacheKey = (email: string) => `auth:register:${normalizeEmail(email)}`;
+
+const sanitizeUser = (user: {
+  id: string;
+  email: string;
+  role: string;
+  full_name: string | null;
+}) => ({
+  id: user.id,
+  email: user.email,
+  role: user.role,
+  full_name: user.full_name,
+});
+
+const buildAuthPayload = (user: {
+  id: string;
+  role: string;
+  email: string;
+  full_name: string | null;
+}) => ({
+  token: generateToken({ userId: user.id, role: user.role, email: user.email }),
+  role: user.role,
+  user: sanitizeUser(user),
+});
 
 export class AuthService {
-  static async register(input: RegisterInput) {
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: input.email },
-    });
+  private static async ensureParentRegistrationInput(input: RegisterInput) {
+    if (input.role !== 'parent') return;
 
-    if (existingUser) {
-      throw new Error('User already exists');
+    if (!input.student_id_no) {
+      throw new Error('student_id_no is required for parent registration');
     }
 
-    // Generate OTP
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const student = await prisma.student.findUnique({
+      where: { student_id_no: input.student_id_no },
+      select: {
+        id: true,
+        full_name: true,
+        parent_email: true,
+        parent_mobile: true,
+        is_parent_linked: true,
+        is_active: true,
+        class: {
+          select: {
+            name: true,
+            school_grade: { select: { name: true } },
+          },
+        },
+      },
+    });
 
-    // Save OTP to DB
+    if (!student || !student.is_active) {
+      throw new Error('Student not found');
+    }
+
+    if (student.is_parent_linked) {
+      throw new Error('This student is already linked to a parent account');
+    }
+
+    if (!student.parent_email) {
+      throw new Error('Student has no parent email configured');
+    }
+
+    if (normalizeEmail(student.parent_email) !== normalizeEmail(input.email)) {
+      throw new Error('Registration email does not match school records');
+    }
+  }
+
+  private static async ensureResendCooldown(email: string) {
+    const latestOtp = await prisma.otpVerification.findFirst({
+      where: { email },
+      orderBy: { created_at: 'desc' },
+      select: { created_at: true },
+    });
+
+    if (!latestOtp) return;
+
+    const elapsedMs = Date.now() - latestOtp.created_at.getTime();
+    if (elapsedMs < OTP_RESEND_COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsedMs) / 1000);
+      throw new Error(`Please wait ${waitSeconds}s before requesting a new OTP`);
+    }
+  }
+
+  private static async createOtp(email: string) {
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
+
     await prisma.otpVerification.create({
       data: {
-        email: input.email,
+        email,
         otp_code: otp,
         expires_at: expiresAt,
       },
     });
 
-    // In a real app, send OTP via email/SMS here
-    console.log(`[DEVELOPMENT ONLY] OTP for ${input.email} is ${otp}`);
-
-    return { message: 'OTP sent to your email' };
+    // In development we log OTP to simplify local testing until email/SMS integration is added.
+    console.log(`[DEVELOPMENT ONLY] OTP for ${email} is ${otp}`);
   }
 
-  static async verifyOtp(input: VerifyOtpInput) {
-    const { email, otp, full_name, password } = input;
+  private static async putPendingRegistration(input: PendingRegistration) {
+    const key = registrationCacheKey(input.email);
+    await setCache<PendingRegistration>(key, input, Math.floor(OTP_EXPIRY_MS / 1000));
+    pendingRegistrationMemory.set(key, input);
+  }
 
-    // We require full_name and password here again to create the user,
-    // or we assume it's passed from the frontend state.
-    if (!full_name || !password) {
-      throw new Error('Full name and password are required to complete registration');
-    }
+  private static async getPendingRegistration(email: string) {
+    const key = registrationCacheKey(email);
+    const cached = await getCache<PendingRegistration>(key);
+    if (cached) return cached;
 
-    // Find the latest valid OTP
+    return pendingRegistrationMemory.get(key) ?? null;
+  }
+
+  private static async clearPendingRegistration(email: string) {
+    const key = registrationCacheKey(email);
+    await delCache(key);
+    pendingRegistrationMemory.delete(key);
+  }
+
+  private static async verifyOtpCode(email: string, otp: string) {
     const otpRecord = await prisma.otpVerification.findFirst({
       where: {
         email,
@@ -72,35 +182,123 @@ export class AuthService {
       throw new Error('Invalid OTP');
     }
 
-    // Mark OTP as used
     await prisma.otpVerification.update({
       where: { id: otpRecord.id },
       data: { is_used: true },
     });
+  }
 
-    // Create User
-    const hashedPassword = await hashPassword(password);
-    const user = await prisma.user.create({
-      data: {
-        email,
-        full_name,
-        password_hash: hashedPassword,
-        role: 'pending', // Pending admin approval
-      },
+  static async register(input: RegisterInput) {
+    const email = normalizeEmail(input.email);
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
 
-    // Generate Token
-    const token = generateToken({ userId: user.id, role: user.role });
+    if (existingUser) {
+      throw new Error('User already exists');
+    }
 
-    return { 
-      user: { id: user.id, email: user.email, role: user.role, full_name: user.full_name }, 
-      token 
-    };
+    await AuthService.ensureParentRegistrationInput({ ...input, email });
+    await AuthService.ensureResendCooldown(email);
+
+    await AuthService.putPendingRegistration({
+      full_name: input.full_name,
+      email,
+      password: input.password,
+      role: input.role,
+      student_id_no: input.student_id_no,
+    });
+    await AuthService.createOtp(email);
+
+    return { message: 'OTP sent to your email' };
+  }
+
+  static async verifyOtp(input: VerifyOtpInput) {
+    const email = normalizeEmail(input.email);
+    const pendingRegistration = await AuthService.getPendingRegistration(email);
+
+    if (!pendingRegistration) {
+      throw new Error('No pending registration found. Please register again.');
+    }
+
+    await AuthService.verifyOtpCode(email, input.otp);
+
+    const hashedPassword = await hashPassword(pendingRegistration.password);
+
+    const createdUser = await prisma.$transaction(async (tx) => {
+      if (pendingRegistration.role === 'parent') {
+        if (!pendingRegistration.student_id_no) {
+          throw new Error('student_id_no is required for parent registration');
+        }
+
+        const student = await tx.student.findUnique({
+          where: { student_id_no: pendingRegistration.student_id_no },
+          select: {
+            id: true,
+            is_parent_linked: true,
+            parent_email: true,
+            is_active: true,
+          },
+        });
+
+        if (!student || !student.is_active) {
+          throw new Error('Student not found');
+        }
+
+        if (student.is_parent_linked) {
+          throw new Error('This student is already linked to a parent account');
+        }
+
+        if (!student.parent_email || normalizeEmail(student.parent_email) !== email) {
+          throw new Error('Registration email does not match school records');
+        }
+
+        const parent = await tx.user.create({
+          data: {
+            email,
+            full_name: pendingRegistration.full_name,
+            password_hash: hashedPassword,
+            role: 'parent',
+          },
+        });
+
+        await tx.parentStudent.create({
+          data: {
+            parent_id: parent.id,
+            student_id: student.id,
+            verified_via: 'email',
+          },
+        });
+
+        await tx.student.update({
+          where: { id: student.id },
+          data: { is_parent_linked: true },
+        });
+
+        return parent;
+      }
+
+      return tx.user.create({
+        data: {
+          email,
+          full_name: pendingRegistration.full_name,
+          password_hash: hashedPassword,
+          role: 'pending',
+        },
+      });
+    });
+
+    await AuthService.clearPendingRegistration(email);
+    return buildAuthPayload(createdUser);
   }
 
   static async login(input: LoginInput) {
+    const email = normalizeEmail(input.email);
+
     const user = await prisma.user.findUnique({
-      where: { email: input.email },
+      where: { email },
     });
 
     if (!user) {
@@ -116,11 +314,138 @@ export class AuthService {
       throw new Error('Account disabled or suspended');
     }
 
-    const token = generateToken({ userId: user.id, role: user.role });
+    if (user.role === 'pending') {
+      throw new Error('ACCOUNT_PENDING');
+    }
 
-    return { 
-      user: { id: user.id, email: user.email, role: user.role, full_name: user.full_name }, 
-      token 
+    return buildAuthPayload(user);
+  }
+
+  static async resendOtp(input: ResendOtpInput) {
+    const email = normalizeEmail(input.email);
+    const pendingRegistration = await AuthService.getPendingRegistration(email);
+
+    if (!pendingRegistration) {
+      throw new Error('No pending registration found. Please register again.');
+    }
+
+    await AuthService.ensureResendCooldown(email);
+    await AuthService.createOtp(email);
+
+    return { message: 'OTP resent successfully' };
+  }
+
+  static async forgotPassword(input: ForgotPasswordInput) {
+    const email = normalizeEmail(input.email);
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      return { message: 'If an account exists for this email, an OTP has been sent.' };
+    }
+
+    await AuthService.ensureResendCooldown(email);
+    await AuthService.createOtp(email);
+
+    return { message: 'If an account exists for this email, an OTP has been sent.' };
+  }
+
+  static async resetPassword(input: ResetPasswordInput) {
+    const email = normalizeEmail(input.email);
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await AuthService.verifyOtpCode(email, input.otp);
+    const password_hash = await hashPassword(input.new_password);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password_hash },
+    });
+
+    return { message: 'Password reset successful' };
+  }
+
+  static async refresh(userClaims: JwtClaims) {
+    const user = await prisma.user.findUnique({
+      where: { id: userClaims.userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        full_name: true,
+        is_active: true,
+        is_suspended: true,
+      },
+    });
+
+    if (!user || !user.is_active || user.is_suspended || user.role === 'pending') {
+      throw new Error('Session is no longer valid');
+    }
+
+    return buildAuthPayload(user);
+  }
+
+  static async logout() {
+    return { message: 'Logout successful' };
+  }
+
+  static async logoutAll() {
+    return { message: 'Logout from all sessions successful' };
+  }
+
+  static async linkChild(input: LinkChildInput) {
+    const student = await prisma.student.findUnique({
+      where: { student_id_no: input.student_id_no },
+      select: {
+        id: true,
+        full_name: true,
+        parent_email: true,
+        parent_mobile: true,
+        is_parent_linked: true,
+        is_active: true,
+        class: {
+          select: {
+            name: true,
+            school_grade: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!student || !student.is_active) {
+      throw new Error('Student not found');
+    }
+
+    if (student.is_parent_linked) {
+      throw new Error('This student is already linked to a parent account');
+    }
+
+    const targetEmail = student.parent_email?.trim().toLowerCase();
+    if (!targetEmail) {
+      throw new Error('No parent contact details found for this student');
+    }
+
+    await AuthService.ensureResendCooldown(targetEmail);
+    await AuthService.createOtp(targetEmail);
+
+    return {
+      student: {
+        full_name: student.full_name,
+        class: student.class ? `${student.class.school_grade.name} ${student.class.name}` : null,
+      },
+      message: `OTP sent to stored ${input.verification_method === 'sms' ? 'mobile contact' : 'email'}`,
     };
+  }
+
+  static async updateFcmToken(userId: string, input: UpdateFcmTokenInput) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { fcm_token: input.fcm_token },
+    });
+
+    return { message: 'FCM token updated' };
   }
 }
