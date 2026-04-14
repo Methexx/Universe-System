@@ -2,9 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LogOut, Target } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { SIDEBAR_MENU, Role } from "./sidebarConfig";
 
 interface SidebarProps {
@@ -36,15 +37,16 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         )}
       >
         {/* Logo / Header */}
-        <div className="flex h-[72px] shrink-0 items-center px-6 border-b border-[#ecece8]">
-          <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5340eb] text-white">
-              <Target className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-lg font-bold text-gray-900 tracking-tight">Logoipsum</span>
-              <span className="text-xs font-semibold text-gray-500">Foundation</span>
-            </div>
+        <div className="flex h-[72px] shrink-0 items-center justify-center border-b border-[#ecece8]">
+          <Link href={`/${role}/overview`} className="flex items-center" onClick={onClose}>
+            <Image 
+              src="/Assets/Logo.svg" 
+              alt="Logoipsum Foundation"
+              width={160}
+              height={40}
+              className="object-contain"
+              priority
+            />
           </Link>
         </div>
 
