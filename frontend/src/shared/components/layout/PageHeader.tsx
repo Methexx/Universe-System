@@ -39,11 +39,8 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
     if (isRefreshing) return;
     
     setIsRefreshing(true);
-    // Simulate refresh delay (1.5 seconds)
-    setTimeout(() => {
-      setLastUpdated(new Date());
-      setIsRefreshing(false);
-    }, 1500);
+    // Perform a hard reload of the page
+    window.location.reload();
   };
 
   const formattedTimeParts = time ? {
