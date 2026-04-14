@@ -1,6 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { AuthController } from './auth.controller';
-import { registerSchema, verifyOtpSchema, loginSchema } from './auth.schema';
+import {
+  forgotPasswordSchema,
+  linkChildSchema,
+  loginSchema,
+  registerSchema,
+  resendOtpSchema,
+  resetPasswordSchema,
+  updateFcmTokenSchema,
+  verifyOtpSchema,
+} from './auth.schema';
+import { authenticate } from '../../common/middleware/authenticate';
 
 const zodToJsonSchema = (schema: any) => {
   // Simple mapping or use a library like zod-to-json-schema if needed
@@ -39,4 +49,49 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     }
   }, AuthController.login);
+
+  fastify.post('/resend-otp', {
+    preHandler: async (request) => {
+      resendOtpSchema.parse({ body: request.body });
+    },
+  }, AuthController.resendOtp);
+
+  fastify.post('/forgot-password', {
+    preHandler: async (request) => {
+      forgotPasswordSchema.parse({ body: request.body });
+    },
+  }, AuthController.forgotPassword);
+
+  fastify.post('/reset-password', {
+    preHandler: async (request) => {
+      resetPasswordSchema.parse({ body: request.body });
+    },
+  }, AuthController.resetPassword);
+
+  fastify.put('/link-child', {
+    preHandler: async (request) => {
+      linkChildSchema.parse({ body: request.body });
+    },
+  }, AuthController.linkChild);
+
+  fastify.post('/refresh', {
+    preHandler: [authenticate],
+  }, AuthController.refresh);
+
+  fastify.post('/logout', {
+    preHandler: [authenticate],
+  }, AuthController.logout);
+
+  fastify.post('/logout-all', {
+    preHandler: [authenticate],
+  }, AuthController.logoutAll);
+
+  fastify.put('/fcm-token', {
+    preHandler: [
+      authenticate,
+      async (request) => {
+        updateFcmTokenSchema.parse({ body: request.body });
+      },
+    ],
+  }, AuthController.updateFcmToken);
 }

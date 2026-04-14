@@ -1,6 +1,5 @@
 'use client';
 
-import { APP_ROUTES } from '@/core/constants/routes';
 import Link from 'next/link';
 import Image from 'next/image';
 import React, { useState } from 'react';
@@ -25,7 +24,7 @@ export function LoginForm() {
 
     if (Object.keys(nextErrors).length === 0) {
       // This will be replaced by API integration in the next step.
-      window.location.assign(APP_ROUTES.dashboard);
+      window.location.assign('/admin/overview');
     }
   }
 
