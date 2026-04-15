@@ -4,41 +4,67 @@ import React, { useState } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
+import { DirectoryTable } from '@/shared/components/ui/DirectoryTable';
 import { Calendar as CalendarIcon, CheckCircle2, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { StudentProfileCard } from './components/StudentProfileCard';
 import { AddStudentButton } from './components/AddStudentButton';
 import { GradesHistory } from './components/GradesHistory';
+import { EditStudentModal, Student } from './components/EditStudentModal';
 
-const MOCK_STUDENTS = [
-  { id: '204857', name: 'Amara Nkwonta', email: 'amara.nkwonta@example.com', class: '11-B', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=1' },
-  { id: '985730', name: 'Ikenna Okoro', email: 'ikenna.okoro@example.com', class: '12B', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=11' },
-  { id: '685937', name: 'Ngozi Eze', email: 'ngozi.eze@example.com', class: '7A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=5' },
-  { id: '793586', name: 'Obinna Okafor', email: 'obinna.okafor@example.com', class: 'SS 2', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=8' },
-  { id: '475869', name: 'Adaobi Musa', email: 'adaobi.musa@example.com', class: '10-F', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=9' },
-  { id: '109576', name: 'Chinedu Obi', email: 'chinedu.obi@example.com', class: 'JSS 2', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=12' },
-  { id: '896745', name: 'Ifeoma Adebayo', email: 'ifeoma.adebayo@example.com', class: '12-A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=10' },
-  { id: '394657', name: 'Emeka Okeke', email: 'emeka.okeke@example.com', class: 'JSS 3', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=13' },
-  { id: '586970', name: 'Chinwe Azikiwe', email: 'chinwe.azikiwe@example.com', class: '10-A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=16' },
-  { id: '295867', name: 'Abimbola Tinubu', email: 'abimbola.tinubu@example.com', class: 'JSS 1', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=20' },
-  { id: '697850', name: 'Babatunde Fashola', email: 'babatunde.fashola@example.com', class: '11-C', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=68' },
+const INITIAL_STUDENTS: Student[] = [
+  { id: '204857', name: 'Amara Nkwonta', email: 'amara.nkwonta@example.com', class: '11-B', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=1', status: 'Active', parentId: 'P-93821' },
+  { id: '985730', name: 'Ikenna Okoro', email: 'ikenna.okoro@example.com', class: '12B', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=11', status: 'Active', parentId: 'P-12839' },
+  { id: '685937', name: 'Ngozi Eze', email: 'ngozi.eze@example.com', class: '7A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=5', status: 'Active', parentId: 'P-48291' },
+  { id: '793586', name: 'Obinna Okafor', email: 'obinna.okafor@example.com', class: 'SS 2', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=8', status: 'Suspended', parentId: 'P-83726' },
+  { id: '475869', name: 'Adaobi Musa', email: 'adaobi.musa@example.com', class: '10-F', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=9', status: 'Active', parentId: 'P-94821' },
+  { id: '109576', name: 'Chinedu Obi', email: 'chinedu.obi@example.com', class: 'JSS 2', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=12', status: 'Active', parentId: 'P-23847' },
+  { id: '896745', name: 'Ifeoma Adebayo', email: 'ifeoma.adebayo@example.com', class: '12-A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=10', status: 'Active', parentId: 'P-57382' },
+  { id: '394657', name: 'Emeka Okeke', email: 'emeka.okeke@example.com', class: 'JSS 3', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=13', status: 'Active', parentId: 'P-10485' },
+  { id: '586970', name: 'Chinwe Azikiwe', email: 'chinwe.azikiwe@example.com', class: '10-A', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=16', status: 'Active', parentId: 'P-92837' },
+  { id: '295867', name: 'Abimbola Tinubu', email: 'abimbola.tinubu@example.com', class: 'JSS 1', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=20', status: 'Active', parentId: 'P-48201' },
+  { id: '697850', name: 'Babatunde Fashola', email: 'babatunde.fashola@example.com', class: '11-C', gender: 'Male', avatar: 'https://i.pravatar.cc/150?img=68', status: 'Active', parentId: 'P-91827' },
 ];
 
 export default function StudentsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'attendance' | 'grades'>('general');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('475869');
   
+  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
 
-  const filteredStudents = MOCK_STUDENTS.filter(s => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+
+  const filteredStudents = students.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.includes(searchQuery);
     const matchesClass = classFilter ? s.class === classFilter : true;
     return matchesSearch && matchesClass;
   });
 
   const selectedStudent = filteredStudents.find(s => s.id === selectedStudentId);
+
+  const handleEditClick = (id: string) => {
+    setEditingStudentId(id);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveStudent = (updatedStudent: Student) => {
+    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+    setIsEditModalOpen(false);
+    setEditingStudentId(null);
+  };
+
+  const handleDeleteStudent = (id: string) => {
+    setStudents(prev => prev.filter(s => s.id !== id));
+    if (selectedStudentId === id) {
+      setSelectedStudentId('');
+    }
+    setIsEditModalOpen(false);
+    setEditingStudentId(null);
+  };
 
   return (
     <div className="flex flex-col gap-[10px] pb-12 w-full pr-2">
@@ -137,98 +163,16 @@ export default function StudentsPage() {
     
     
     
-              {/* Table */}
-    
-              <div className="overflow-x-auto w-full">
-    
-                <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
-    
-                  <thead className="bg-[#fafafa] border-b border-gray-100 text-gray-700 font-bold text-[13px] tracking-wider">
-    
-                    <tr>
-    
-                      <th className="py-4 px-6 font-bold">Name</th>
-    
-                      <th className="py-4 px-6 font-bold">Student ID</th>
-    
-                      <th className="py-4 px-6 font-bold">Email address</th>
-    
-                      <th className="py-4 px-6 font-bold">Class</th>
-    
-                      <th className="py-4 px-6 font-bold">Gender</th>
-    
-                    </tr>
-    
-                  </thead>
-    
-                  <tbody className="font-medium">
-    
-                    {filteredStudents.length > 0 ? filteredStudents.map((student) => {
-    
-                      const isSelected = student.id === selectedStudentId;
-    
-                      return (
-    
-                        <tr 
-    
-                          key={student.id} 
-    
-                          onClick={() => setSelectedStudentId(student.id)}
-    
-                          className={clsx(
-    
-                            "cursor-pointer transition-colors border-b border-gray-50/50",
-    
-                            isSelected ? "bg-[#4f8bf9] text-white" : "bg-[#f8fafc] text-gray-700 hover:bg-gray-50"
-    
-                          )}
-    
-                        >
-    
-                          <td className="py-3 px-6">
-    
-                            <div className="flex items-center gap-4">
-    
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={student.avatar} alt={student.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
-    
-                              <span className={clsx("font-bold text-[14px]", isSelected ? "text-white" : "text-[#0f172a]")}>{student.name}</span>
-    
-                            </div>
-    
-                          </td>
-    
-                          <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{student.id}</td>
-    
-                          <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{student.email}</td>
-    
-                          <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{student.class}</td>
-    
-                          <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{student.gender}</td>
-    
-                        </tr>
-    
-                      );
-    
-                    }) : (
-    
-                      <tr>
-    
-                        <td colSpan={5} className="py-8 text-center text-gray-500">
-    
-                          No students found matching your criteria.
-    
-                        </td>
-    
-                      </tr>
-    
-                    )}
-    
-                  </tbody>
-    
-                </table>
-    
-              </div>
+                            {/* Table */}
+              <DirectoryTable 
+                users={filteredStudents}
+                selectedId={selectedStudentId}
+                onSelect={setSelectedStudentId}
+                idColumnHeader="Student ID"
+                emptyMessage="No students found matching your criteria."
+                showEdit={true}
+                onEdit={handleEditClick}
+              />
   </div>
 )}
 
@@ -302,6 +246,19 @@ export default function StudentsPage() {
         {/* Right Column - Profile Card */}
         <StudentProfileCard student={selectedStudent} />
       </div>
+
+      {isEditModalOpen && editingStudentId && (
+        <EditStudentModal
+          student={students.find(s => s.id === editingStudentId)!}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingStudentId(null);
+          }}
+          onSave={handleSaveStudent}
+          onDelete={handleDeleteStudent}
+        />
+      )}
     </div>
   );
 }
