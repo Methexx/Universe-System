@@ -77,7 +77,7 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
       </div>
 
       {/* Right side: User Profile */}
-      <div className="flex items-center gap-4">
+      <Link href="/admin/profile" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end">
             <span className="text-sm font-bold text-gray-900 leading-tight">
@@ -87,7 +87,7 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
               {userParams.roleLevel}
             </span>
           </div>
-          <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200 border border-gray-300">
+          <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200 border border-[var(--line)]">
             {userParams.avatarUrl ? (
               <Image
                 src={userParams.avatarUrl}
@@ -98,13 +98,13 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
                 unoptimized
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-400">
-                <Menu className="h-4 w-4" />
+              <div className="flex h-full w-full items-center justify-center bg-[#1e293b] text-white font-bold text-sm">
+                {userParams.name.charAt(0)}
               </div>
             )}
           </div>
         </div>
-      </div>
+      </Link>
     </header>
   );
 }
