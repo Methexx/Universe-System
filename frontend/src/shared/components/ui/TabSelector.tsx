@@ -6,6 +6,7 @@ import clsx from "clsx";
 export interface TabOption {
   id: string;
   label: string;
+  badge?: number;
 }
 
 interface TabSelectorProps {
@@ -16,22 +17,27 @@ interface TabSelectorProps {
 
 export function TabSelector({ options, activeTab, onTabChange }: TabSelectorProps) {
   return (
-    <div className="inline-flex rounded-lg overflow-hidden border border-gray-200">
-      {options.map((option, index) => {
+    <div className="flex items-center gap-4">
+      {options.map((option) => {
         const isActive = activeTab === option.id;
-        const isLast = index === options.length - 1;
         
         return (
           <button
             key={option.id}
             onClick={() => onTabChange(option.id)}
             className={clsx(
-              "px-5 py-1.5 text-sm font-semibold transition-colors",
-              isActive ? "bg-indigo-50 text-indigo-600" : "bg-white text-gray-500 hover:bg-gray-50",
-              !isLast && "border-r border-gray-200"
+              "px-6 py-2.5 rounded-full text-[14px] font-bold transition-all relative flex items-center justify-center",
+              isActive 
+                ? "bg-white text-[#3b82f6] border-2 border-[#3b82f6] shadow-sm" 
+                : "bg-white text-[#475569] border border-gray-200 hover:bg-gray-50"
             )}
           >
             {option.label}
+            {option.badge !== undefined && option.badge > 0 && (
+              <span className="absolute -top-2.5 -right-2.5 bg-[#ef4444] text-white text-[12px] font-bold min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1 shadow-sm">
+                {option.badge}
+              </span>
+            )}
           </button>
         );
       })}
