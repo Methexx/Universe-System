@@ -4,41 +4,101 @@ import React, { useState } from 'react';
 import { StatCard } from '@/shared/components/ui/StatCard';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
-import { Eye, Search, Filter, Calendar as CalendarIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { FilterBar } from '@/shared/components/ui/FilterBar';
+import { Eye, CheckCircle2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
 import clsx from 'clsx';
+
+const MOCK_GATE_LOGS = [
+  { id: '29854', dateStr: 'Today', dateFull: 'Oct 25, 2024', checkIn: '09:12 AM', checkOut: '-- : --', status: 'QR', class: '11-A' },
+  { id: '18392', dateStr: 'Today', dateFull: 'Oct 25, 2024', checkIn: '08:45 AM', checkOut: '-- : --', status: 'Manual', class: '10-B' },
+  { id: '29855', dateStr: 'Yesterday', dateFull: 'Oct 24, 2024', checkIn: '08:30 AM', checkOut: '03:15 PM', status: 'QR', class: '11-A' },
+  { id: '40122', dateStr: 'Today', dateFull: 'Oct 25, 2024', checkIn: '09:05 AM', checkOut: '-- : --', status: 'Manual', class: '12-C' },
+  { id: '10293', dateStr: 'Yesterday', dateFull: 'Oct 24, 2024', checkIn: '08:25 AM', checkOut: '03:10 PM', status: 'QR', class: '10-A' },
+];
+
+const MOCK_CLASSROOM_LOGS = [
+  { id: '29854', name: 'Pathirana', class: '11-A' },
+  { id: '18392', name: 'Silva', class: '10-B' },
+  { id: '29855', name: 'Perera', class: '11-A' },
+  { id: '40122', name: 'Fernando', class: '12-C' },
+  { id: '10293', name: 'Jayasinghe', class: '10-A' },
+];
 
 export default function AttendancePage() {
   const [activeTab, setActiveTab] = useState<'gate' | 'classroom'>('gate');
+  
+  // Gate Filters
+  const [gateSearch, setGateSearch] = useState('');
+  const [gateStatus, setGateStatus] = useState('');
+  const [gateClass, setGateClass] = useState('');
+  const [gateTime, setGateTime] = useState('');
+
+  // Classroom Filters
+  const [classSearch, setClassSearch] = useState('');
+  const [classMonth, setClassMonth] = useState('');
+  const [classWeek, setClassWeek] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+
+  // Filter Logic
+  const filteredGateLogs = MOCK_GATE_LOGS.filter(log => {
+    const matchesSearch = log.id.includes(gateSearch);
+    const matchesStatus = gateStatus ? log.status.toLowerCase() === gateStatus : true;
+    const matchesClass = gateClass ? log.class === gateClass : true;
+    const matchesTime = gateTime ? log.dateStr.toLowerCase() === gateTime : true;
+    return matchesSearch && matchesStatus && matchesClass && matchesTime;
+  });
+
+  const filteredClassroomLogs = MOCK_CLASSROOM_LOGS.filter(log => {
+    const matchesSearch = log.id.includes(classSearch) || log.name.toLowerCase().includes(classSearch.toLowerCase());
+    const matchesClass = classFilter ? log.class === classFilter : true;
+    return matchesSearch && matchesClass;
+  });
 
   const renderGateTable = () => (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative w-[320px]">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input 
-            type="text" 
-            placeholder="Search Student by ID" 
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-              All Statuses
-              <Filter className="h-4 w-4 text-gray-400" />
-           </button>
-           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-              Class 11A
-              <Filter className="h-4 w-4 text-gray-400" />
-           </button>
-           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-              <CalendarIcon className="h-4 w-4 text-gray-400" />
-              Today
-              <Filter className="h-4 w-4 text-gray-400" />
-           </button>
-        </div>
+      <div className="flex items-center justify-between w-full">
+        <FilterBar 
+          searchPlaceholder="Search Student by ID"
+          searchValue={gateSearch}
+          onSearchChange={setGateSearch}
+          filters={[
+            {
+              id: "status",
+              label: "All Statuses",
+              value: gateStatus,
+              onChange: setGateStatus,
+              options: [
+                { label: "QR", value: "qr" },
+                { label: "Manual", value: "manual" }
+              ]
+            },
+            {
+              id: "class",
+              label: "All Classes",
+              value: gateClass,
+              onChange: setGateClass,
+              options: [
+                { label: "10-A", value: "10-A" },
+                { label: "10-B", value: "10-B" },
+                { label: "11-A", value: "11-A" },
+                { label: "12-C", value: "12-C" }
+              ]
+            },
+            {
+              id: "time",
+              label: "Any Time",
+              value: gateTime,
+              onChange: setGateTime,
+              options: [
+                { label: "Today", value: "today" },
+                { label: "Yesterday", value: "yesterday" }
+              ]
+            }
+          ]}
+        />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-6">
         <table className="w-full text-left text-sm">
           <thead className="bg-white border-b border-gray-200 text-gray-500 font-medium">
             <tr>
@@ -50,36 +110,33 @@ export default function AttendancePage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-gray-900 font-medium bg-white">
-            {[...Array(5)].map((_, i) => (
+            {filteredGateLogs.length > 0 ? filteredGateLogs.map((log, i) => (
               <tr key={i} className="hover:bg-gray-50/50">
-                <td className="py-4 px-6 text-center">29854</td>
+                <td className="py-4 px-6 text-center">{log.id}</td>
                 <td className="py-4 px-6 text-center">
-                  <span className="block font-bold">Today</span>
-                  <span className="block text-xs font-normal text-gray-400 mt-1">Oct 25, 2024</span>
+                  <span className="block font-bold">{log.dateStr}</span>
+                  <span className="block text-xs font-normal text-gray-400 mt-1">{log.dateFull}</span>
                 </td>
-                <td className="py-4 px-6 text-center">09:12 AM</td>
-                <td className="py-4 px-6 text-center text-gray-400">-- : --</td>
+                <td className="py-4 px-6 text-center">{log.checkIn}</td>
+                <td className="py-4 px-6 text-center text-gray-400">{log.checkOut}</td>
                 <td className="py-4 px-6 text-center">
-                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#dcfce7] text-[#16a34a] text-xs font-bold min-w-[70px]">
-                    QR
-                  </span>
-                </td>
-              </tr>
-            ))}
-             <tr className="hover:bg-gray-50/50">
-                <td className="py-4 px-6 text-center">29854</td>
-                <td className="py-4 px-6 text-center">
-                  <span className="block font-bold">Today</span>
-                  <span className="block text-xs font-normal text-gray-400 mt-1">Oct 25, 2024</span>
-                </td>
-                <td className="py-4 px-6 text-center">09:12 AM</td>
-                <td className="py-4 px-6 text-center text-gray-400">-- : --</td>
-                <td className="py-4 px-6 text-center">
-                   <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#bbf7d0] text-[#16a34a] text-xs font-bold min-w-[70px] bg-opacity-40">
-                      Manual
+                   <span className={clsx(
+                     "inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold min-w-[70px]",
+                     log.status === "QR" 
+                      ? "bg-[#dcfce7] text-[#16a34a]"
+                      : "bg-[#bbf7d0] text-[#16a34a] bg-opacity-40"
+                   )}>
+                      {log.status}
                     </span>
                 </td>
               </tr>
+            )) : (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-gray-500">
+                  No logs found matching your criteria.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -102,33 +159,51 @@ export default function AttendancePage() {
 
     return (
       <>
-        <div className="flex items-center justify-between mb-4">
-          <div className="relative w-[320px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input 
-              type="text" 
-              placeholder="Search Student by ID" 
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-                <CalendarIcon className="h-4 w-4 text-gray-400" />
-                April 2024
-                <Filter className="h-4 w-4 text-gray-400" />
-             </button>
-             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-                Week 2-3
-                <Filter className="h-4 w-4 text-gray-400" />
-             </button>
-             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
-                Class 11A
-                <Filter className="h-4 w-4 text-gray-400" />
-             </button>
-          </div>
-        </div>
+        <FilterBar
+          searchPlaceholder="Search Student by ID or Name"
+          searchValue={classSearch}
+          onSearchChange={setClassSearch}
+          filters={[
+            {
+              id: 'month',
+              label: classMonth || 'Month',
+              icon: <CalendarIcon className="h-4 w-4" />,
+              options: [
+                { label: 'April 2024', value: 'April 2024' },
+                { label: 'May 2024', value: 'May 2024' },
+                { label: 'June 2024', value: 'June 2024' }
+              ],
+              value: classMonth,
+              onChange: setClassMonth,
+            },
+            {
+              id: 'week',
+              label: classWeek || 'Week',
+              options: [
+                { label: 'Week 1', value: 'Week 1' },
+                { label: 'Week 2', value: 'Week 2' },
+                { label: 'Week 3', value: 'Week 3' },
+                { label: 'Week 4', value: 'Week 4' }
+              ],
+              value: classWeek,
+              onChange: setClassWeek,
+            },
+            {
+              id: 'class',
+              label: classFilter || 'Class',
+              options: [
+                { label: '10-A', value: '10-A' },
+                { label: '10-B', value: '10-B' },
+                { label: '11-A', value: '11-A' },
+                { label: '12-C', value: '12-C' }
+              ],
+              value: classFilter,
+              onChange: setClassFilter,
+            }
+          ]}
+        />
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto mt-6">
           <table className="w-full text-left text-sm whitespace-nowrap min-w-[1000px]">
             <thead className="bg-[#fafafa] border-b border-gray-200 text-gray-400 font-semibold text-xs tracking-wider">
               <tr>
@@ -141,10 +216,10 @@ export default function AttendancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-700 font-medium bg-white">
-              {[...Array(6)].map((_, rowIndex) => (
+              {filteredClassroomLogs.length > 0 ? filteredClassroomLogs.map((log, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-gray-50/50">
                   <td className="py-4 px-6 text-[13px] text-[#475569]">
-                    Pathirana 29854
+                    {log.name} {log.id}
                   </td>
                   {days.map((day) => (
                     <td key={day} className="py-4 px-2">
@@ -154,7 +229,13 @@ export default function AttendancePage() {
                     </td>
                   ))}
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={days.length + 1} className="py-8 text-center text-gray-500">
+                    No logs found matching your criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
