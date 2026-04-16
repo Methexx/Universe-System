@@ -27,6 +27,8 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
       admin: "Admin",
       overview: "Overview",
       policies: "Policies",
+      security: "Security Dashboard",
+      dashboard: "Attendance",
     };
     
     return parts.map((part, index) => {

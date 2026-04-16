@@ -45,11 +45,6 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
     { title: "Profile", icon: User, path: "/teacher/profile" },
   ],
   security: [
-    { title: "Overview", icon: LayoutDashboard, path: "/security/overview" },
-    { title: "Gate Logs", icon: Clock, path: "/security/logs" },
-    { title: "Vehicles", icon: Car, path: "/security/vehicles" },
-    { title: "Visitors", icon: Users, path: "/security/visitors" },
-    { title: "Incidents", icon: AlertOctagon, path: "/security/incidents" },
-    { title: "Profile", icon: User, path: "/security/profile" },
+    { title: "Dashboard", icon: LayoutDashboard, path: "/security/dashboard" },
   ],
 };
