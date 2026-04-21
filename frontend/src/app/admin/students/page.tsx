@@ -7,10 +7,10 @@ import { FilterBar } from '@/shared/components/ui/FilterBar';
 import { DirectoryTable } from '@/shared/components/ui/DirectoryTable';
 import { Calendar as CalendarIcon, CheckCircle2, XCircle } from 'lucide-react';
 import clsx from 'clsx';
-import { StudentProfileCard } from './components/StudentProfileCard';
-import { AddStudentButton } from './components/AddStudentButton';
-import { GradesHistory } from './components/GradesHistory';
-import { EditStudentModal, Student } from './components/EditStudentModal';
+import { StudentProfileCard } from '@/shared/components/admin/StudentProfileCard';
+import { AddStudentButton } from '@/shared/components/admin/AddStudentButton';
+import { GradesHistory } from '@/shared/components/admin/GradesHistory';
+import { EditStudentModal, Student } from '@/shared/components/admin/EditStudentModal';
 
 const INITIAL_STUDENTS: Student[] = [
   { id: '204857', name: 'Amara Nkwonta', email: 'amara.nkwonta@example.com', class: '11-B', gender: 'Female', avatar: 'https://i.pravatar.cc/150?img=1', status: 'Active', parentId: 'P-93821' },

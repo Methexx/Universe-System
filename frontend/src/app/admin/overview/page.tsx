@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { StatCard } from "@/shared/components/ui/StatCard";
+import { DonutChart } from "@/shared/components/ui/DonutChart";
 import { Eye, Bookmark, Activity } from "lucide-react";
 import Link from "next/link";
 import {
@@ -13,9 +14,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import clsx from "clsx";
 
@@ -116,29 +114,7 @@ export default function AdminOverviewPage() {
       {/* Top Stat Row */}
       <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4">
         {/* Donut Chart Card */}
-        <div className="col-span-1 flex flex-col items-center justify-center relative h-[180px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                innerRadius={65}
-                outerRadius={90}
-                paddingAngle={4}
-                dataKey="value"
-                stroke="none"
-                startAngle={90}
-                endAngle={450}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-[14px] font-bold text-[#1e293b]">Attendance</span>
-          </div>
-        </div>
+        <DonutChart data={pieData} centerLabel="Attendance" />
 
         {/* Stat Card 1 */}
         <StatCard 
