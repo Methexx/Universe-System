@@ -72,21 +72,6 @@ export function StudentProfileCard({ student }: StudentProfileCardProps) {
                   }`}>{student.status || 'Active'}</span>
               </div>
           </div>
-
-          <div className="w-full mt-10 px-2">
-              <h4 className="text-[13px] font-bold text-[#0f172a] mb-4">People from the same class</h4>
-              <div className="flex items-center gap-3">
-                  {/* eslint-disable @next/next/no-img-element */}
-                  <div className="flex -space-x-3">
-                      <img src="https://i.pravatar.cc/150?img=1" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                      <img src="https://i.pravatar.cc/150?img=2" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                      <img src="https://i.pravatar.cc/150?img=3" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                      <img src="https://i.pravatar.cc/150?img=4" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                  </div>
-                  {/* eslint-enable @next/next/no-img-element */}
-                  <span className="text-[12px] font-bold text-[#3b82f6]">+12 more</span>
-              </div>
-          </div>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-[300px] text-center w-full my-auto text-gray-400">
