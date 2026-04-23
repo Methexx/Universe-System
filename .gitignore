@@ -8,3 +8,8 @@ build
 # Workspace sub-lockfiles (root package-lock.json is the single source of truth)
 apps/frontend/package-lock.json
 apps/backend/package-lock.json
+
+# Local AI assistant/workflow directories
+.agents/
+.claude/
+.continue/
