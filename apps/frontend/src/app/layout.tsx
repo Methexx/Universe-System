@@ -18,10 +18,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${kumbhSans.variable} antialiased`}
         style={{ fontFamily: "var(--font-kumbh-sans), sans-serif" }}
+        suppressHydrationWarning
       >
         {children}
       </body>
