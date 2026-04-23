@@ -1,0 +1,237 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector, uuid_ossp(map: "uuid-ossp")]
+}
+
+// ==========================================
+// PHASE 1: AUTHENTICATION
+// ==========================================
+
+model User {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email         String   @unique
+  password_hash String
+  role          String   @default("pending") // 'pending' | 'teacher' | 'security' | 'admin' | 'parent'
+  full_name     String?
+  avatar_url    String?
+  fcm_token     String?
+  is_active     Boolean  @default(true)
+  is_suspended  Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @db.Timestamptz()
+
+  classes_taught      Class[]
+  parent_links        ParentStudent[]
+  gate_scans          GateEvent[]
+  attendance_marked   AttendanceRecord[]
+  announcements       Announcement[]
+  messages_sent       Message[]          @relation("MessagesSent")
+  messages_received   Message[]          @relation("MessagesReceived")
+  complaints_filed    Complaint[]        @relation("ComplaintsFiled")
+  complaints_assigned Complaint[]        @relation("ComplaintsAssigned")
+  complaints_resolved Complaint[]        @relation("ComplaintsResolved")
+
+  @@index([email])
+  @@map("users")
+}
+
+model OtpVerification {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email      String
+  otp_code   String
+  expires_at DateTime @db.Timestamptz()
+  is_used    Boolean  @default(false)
+  attempts   Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([email])
+  @@map("otp_verifications")
+}
+
+// ==========================================
+// PHASE 2: CORE (Profiles, Students, Classes)
+// ==========================================
+
+model SchoolGrade {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name       String   @unique
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  classes Class[]
+
+  @@map("school_grades")
+}
+
+model Class {
+  id              String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  school_grade_id String      @db.Uuid
+  school_grade    SchoolGrade @relation(fields: [school_grade_id], references: [id], onDelete: Cascade)
+  name            String
+  teacher_id      String?     @db.Uuid
+  teacher         User?       @relation(fields: [teacher_id], references: [id])
+  subject         String?
+  created_at      DateTime    @default(now()) @db.Timestamptz()
+
+  students      Student[]
+  announcements Announcement[]
+
+  @@unique([school_grade_id, name])
+  @@index([teacher_id])
+  @@index([school_grade_id])
+  @@map("classes")
+}
+
+model Student {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  full_name        String
+  date_of_birth    DateTime @db.Date
+  photo_url        String?
+  student_id_no    String   @unique
+  qr_code          String   @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id         String?  @db.Uuid
+  class            Class?   @relation(fields: [class_id], references: [id])
+  parent_email     String?
+  parent_mobile    String?
+  is_parent_linked Boolean  @default(false)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @db.Timestamptz()
+
+  parents            ParentStudent[]
+  gate_events        GateEvent[]
+  attendance_records AttendanceRecord[]
+  messages           Message[]
+  complaints         Complaint[]
+
+  @@map("students")
+}
+
+model ParentStudent {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id    String   @db.Uuid
+  parent       User     @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id   String   @unique @db.Uuid
+  student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  relation     String?
+  verified_via String?
+  linked_at    DateTime @default(now()) @db.Timestamptz()
+
+  @@index([parent_id])
+  @@index([student_id])
+  @@map("parent_students")
+}
+
+// ==========================================
+// PHASE 3: GATE & ATTENDANCE 
+// ==========================================
+
+model GateEvent {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id    String   @db.Uuid
+  student       Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  scanned_by_id String?  @db.Uuid
+  scanned_by    User?    @relation(fields: [scanned_by_id], references: [id])
+  direction     String // 'IN' | 'OUT'
+  method        String   @default("qr") // 'qr' | 'manual'
+  manual_reason String?
+  timestamp     DateTime @default(now()) @db.Timestamptz()
+
+  @@index([student_id])
+  @@index([direction])
+  @@index([timestamp])
+  @@map("gate_events")
+}
+
+model AttendanceRecord {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id   String   @db.Uuid
+  student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  status       String   @default("absent") // 'present', 'absent', 'late', 'excused'
+  marked_by_id String?  @db.Uuid
+  marked_by    User?    @relation(fields: [marked_by_id], references: [id])
+  remarks      String?  @db.Text
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@unique([student_id, date])
+  @@index([date])
+  @@index([status])
+  @@map("attendance_records")
+}
+
+// ==========================================
+// PHASE 3: ANNOUNCEMENTS
+// ==========================================
+
+model Announcement {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  author_id  String   @db.Uuid
+  author     User     @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  title      String
+  content    String   @db.Text
+  scope      String   @default("school_wide") // 'school_wide' | 'class'
+  target     String   @default("all") // 'all' | 'parents_only' | 'staff_only' | class_id
+  class_id   String?  @db.Uuid
+  class      Class?   @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([author_id])
+  @@index([class_id])
+  @@index([scope])
+  @@map("announcements")
+}
+
+// ==========================================
+// PHASE 4: MESSAGES
+// ==========================================
+
+model Message {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sender_id   String   @db.Uuid
+  sender      User     @relation("MessagesSent", fields: [sender_id], references: [id], onDelete: Cascade)
+  receiver_id String   @db.Uuid
+  receiver    User     @relation("MessagesReceived", fields: [receiver_id], references: [id], onDelete: Cascade)
+  student_id  String?  @db.Uuid
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  is_read     Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([sender_id])
+  @@index([receiver_id])
+  @@index([student_id])
+  @@map("messages")
+}
+
+model Complaint {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id      String    @db.Uuid
+  parent         User      @relation("ComplaintsFiled", fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id     String?   @db.Uuid
+  student        Student?  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  category       String
+  description    String    @db.Text
+  status         String    @default("pending")
+  assigned_to_id String?   @db.Uuid
+  assigned_to    User?     @relation("ComplaintsAssigned", fields: [assigned_to_id], references: [id])
+  assigned_at    DateTime? @db.Timestamptz()
+  reply_note     String?   @db.Text
+  resolved_by_id String?   @db.Uuid
+  resolved_by    User?     @relation("ComplaintsResolved", fields: [resolved_by_id], references: [id])
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([parent_id])
+  @@index([status])
+  @@index([assigned_to_id])
+  @@map("complaints")
+}

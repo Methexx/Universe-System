@@ -1,0 +1,32 @@
+{
+  "name": "universe-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["frontend", "backend"],
+  "scripts": {
+    "prepare": "husky || true",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "frontend:lint": "npm run lint --prefix frontend",
+    "frontend:build": "npm run build --prefix frontend",
+    "backend:dev": "npm run dev --prefix backend",
+    "backend:test": "npm run test --prefix backend",
+    "lint": "npm run frontend:lint",
+    "test": "npm run backend:test",
+    "build": "npm run frontend:build"
+  },
+  "lint-staged": {
+    "frontend/**/*.{js,jsx,ts,tsx}": [
+      "npm run lint --prefix frontend -- --fix"
+    ],
+    "backend/**/*.{js,mjs,cjs}": [
+      "npm run lint --prefix backend -- --fix"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.3.0",
+    "prettier": "^3.3.3"
+  }
+}
