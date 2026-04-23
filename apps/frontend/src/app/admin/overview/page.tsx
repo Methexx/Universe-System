@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { Eye, TrendingUp, Bookmark, Activity } from "lucide-react";
+import { StatCard } from "@/shared/components/ui/StatCard";
+import { Eye, Bookmark, Activity } from "lucide-react";
 import Link from "next/link";
 import {
   AreaChart,
@@ -106,7 +107,7 @@ export default function AdminOverviewPage() {
   const currentColors = chartColorMap[chartColor];
 
   return (
-    <div className="flex flex-col gap-6 pb-12 w-full">
+    <div className="flex flex-col gap-[20px] pb-12 w-full pr-2">
       <PageHeader
         title="Overview"
         subtitle="Welcome back Sarah Joseph!"
@@ -140,47 +141,29 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Stat Card 1 */}
-        <div className="col-span-1 rounded-2xl border border-[#e0e7ff] bg-white p-[22px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[180px]">
-          <div className="flex items-center justify-between">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f8fafc] text-[#64748b] border border-[#f1f5f9]">
-              <Eye className="h-5 w-5" strokeWidth={2.5} />
-            </div>
-            <div className="flex items-center gap-[6px] rounded-full border border-[#e2e8f0] bg-white px-3 py-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
-              <TrendingUp className="h-[14px] w-[14px] text-[#3b82f6]" strokeWidth={3} />
-              <span className="text-[12px] font-bold text-[#0f172a]">+12.5%</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-[#64748b]">Today&apos;s Attendance</p>
-            <p className="mt-1 text-[26px] font-bold text-[#0f172a] leading-none">13245</p>
-          </div>
-        </div>
+        <StatCard 
+          title="Today's Attendance"
+          value="13245"
+          icon={Eye}
+          trendValue="+12.5%"
+          variant="default"
+        />
 
         {/* Stat Card 2 */}
-        <div className="col-span-1 rounded-2xl border border-[#e0e7ff] bg-white p-[22px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[180px]">
-           <div className="flex items-center justify-between">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f8fafc] text-[#64748b] border border-[#f1f5f9]">
-              <Eye className="h-5 w-5" strokeWidth={2.5} />
-            </div>
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-[#64748b]">Active Students Accounts</p>
-            <p className="mt-1 text-[26px] font-bold text-[#0f172a] leading-none">15000</p>
-          </div>
-        </div>
+        <StatCard 
+          title="Active Students Accounts"
+          value="15000"
+          icon={Eye}
+          variant="default"
+        />
 
         {/* Stat Card 3 (Red) */}
-        <div className="col-span-1 rounded-2xl border border-[#ffcfca] bg-[#ffeae6] p-[22px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[180px]">
-           <div className="flex items-center justify-between">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#fff2ef] text-[#475569] border border-[#ffddd7]">
-              <Eye className="h-5 w-5" strokeWidth={2.5} />
-            </div>
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-[#475569]">Locked Accounts</p>
-            <p className="mt-1 text-[26px] font-bold text-[#0f172a] leading-none">10</p>
-          </div>
-        </div>
+        <StatCard 
+          title="Locked Accounts"
+          value="10"
+          icon={Eye}
+          variant="danger"
+        />
       </div>
 
       {/* Main Chart Area */}

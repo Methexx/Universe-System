@@ -4,6 +4,7 @@ import React from "react";
 import { Menu, ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import clsx from "clsx";
 
 interface HeaderProps {
@@ -17,13 +18,30 @@ interface HeaderProps {
 
 export function Header({ toggleSidebar, userParams }: HeaderProps) {
   const pathname = usePathname();
-  
-  // A simplistic breadcrumb generator from pathname, 
-  // you might want to expand this depending on your routes.
-  const pathParts = pathname.split("/").filter(Boolean);
-  
+
+  const getBreadcrumbItems = () => {
+    if (!pathname || pathname === "/") return [];
+    
+    const parts = pathname.split("/").filter(Boolean);
+    const mappings: Record<string, string> = {
+      admin: "Admin",
+      overview: "Overview",
+      policies: "Policies",
+    };
+    
+    return parts.map((part, index) => {
+      const url = `/${parts.slice(0, index + 1).join("/")}`;
+      const name = mappings[part] || part.charAt(0).toUpperCase() + part.slice(1);
+      const isLast = index === parts.length - 1;
+      
+      return { name, url, isLast };
+    });
+  };
+
+  const breadcrumbs = getBreadcrumbItems();
+
   return (
-    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm md:px-6">
+    <header className="sticky top-0 z-20 flex h-[72px] w-full items-center justify-between border-b border-gray-200 bg-white px-4 md:px-8">
       {/* Left side: Mobile Toggle & Breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
@@ -33,34 +51,33 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle Sidebar</span>
         </button>
-        
-        <nav aria-label="Breadcrumb" className="hidden items-center text-sm font-medium text-gray-500 sm:flex">
-          {pathParts.length > 0 ? (
-            pathParts.map((part, index) => {
-              const isLast = index === pathParts.length - 1;
-              const formattedPart = part.charAt(0).toUpperCase() + part.slice(1);
-              return (
-                <React.Fragment key={index}>
-                  {index > 0 && <ChevronRight className="mx-1 h-4 w-4 shrink-0 text-gray-400" />}
-                  <span
-                    className={clsx(
-                      "capitalize",
-                      isLast ? "text-gray-900 font-semibold" : "text-gray-500"
-                    )}
-                  >
-                    {formattedPart}
-                  </span>
-                </React.Fragment>
-              );
-            })
+
+        <nav aria-label="Breadcrumb" className="hidden items-center sm:flex max-w-[400px] overflow-hidden whitespace-nowrap truncate">
+          {breadcrumbs.length > 0 ? (
+            breadcrumbs.map((crumb, index) => (
+              <React.Fragment key={crumb.url}>
+                {index > 0 && <ChevronRight className="mx-[10px] h-[16px] w-[16px] shrink-0 text-[#94a3b8] relative top-[1px]" strokeWidth={2.5} />}
+                <Link
+                  href={crumb.url}
+                  className={clsx(
+                    "text-[15px] transition-colors focus:outline-none",
+                    crumb.isLast 
+                      ? "text-[#0f172a] font-bold pointer-events-none" 
+                      : "text-[#64748b] font-semibold hover:text-[#4f46e5]"
+                  )}
+                >
+                  {crumb.name}
+                </Link>
+              </React.Fragment>
+            ))
           ) : (
-            <span className="text-gray-900 font-semibold">Dashboard</span>
+            <span className="text-[15px] font-bold text-[#0f172a]">Dashboard</span>
           )}
         </nav>
       </div>
 
       {/* Right side: User Profile */}
-      <div className="flex items-center gap-4">
+      <Link href="/admin/profile" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end">
             <span className="text-sm font-bold text-gray-900 leading-tight">
@@ -70,7 +87,7 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
               {userParams.roleLevel}
             </span>
           </div>
-          <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200 border border-gray-300">
+          <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200 border border-[var(--line)]">
             {userParams.avatarUrl ? (
               <Image
                 src={userParams.avatarUrl}
@@ -81,13 +98,13 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
                 unoptimized
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-400">
-                <Menu className="h-4 w-4" />
+              <div className="flex h-full w-full items-center justify-center bg-[#1e293b] text-white font-bold text-sm">
+                {userParams.name.charAt(0)}
               </div>
             )}
           </div>
         </div>
-      </div>
+      </Link>
     </header>
   );
 }

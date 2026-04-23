@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Link from "next/link";
 import { 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ChevronRight, 
   Plus, 
   Search, 
@@ -24,16 +26,7 @@ export default function PoliciesPage() {
   return (
     <div className="flex flex-col gap-10 pb-12 w-full pr-4">
       {/* Header logic */}
-      <div className="flex flex-col gap-2">
-        {/* Breadcrumb row assuming no global breadcrumbs */}
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 mb-6">
-          <Link href="/admin/overview" className="hover:text-blue-600 transition-colors">Admin Dashboard</Link>
-          <ChevronRight className="h-4 w-4" />
-          <Link href="/admin/overview" className="hover:text-blue-600 transition-colors">Overview</Link>
-          <ChevronRight className="h-4 w-4" />
-          <span className="text-gray-900">Policies</span>
-        </div>
-
+      <div className="flex flex-col gap-2 mb-2 -mt-4">
         <h1 className="text-[24px] font-bold text-[#0f172a]">Policies Management</h1>
         <p className="text-[14px] font-semibold text-[#64748b]">Manage school documents and Policies</p>
       </div>
