@@ -6,5 +6,5 @@ dist
 build
 .husky/_
 # Workspace sub-lockfiles (root package-lock.json is the single source of truth)
-frontend/package-lock.json
-backend/package-lock.json
+apps/frontend/package-lock.json
+apps/backend/package-lock.json

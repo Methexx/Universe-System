@@ -1,6 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -8,35 +9,35 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
+      # TODO: create apps/backend/Dockerfile for production (multi-stage, no devDependencies)
       dockerfile: Dockerfile.dev
+    restart: unless-stopped
     ports:
       - "5000:5000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     env_file:
-      - ./backend/.env
+      - ./apps/backend/.env
     environment:
       - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
     depends_on:
       - redis
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
+      # TODO: create apps/frontend/Dockerfile for production (multi-stage next build)
       dockerfile: Dockerfile.dev
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     depends_on:
       - backend
     env_file:
-      - ./frontend/.env.local
+      - ./apps/frontend/.env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5000
+      - NODE_ENV=production
 
 volumes:
   redis_data:
