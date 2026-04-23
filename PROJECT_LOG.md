@@ -211,37 +211,61 @@ Files in `apps/backend/tests/` (`test_gate.js`, `test_attendance.js`, `test_comp
 | `PORT` | default 5000 | ✅ set |
 | `DATABASE_URL` | required | ✅ real value (IPv4 non-pooler) |
 | `DIRECT_URL` | required by Prisma | ✅ real value (same as DATABASE_URL) |
-| `REDIS_URL` | optional | ✅ added (`redis://localhost:6379`) |
-| `REDIS_DEFAULT_TTL` | default 120 | ✅ added |
+| `REDIS_URL` | optional | ✅ commented out — no local Redis; cache gracefully disabled |
+| `REDIS_DEFAULT_TTL` | default 120 | ✅ set |
 | `SUPABASE_URL` | required | ✅ real URL |
-| `SUPABASE_ANON_KEY` | required | ⚠️ placeholder — fill in from Supabase dashboard |
-| `SUPABASE_SERVICE_KEY` | required | ⚠️ placeholder — fill in from Supabase dashboard |
-| `JWT_SECRET` | required, min 32 chars | ⚠️ placeholder — replace with a real random secret |
+| `SUPABASE_ANON_KEY` | required | ✅ real publishable key |
+| `SUPABASE_SERVICE_KEY` | required | ✅ real secret key |
+| `JWT_SECRET` | required, min 32 chars | ✅ set |
 | `OPENAI_API_KEY` | optional | ⚠️ placeholder — needed for RAG/AI draft features |
 | `FIREBASE_PROJECT_ID` | optional | ⚠️ placeholder — needed for FCM push |
-| `WEB_URL` | default `http://localhost:3000` | ✅ added |
-| `FLUTTER_ORIGIN` | default `http://localhost:3001` | ✅ added |
-| `NODE_ENV` | default `development` | ✅ added |
+| `WEB_URL` | default `http://localhost:3000` | ✅ set |
+| `FLUTTER_ORIGIN` | default `http://localhost:3001` | ✅ set |
+| `NODE_ENV` | default `development` | ✅ set |
 
-**Supabase project ref:** `aabjnadvxiexodbvmzuc`  
-Get ANON and SERVICE keys from: Supabase Dashboard → Project Settings → API
+**Supabase project ref:** `aabjnadvxiexodbvmzuc`
+**Key format:** Supabase new-style keys (`sb_publishable_*` / `sb_secret_*`) — compatible with supabase-js v2.
 
-### To run the backend locally (once secrets are filled)
+### To run the backend locally
 
 ```bash
-# 1. Fill in SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, JWT_SECRET in apps/backend/.env
-
-# 2. Run Prisma migration (creates all tables in Supabase)
 cd apps/backend
-npx prisma migrate dev --name init
-
-# 3. Seed admin account (admin@school.lk / adminpassword)
-npx ts-node src/scripts/seedAdmin.ts
-
-# 4. Start dev server
 npm run dev
-# → http://localhost:5000/health
+# → Fastify server on http://localhost:5000
 ```
+
+---
+
+## Auth Setup (2026-04-24)
+
+### What was done
+
+1. **Filled `.env`** with real Supabase API keys (publishable + secret) and a generated `JWT_SECRET`.
+2. **Verified DB schema** — ran `npx prisma db push`. Output: _"The database is already in sync with the Prisma schema."_ All 12 tables already existed in Supabase from the previous UniVerse-Platform project. No migration needed.
+3. **Verified admin seed** — ran `npx ts-node src/scripts/seedAdmin.ts`. Output: _"Admin account already exists! Skipping seed."_ `admin@school.lk` was already seeded.
+4. **Commented out `REDIS_URL`** — Redis isn't running locally; the Redis client was spamming retry errors. With `REDIS_URL` unset, the cache module gracefully disables itself (by design in `src/config/redis.ts`).
+5. **Smoke-tested login** — confirmed `POST /api/auth/login` returns `200` with a valid JWT:
+   ```json
+   {
+     "success": true,
+     "message": "Login successful",
+     "data": {
+       "token": "eyJhbGci...",
+       "role": "admin",
+       "user": { "id": "a52c05cc-...", "email": "admin@school.lk", "role": "admin" }
+     }
+   }
+   ```
+
+### Current auth state
+
+- ✅ Server starts cleanly (`npm run backend:dev`)
+- ✅ JWT login works — 7-day tokens
+- ✅ Admin account live: `admin@school.lk` / `adminpassword`
+- ✅ All 12 DB tables confirmed in Supabase
+- ✅ RBAC middleware ready (`authorize(['admin'])`, etc.)
+- ⚠️ OTP delivery is `console.log` only — no email/SMS integration yet (fine for dev)
+- ⚠️ Redis disabled locally — enable by un-commenting `REDIS_URL` when Redis is available
 
 ---
 
@@ -249,13 +273,12 @@ npm run dev
 
 | # | Item | Priority |
 |---|---|---|
-| 1 | Fill in `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET` in `apps/backend/.env` | **High — blocks server start** |
-| 2 | Run `npx prisma migrate dev --name init` to create DB tables | **High — blocks all DB ops** |
-| 3 | Run `npx ts-node src/scripts/seedAdmin.ts` to create first admin | High |
-| 4 | Implement W3–W5 modules: RAG, Grades, Lost & Found, Notifications, Realtime, FCM | Next sprint |
-| 5 | Create `apps/backend/Dockerfile` (multi-stage production build) | Medium |
-| 6 | Create `apps/frontend/Dockerfile` (multi-stage Next.js production build) | Medium |
-| 7 | Write Jest unit tests for backend services | Low |
+| 1 | Implement W3–W5 modules: RAG, Grades, Lost & Found, Notifications, Realtime, FCM | Next sprint |
+| 2 | OTP email delivery — integrate SMTP or Supabase email for real OTP sending | High |
+| 3 | Create `apps/backend/Dockerfile` (multi-stage production build) | Medium |
+| 4 | Create `apps/frontend/Dockerfile` (multi-stage Next.js production build) | Medium |
+| 5 | Enable Redis locally (or via Docker) and un-comment `REDIS_URL` in `.env` | Low |
+| 6 | Write Jest unit tests for backend services | Low |
 
 ---
 
