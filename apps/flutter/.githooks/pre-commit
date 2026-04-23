@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+set -e
+
+# Skip all hook logic when explicitly requested.
+if [ "${SKIP_FLUTTER_HOOKS:-0}" = "1" ]; then
+  echo "Skipping Flutter pre-commit hook (SKIP_FLUTTER_HOOKS=1)."
+  exit 0
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "Git is required for pre-commit hooks."
+  exit 1
+fi
+
+if ! command -v dart >/dev/null 2>&1; then
+  echo "Dart SDK not found in PATH. Install Flutter/Dart and retry."
+  exit 1
+fi
+
+staged_dart_files="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\\.dart$' || true)"
+
+if [ -z "$staged_dart_files" ]; then
+  echo "No staged Dart files to format."
+  exit 0
+fi
+
+echo "Formatting staged Dart files..."
+printf '%s\n' "$staged_dart_files" | while IFS= read -r file; do
+  [ -z "$file" ] && continue
+
+  if [ ! -f "$file" ]; then
+    continue
+  fi
+
+  dart format "$file"
+  git add "$file"
+done
+
+echo "Formatted and re-staged staged Dart files."
+
+# Optional strict check. Enable only when needed:
+# RUN_FLUTTER_ANALYZE=1 git commit -m "..."
+if [ "${RUN_FLUTTER_ANALYZE:-0}" = "1" ]; then
+  if ! command -v flutter >/dev/null 2>&1; then
+    echo "Flutter SDK not found in PATH, but RUN_FLUTTER_ANALYZE=1 was set."
+    exit 1
+  fi
+
+  echo "Running flutter analyze..."
+  flutter analyze
+fi
