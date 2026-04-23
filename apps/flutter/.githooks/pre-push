@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+set -e
+
+# Skip all hook logic when explicitly requested.
+if [ "${SKIP_FLUTTER_HOOKS:-0}" = "1" ]; then
+  echo "Skipping Flutter pre-push hook (SKIP_FLUTTER_HOOKS=1)."
+  exit 0
+fi
+
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "Flutter SDK not found in PATH. Install Flutter and retry."
+  exit 1
+fi
+
+echo "Running flutter test before push..."
+flutter test
+
+echo "Pre-push checks passed."
