@@ -71,6 +71,7 @@ export default function ProfilePage() {
             
             <div className="w-[100px] h-[100px] rounded-full bg-gray-200 overflow-hidden mb-5">
               {profileImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-[#1e293b] flex items-center justify-center text-white text-3xl font-bold">
