@@ -9,8 +9,9 @@ import {
   AlertOctagon,
   FileText,
   User,
-  Clock,
-  Car,
+  MessageSquare,
+  Search,
+  BookOpen,
   LucideIcon
 } from "lucide-react";
 
@@ -39,17 +40,16 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
   teacher: [
     { title: "Overview", icon: LayoutDashboard, path: "/teacher/overview" },
     { title: "My Classes", icon: Users, path: "/teacher/classes" },
-    { title: "Mark Attendance", icon: CheckSquare, path: "/teacher/attendance" },
-    { title: "Schedule", icon: Calendar, path: "/teacher/schedule" },
-    { title: "Notices", icon: ClipboardList, path: "/teacher/notices" },
+    { title: "Attendance", icon: CheckSquare, path: "/teacher/attendance" },
+    { title: "Grades", icon: BookOpen, path: "/teacher/grades" },
+    { title: "Messages", icon: MessageSquare, path: "/teacher/messages" },
+    { title: "Notice Board", icon: ClipboardList, path: "/teacher/notices" },        
+    { title: "Calender", icon: Calendar, path: "/teacher/calendar" },        
+    { title: "Complaints", icon: AlertOctagon, path: "/teacher/complaints" },        
+    { title: "Lost & Found", icon: Search, path: "/teacher/lost-and-found" },        
     { title: "Profile", icon: User, path: "/teacher/profile" },
   ],
   security: [
-    { title: "Overview", icon: LayoutDashboard, path: "/security/overview" },
-    { title: "Gate Logs", icon: Clock, path: "/security/logs" },
-    { title: "Vehicles", icon: Car, path: "/security/vehicles" },
-    { title: "Visitors", icon: Users, path: "/security/visitors" },
-    { title: "Incidents", icon: AlertOctagon, path: "/security/incidents" },
-    { title: "Profile", icon: User, path: "/security/profile" },
+    { title: "Dashboard", icon: LayoutDashboard, path: "/security/dashboard" },
   ],
 };
