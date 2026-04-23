@@ -8,15 +8,15 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
       dockerfile: Dockerfile.dev
     ports:
       - "5000:5000"
     volumes:
-      - ./backend:/app
+      - ./apps/backend:/app
       - /app/node_modules
     env_file:
-      - ./backend/.env
+      - ./apps/backend/.env
     environment:
       - REDIS_URL=redis://redis:6379
     depends_on:
@@ -24,17 +24,17 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      - ./apps/frontend:/app
       - /app/node_modules
     depends_on:
       - backend
     env_file:
-      - ./frontend/.env.local
+      - ./apps/frontend/.env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5000
 
