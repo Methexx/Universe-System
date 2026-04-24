@@ -36,7 +36,7 @@ export default function PendingRequestsPage() {
       if (result.ok) {
         setUsers(result.data);
         const defaults: Record<string, ApprovableRole> = {};
-        result.data.forEach((u) => { defaults[u.id] = "teacher"; });
+        result.data.forEach((u) => { defaults[u.id] = (u.requested_role as ApprovableRole) || "teacher"; });
         setSelectedRoles(defaults);
       } else {
         setError("Failed to load pending users.");
@@ -111,6 +111,7 @@ export default function PendingRequestsPage() {
                   <th className="py-4 px-6 font-bold">Name</th>
                   <th className="py-4 px-6 font-bold">Email</th>
                   <th className="py-4 px-6 font-bold">Registered</th>
+                  <th className="py-4 px-6 font-bold">Request To</th>
                   <th className="py-4 px-6 font-bold">Assign Role</th>
                   <th className="py-4 px-6 font-bold">Actions</th>
                 </tr>
@@ -126,13 +127,16 @@ export default function PendingRequestsPage() {
                         <td className="py-3 px-6 text-gray-400 line-through">{u.full_name ?? "—"}</td>
                         <td className="py-3 px-6 text-gray-400 line-through">{u.email}</td>
                         <td className="py-3 px-6 text-gray-400">{formatDate(u.created_at)}</td>
+                        <td className="py-3 px-6 text-gray-400">
+                          {(u.requested_role || 'teacher') === 'teacher' ? 'Teacher Access' :
+                           (u.requested_role === 'admin' ? 'Admin Access' : 'Security Access')}
+                        </td>
                         <td className="py-3 px-6" />
                         <td className="py-3 px-6">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold ${
-                            status === "approved"
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold ${status === "approved"
                               ? "bg-green-50 text-green-600"
                               : "bg-red-50 text-red-500"
-                          }`}>
+                            }`}>
                             {status === "approved" ? <Check size={11} /> : <X size={11} />}
                             {status === "approved" ? "Approved" : "Rejected"}
                           </span>
@@ -146,6 +150,16 @@ export default function PendingRequestsPage() {
                       <td className="py-3 px-6 font-medium text-[#0f172a]">{u.full_name ?? "—"}</td>
                       <td className="py-3 px-6 text-[#475569]">{u.email}</td>
                       <td className="py-3 px-6 text-[#64748b] text-[13px]">{formatDate(u.created_at)}</td>
+                      <td className="py-3 px-6">
+                        <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold ${
+                          (u.requested_role === 'admin') ? 'bg-red-50 text-red-500 border border-red-100' :
+                          (u.requested_role === 'security') ? 'bg-amber-50 text-amber-500 border border-amber-100' :
+                          'bg-emerald-50 text-emerald-500 border border-emerald-100'
+                        }`}>
+                          {(u.requested_role || 'teacher') === 'teacher' ? 'Teacher Access' :
+                           (u.requested_role === 'admin' ? 'Admin Access' : 'Security Access')}
+                        </span>
+                      </td>
                       <td className="py-3 px-6">
                         <div className="relative inline-block">
                           <select

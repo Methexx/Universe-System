@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/shared/components/layout/DashboardLayout";
 import { useAuth } from "@/features/auth/context/AuthContext";
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+export default function PendingLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -15,8 +15,8 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       router.replace("/login");
       return;
     }
-    if (user.role !== "teacher") {
-      router.replace(user.role === "pending" ? "/pending" : `/${user.role}/overview`);
+    if (user.role !== "pending") {
+      router.replace(`/${user.role}/overview`);
     }
   }, [user, loading, router]);
 
@@ -24,10 +24,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   return (
     <DashboardLayout
-      role="teacher"
+      role="pending"
       userParams={{
         name: user.full_name ?? user.email,
-        roleLevel: "Teacher",
+        roleLevel: "Pending User",
       }}
     >
       {children}

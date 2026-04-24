@@ -34,6 +34,15 @@ export class UsersController {
     }
   }
 
+  static async getAll(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const allUsers = await UsersService.getAllUsers();
+      return reply.send(successResponse('All users fetched', allUsers));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
+  }
+
   static async promote(request: FastifyRequest<{ Params: ParamsIdInput, Body: PromoteUserInput }>, reply: FastifyReply) {
     try {
       const { id } = request.params;
@@ -51,7 +60,7 @@ export class UsersController {
       const suspended = await UsersService.suspendUser(id);
       return reply.send(successResponse('User suspended', suspended));
     } catch (error: any) {
-      return reply.status(400).send(errorResponse('Failed to suspend user'));
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 
@@ -61,7 +70,17 @@ export class UsersController {
       const unsuspended = await UsersService.unsuspendUser(id);
       return reply.send(successResponse('User unsuspended', unsuspended));
     } catch (error: any) {
-      return reply.status(400).send(errorResponse('Failed to unsuspend user'));
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
+  static async delete(request: FastifyRequest<{ Params: ParamsIdInput }>, reply: FastifyReply) {
+    try {
+      const { id } = request.params;
+      const deleted = await UsersService.deleteUser(id);
+      return reply.send(successResponse('User deleted', deleted));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 }

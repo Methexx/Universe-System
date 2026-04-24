@@ -14,9 +14,10 @@ interface HeaderProps {
     roleLevel: string;
     avatarUrl?: string; // Optional avatar
   };
+  profileLink?: string;
 }
 
-export function Header({ toggleSidebar, userParams }: HeaderProps) {
+export function Header({ toggleSidebar, userParams, profileLink = "/admin/profile" }: HeaderProps) {
   const pathname = usePathname();
 
   const getBreadcrumbItems = () => {
@@ -77,7 +78,7 @@ export function Header({ toggleSidebar, userParams }: HeaderProps) {
       </div>
 
       {/* Right side: User Profile */}
-      <Link href="/admin/profile" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+      <Link href={profileLink} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end">
             <span className="text-sm font-bold text-gray-900 leading-tight">

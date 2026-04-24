@@ -286,6 +286,7 @@ export class AuthService {
           full_name: pendingRegistration.full_name,
           password_hash: hashedPassword,
           role: 'pending',
+          requested_role: pendingRegistration.role,
         },
       });
     });
@@ -312,10 +313,6 @@ export class AuthService {
 
     if (!user.is_active || user.is_suspended) {
       throw new Error('Account disabled or suspended');
-    }
-
-    if (user.role === 'pending') {
-      throw new Error('ACCOUNT_PENDING');
     }
 
     return buildAuthPayload(user);

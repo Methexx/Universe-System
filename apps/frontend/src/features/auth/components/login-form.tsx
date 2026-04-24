@@ -14,6 +14,7 @@ const ROLE_DASHBOARD: Record<string, string> = {
   admin: '/admin/overview',
   teacher: '/teacher/overview',
   security: '/security/overview',
+  pending: '/pending',
 };
 
 export function LoginForm() {

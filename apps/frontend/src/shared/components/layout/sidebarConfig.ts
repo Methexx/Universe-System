@@ -15,7 +15,7 @@ import {
   LucideIcon
 } from "lucide-react";
 
-export type Role = "admin" | "teacher" | "security";
+export type Role = "admin" | "teacher" | "security" | "pending";
 
 export interface MenuItem {
   title: string;
@@ -51,5 +51,8 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
   ],
   security: [
     { title: "Dashboard", icon: LayoutDashboard, path: "/security/dashboard" },
+  ],
+  pending: [
+    { title: "Account Status", icon: LayoutDashboard, path: "/pending" },
   ],
 };
