@@ -22,6 +22,7 @@ model User {
   requested_role String?
   full_name     String?
   avatar_url    String?
+  phone_number  String?
   fcm_token     String?
   is_active     Boolean  @default(true)
   is_suspended  Boolean  @default(false)

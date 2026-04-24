@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       userParams={{
         name: user.full_name ?? user.email,
         roleLevel: "Admin",
+        avatarUrl: user.avatar_url ?? undefined,
       }}
     >
       {children}

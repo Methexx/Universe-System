@@ -15,7 +15,8 @@ import { errorHandler } from './common/middleware/errorHandler';
 import { env } from './config/env';
 
 const app = Fastify({
-  logger: true
+  logger: true,
+  bodyLimit: 10485760, // 10MB
 });
 
 app.register(cookie);

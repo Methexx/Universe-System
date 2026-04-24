@@ -57,6 +57,13 @@ export const updateFcmTokenSchema = z.object({
   }),
 });
 
+export const changePasswordSchema = z.object({
+  body: z.object({
+    old_password: z.string().min(1, 'Old password is required'),
+    new_password: z.string().min(6, 'New password must be at least 6 characters'),
+  }),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>['body'];
 export type LoginInput = z.infer<typeof loginSchema>['body'];
@@ -65,3 +72,4 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
 export type LinkChildInput = z.infer<typeof linkChildSchema>['body'];
 export type UpdateFcmTokenInput = z.infer<typeof updateFcmTokenSchema>['body'];
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
