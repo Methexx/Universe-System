@@ -3,12 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
-import { Eye, Edit2, Loader2, Check, Bell } from 'lucide-react';
+import { Eye, Edit2, Loader2, Check, Shield } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { updateProfile, changePassword, deleteMe } from '@/features/auth/lib/auth-api';
 import { useRouter } from 'next/navigation';
 
-export default function TeacherProfilePage() {
+export default function SecurityProfilePage() {
   const { user, setUser, logout } = useAuth();
   const router = useRouter();
 
@@ -152,7 +152,7 @@ export default function TeacherProfilePage() {
       <div className="relative">
         <PageHeader
           title="Profile"
-          subtitle="Manage your teacher account details and preferences."
+          subtitle="Manage your security officer account details and preferences."
         />
 
         {isDirty && (
@@ -184,17 +184,17 @@ export default function TeacherProfilePage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="absolute top-6 right-6 text-[var(--muted)] hover:text-[#4f46e5] transition-colors"
+              className="absolute top-6 right-6 text-[var(--muted)] hover:text-[#0f172a] transition-colors"
             >
               <Edit2 className="w-[18px] h-[18px]" />
             </button>
 
-            <div className="w-[100px] h-[100px] rounded-full bg-gray-200 overflow-hidden mb-5 border-2 border-[#4f46e5]/10">
+            <div className="w-[100px] h-[100px] rounded-full bg-gray-200 overflow-hidden mb-5 border-2 border-[#0f172a]/10">
               {profileImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-[#4f46e5] flex items-center justify-center text-white text-3xl font-bold">
+                <div className="w-full h-full bg-[#0f172a] flex items-center justify-center text-white text-3xl font-bold">
                   {(formData.firstName.charAt(0) || user.email.charAt(0)).toUpperCase()}
                 </div>
               )}
@@ -204,15 +204,16 @@ export default function TeacherProfilePage() {
               {formData.firstName || formData.lastName ? `${formData.firstName} ${formData.lastName}` : 'No Name'}
             </h2>
             <p className="text-[13px] font-medium text-[var(--muted)] mb-3">{user.email}</p>
-            <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[12px] font-bold border border-indigo-100">
-              Teacher
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[12px] font-bold border border-slate-200">
+              <Shield className="w-3.5 h-3.5" />
+              Security
             </span>
           </div>
 
           {/* Preferences Card */}
           <div className="bg-[var(--surface)] border border-[var(--line)] rounded-[20px] p-6 w-full shadow-sm">
             <h3 className="text-[16px] font-bold text-[#0f172a] mb-1">Preferences</h3>
-            <p className="text-[12px] font-medium text-[var(--muted)] mb-6">Customize your experience</p>
+            <p className="text-[12px] font-medium text-[var(--muted)] mb-6">Customize your dashboard</p>
 
             <div className="flex flex-col gap-6">
               {/* Dark Mode Toggle */}
@@ -228,7 +229,7 @@ export default function TeacherProfilePage() {
                 </div>
                 <button
                   onClick={() => handleToggle('darkMode')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.darkMode ? 'bg-[#4f46e5]' : 'bg-gray-200'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.darkMode ? 'bg-[#0f172a]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.darkMode ? 'left-[22px]' : 'left-[2px]'}`} />
                 </button>
@@ -238,16 +239,16 @@ export default function TeacherProfilePage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[var(--muted)]">
-                    <Bell className="w-5 h-5" />
+                    <Shield className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-[14px] font-bold text-[#0f172a]">Email Notifications</h4>
-                    <p className="text-[12px] font-medium text-[var(--muted)]">Receive daily updates</p>
+                    <h4 className="text-[14px] font-bold text-[#0f172a]">Security Alerts</h4>
+                    <p className="text-[12px] font-medium text-[var(--muted)]">Receive critical updates</p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleToggle('emailNotifications')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.emailNotifications ? 'bg-[#4f46e5]' : 'bg-gray-200'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.emailNotifications ? 'bg-[#0f172a]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.emailNotifications ? 'left-[22px]' : 'left-[2px]'}`} />
                 </button>
