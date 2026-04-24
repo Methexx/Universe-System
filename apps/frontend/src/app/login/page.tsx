@@ -15,7 +15,7 @@ export default function LoginPage() {
       <LoginForm />
 
       <p className="text-center text-[15px] text-gray-500 mt-8">
-        Don't have an account? <Link href="/register" className="text-blue-600 font-medium hover:text-blue-700">Create one</Link>
+        Don&apos;t have an account? <Link href="/register" className="text-blue-600 font-medium hover:text-blue-700">Create one</Link>
       </p>
     </AuthLayout>
   );

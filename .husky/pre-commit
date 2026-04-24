@@ -1,13 +1,8 @@
 
 echo "🔍 Running lint and formatting checks..."
 
-if ! npm run lint; then
+if ! npm run precommit; then
   echo "❌ Linting failed. Please fix the errors above."
-  exit 1
-fi
-
-if ! npx lint-staged; then
-  echo "❌ Formatting failed. Please review the changes."
   exit 1
 fi
 

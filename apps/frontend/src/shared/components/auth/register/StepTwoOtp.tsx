@@ -10,17 +10,15 @@ interface StepTwoOtpProps {
   email: string;
   onSuccess: () => void;
   onBack: () => void;
-  onToast: (message: string) => void;
 }
 
-export function StepTwoOtp({ email, onSuccess, onBack, onToast }: StepTwoOtpProps) {
+export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
   const [otpValue, setOtpValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendSeconds, setResendSeconds] = useState(60);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
-  const [shake, setShake] = useState(false);
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
   const resendTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -41,11 +39,6 @@ export function StepTwoOtp({ email, onSuccess, onBack, onToast }: StepTwoOtpProp
         return s - 1;
       });
     }, 1000);
-  }
-
-  function triggerShake() {
-    setShake(true);
-    setTimeout(() => setShake(false), 500);
   }
 
   async function submitOtp(code: string) {
@@ -163,7 +156,6 @@ export function StepTwoOtp({ email, onSuccess, onBack, onToast }: StepTwoOtpProp
           onChange={handleOtpChange}
           disabled={loading || maxAttemptsReached}
           hasError={!!error}
-          shake={shake}
         />
 
         {error && (

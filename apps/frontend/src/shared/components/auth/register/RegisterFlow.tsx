@@ -12,11 +12,6 @@ interface FormData {
   email: string;
 }
 
-interface Toast {
-  id: number;
-  message: string;
-}
-
 const variants = {
   enter: { x: 50, opacity: 0 },
   center: { x: 0, opacity: 1 },
@@ -26,17 +21,8 @@ const variants = {
 export function RegisterFlow() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [formData, setFormData] = useState<Partial<FormData>>({});
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [direction, setDirection] = useState<1 | -1>(1);
-
-  function showToast(message: string) {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }
 
   function goToStep(next: 1 | 2 | 3) {
-    setDirection(next > step ? 1 : -1);
     setStep(next);
   }
 
@@ -78,7 +64,6 @@ export function RegisterFlow() {
                     : undefined
                 }
                 onSuccess={handleStepOneSuccess}
-                onToast={showToast}
               />
             )}
             {step === 2 && (
@@ -86,7 +71,6 @@ export function RegisterFlow() {
                 email={formData.email ?? ''}
                 onSuccess={handleStepTwoSuccess}
                 onBack={handleBack}
-                onToast={showToast}
               />
             )}
             {step === 3 && (
@@ -96,24 +80,6 @@ export function RegisterFlow() {
               />
             )}
           </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Toast notifications */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="bg-gray-900 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-sm"
-            >
-              {toast.message}
-            </motion.div>
-          ))}
         </AnimatePresence>
       </div>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -13,10 +13,9 @@ import { PasswordStrengthBar } from './PasswordStrengthBar';
 interface StepOneDetailsProps {
   defaultValues?: Partial<StepOneValues>;
   onSuccess: (data: { full_name: string; email: string }) => void;
-  onToast: (message: string) => void;
 }
 
-export function StepOneDetails({ defaultValues, onSuccess, onToast }: StepOneDetailsProps) {
+export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,9 +23,9 @@ export function StepOneDetails({ defaultValues, onSuccess, onToast }: StepOneDet
   const [emailExistsError, setEmailExistsError] = useState('');
 
   const {
+    control,
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<StepOneValues>({
     resolver: zodResolver(stepOneSchema),
@@ -34,7 +33,7 @@ export function StepOneDetails({ defaultValues, onSuccess, onToast }: StepOneDet
     mode: 'onBlur',
   });
 
-  const passwordValue = watch('password', '');
+  const passwordValue = useWatch({ control, name: 'password', defaultValue: '' });
 
   useEffect(() => {
     if (rateLimitSeconds <= 0) return;
