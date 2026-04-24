@@ -10,7 +10,7 @@
 
 echo "🏗️  Running production build before push..."
 
-if ! npm run build; then
+if ! npm run prepush; then
   echo "❌ Build failed. Push aborted."
   echo "👉 Fix the build errors before pushing to GitHub."
   exit 1
