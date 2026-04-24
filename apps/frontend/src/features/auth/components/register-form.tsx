@@ -1,16 +1,18 @@
 'use client';
 
-import { APP_ROUTES } from '@/core/constants/routes';
 import React, { useState } from 'react';
 import { validateRegister } from '../lib/validators';
 import { RegisterFormValues } from '../types/auth';
+import { AuthInput } from '@/shared/components/auth/auth-input';
+import { AuthButton } from '@/shared/components/auth/auth-button';
+import { GoogleButton } from '@/shared/components/auth/google-button';
 
 export function RegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>({
     emailOrUsername: '',
     userName: '',
     contactNumber: '',
-    password: '',
+    password: ''
   });
   const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormValues, string>>>({});
 
@@ -26,78 +28,71 @@ export function RegisterForm() {
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length === 0) {
-      // This will be replaced by API integration in the next step.
-      window.location.assign(APP_ROUTES.login);
+      window.location.assign('/admin/overview');
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="register-form">
-      <label htmlFor="register-email-or-username" className="login-label">
-        Enter your username or email address
-      </label>
-      <input
-        id="register-email-or-username"
-        name="emailOrUsername"
-        type="text"
-        value={values.emailOrUsername}
-        onChange={onInputChange}
-        placeholder="Username or email address"
-        className="auth-input"
-      />
-      {errors.emailOrUsername ? <span className="form-error">{errors.emailOrUsername}</span> : null}
-
-      <div className="register-grid-2">
-        <div>
-          <label htmlFor="register-user-name" className="login-label">
-            User name
-          </label>
-          <input
-            id="register-user-name"
-            name="userName"
-            type="text"
-            value={values.userName}
-            onChange={onInputChange}
-            placeholder="User name"
-            className="auth-input"
-          />
-          {errors.userName ? <span className="form-error">{errors.userName}</span> : null}
-        </div>
-
-        <div>
-          <label htmlFor="register-contact-number" className="login-label">
-            Contact Number
-          </label>
-          <input
-            id="register-contact-number"
-            name="contactNumber"
-            type="text"
-            value={values.contactNumber}
-            onChange={onInputChange}
-            placeholder="Contact Number"
-            className="auth-input"
-          />
-          {errors.contactNumber ? <span className="form-error">{errors.contactNumber}</span> : null}
-        </div>
+    <form onSubmit={onSubmit} className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        <AuthInput
+          id="register-userName"
+          name="userName"
+          type="text"
+          label="Full Name"
+          placeholder="John Smith"
+          value={values.userName}
+          onChange={onInputChange}
+          error={errors.userName}
+        />
+        <AuthInput
+          id="register-contactNumber"
+          name="contactNumber"
+          type="text"
+          label="Contact Number"
+          placeholder="+1 234 567 890"
+          value={values.contactNumber}
+          onChange={onInputChange}
+          error={errors.contactNumber}
+        />
       </div>
 
-      <label htmlFor="register-password" className="login-label">
-        Enter your Password
-      </label>
-      <input
+      <AuthInput
+        id="register-emailOrUsername"
+        name="emailOrUsername"
+        type="email"
+        label="Email address"
+        placeholder="johnsmith@aeropanel.io"
+        value={values.emailOrUsername}
+        onChange={onInputChange}
+        error={errors.emailOrUsername}
+      />
+
+      <AuthInput
         id="register-password"
         name="password"
         type="password"
+        label="Password"
+        placeholder="••••••••"
         value={values.password}
         onChange={onInputChange}
-        placeholder="Password"
-        className="auth-input"
+        error={errors.password}
       />
-      {errors.password ? <span className="form-error">{errors.password}</span> : null}
 
-      <button type="submit" className="auth-button mt-2">
-        Sign up
-      </button>
+      <AuthButton type="submit">
+        Create Account
+      </AuthButton>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-gray-500">Or</span>
+        </div>
+      </div>
+
+      <GoogleButton>Sign up with Google</GoogleButton>
     </form>
   );
 }

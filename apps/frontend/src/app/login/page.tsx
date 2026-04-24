@@ -1,67 +1,22 @@
-"use client";
-
+import { AuthLayout } from '@/shared/components/auth/auth-layout';
 import { LoginForm } from '@/features/auth/components/login-form';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useEffect, useRef } from 'react';
 
 export default function LoginPage() {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const flipParam = query.get('flip');
-    const lastPage = sessionStorage.getItem('auth-last-page');
-    const shouldAnimateBack = flipParam === 'back' || lastPage === 'register';
-
-    if (cardRef.current) {
-      cardRef.current.classList.remove('flip-card-enter-back');
-
-      if (shouldAnimateBack) {
-        // Restart animation on route change by forcing reflow.
-        void cardRef.current.offsetWidth;
-        cardRef.current.classList.add('flip-card-enter-back');
-      }
-    }
-
-    sessionStorage.setItem('auth-last-page', 'login');
-  }, []);
-
   return (
-    <section className="login-scene">
-      <p className="login-logo">Your Logo</p>
-
-      <Image
-        src="/Assets/leftside.svg"
-        alt="Scooter illustration"
-        className="login-asset login-asset-left"
-        width={380}
-        height={320} 
-      />
-      <Image
-        src="/Assets/rightside.svg"
-        alt="Flying illustration"
-        className="login-asset login-asset-right"
-        width={330}
-        height={340}
-      />
-
-      <div ref={cardRef} className="login-card">
-        <div className="login-header">
-          <div>
-            <p className="login-top-note">Welcome to Universe Platform</p>
-            <h1 className="login-subtitle">Sign in</h1>
-          </div>
-
-          <p className="login-mini-link">
-            No Account ?
-            <br />
-            <Link href="/register?flip=1">Sign up</Link>
-          </p>
-        </div>
-
-        <LoginForm />
+    <AuthLayout reverse={false}>
+      <div className="text-center mb-8">
+        <h1 className="text-[28px] font-bold text-gray-900 mb-3 tracking-tight">Welcome Back to Universe</h1>
+        <p className="text-gray-500 text-[15px] leading-relaxed px-4">
+          Log in to manage your academic operations, track attenacance, and gain real-time insights.
+        </p>
       </div>
-    </section>
+
+      <LoginForm />
+
+      <p className="text-center text-[15px] text-gray-500 mt-8">
+        Don't have an account? <Link href="/register" className="text-blue-600 font-medium hover:text-blue-700">Create one</Link>
+      </p>
+    </AuthLayout>
   );
 }
