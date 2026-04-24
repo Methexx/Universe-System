@@ -51,8 +51,8 @@ export class UsersService {
     const user = await prisma.user.findUnique({ where: { id: targetUserId } });
     
     if (!user) throw new Error('User not found');
-    if (user.role !== 'pending' && user.role === 'admin') {
-         throw new Error('Cannot demote an existing admin this way');
+    if (user.role === 'admin') {
+      throw new Error('Cannot change the role of an existing admin this way');
     }
 
     const updated = await prisma.user.update({

@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { StepIndicator } from './StepIndicator';
 import { StepOneDetails } from './StepOneDetails';
 import { StepTwoOtp } from './StepTwoOtp';
-import { StepThreePending } from './StepThreePending';
 
 interface FormData {
   full_name: string;
@@ -20,32 +19,12 @@ const variants = {
 };
 
 export function RegisterFlow() {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState<Partial<FormData>>({});
-
-  function goToStep(next: 1 | 2 | 3) {
-    setStep(next);
-  }
 
   function handleStepOneSuccess(data: FormData) {
     setFormData(data);
-    goToStep(2);
-  }
-
-  function handleStepTwoSuccess() {
-    if (formData.role === 'teacher') {
-      window.location.href = '/teacher/overview?status=pending';
-    } else if (formData.role === 'administrative') {
-      window.location.href = '/admin/overview?status=pending';
-    } else if (formData.role === 'security') {
-      window.location.href = '/security/overview?status=pending';
-    } else {
-      goToStep(3);
-    }
-  }
-
-  function handleBack() {
-    goToStep(1);
+    setStep(2);
   }
 
   return (
@@ -79,14 +58,8 @@ export function RegisterFlow() {
             {step === 2 && (
               <StepTwoOtp
                 email={formData.email ?? ''}
-                onSuccess={handleStepTwoSuccess}
-                onBack={handleBack}
-              />
-            )}
-            {step === 3 && (
-              <StepThreePending
-                fullName={formData.full_name ?? ''}
-                email={formData.email ?? ''}
+                role={formData.role ?? ''}
+                onBack={() => setStep(1)}
               />
             )}
           </motion.div>

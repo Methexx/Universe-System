@@ -1,20 +1,19 @@
 import { Check } from 'lucide-react';
 
 interface StepIndicatorProps {
-  currentStep: 1 | 2 | 3;
+  currentStep: 1 | 2;
 }
 
 const steps = [
   { label: 'Your details', sub: 'Name and email' },
   { label: 'Verify email', sub: 'Check your inbox' },
-  { label: "You're pending", sub: 'Admin will approve you' },
 ];
 
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
   return (
     <div className="flex items-start w-full mb-8">
       {steps.map((step, index) => {
-        const stepNum = (index + 1) as 1 | 2 | 3;
+        const stepNum = (index + 1) as 1 | 2;
         const isCompleted = stepNum < currentStep;
         const isActive = stepNum === currentStep;
 

@@ -13,7 +13,7 @@ export const registerSchema = z.object({
 export const verifyOtpSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
-    otp: z.string().length(6, 'OTP must be exactly 6 digits'),
+    otp_code: z.string().length(6, 'OTP must be exactly 6 digits'),
   }),
 });
 
@@ -39,7 +39,7 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
-    otp: z.string().length(6, 'OTP must be exactly 6 digits'),
+    otp_code: z.string().length(6, 'OTP must be exactly 6 digits'),
     new_password: z.string().min(6, 'New password must be at least 6 characters'),
   }),
 });

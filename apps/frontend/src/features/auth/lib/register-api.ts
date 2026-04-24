@@ -13,11 +13,11 @@ async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
-    if (res.ok) return { ok: true, data: json as T };
+    if (res.ok) return { ok: true, data: (json.data ?? json) as T };
     return {
       ok: false,
       status: res.status,
-      error: json.error ?? 'UNKNOWN',
+      error: json.error ?? json.message ?? 'UNKNOWN',
       retry_after: json.retry_after,
       attempts_remaining: json.attempts_remaining,
     };
@@ -26,12 +26,12 @@ async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   }
 }
 
-export function registerUser(body: { full_name: string; email: string; password: string }) {
+export function registerUser(body: { full_name: string; email: string; password: string; role: string }) {
   return post<{ message: string }>('/api/auth/register', body);
 }
 
 export function verifyOtp(body: { email: string; otp_code: string }) {
-  return post<{ message: string }>('/api/auth/verify-otp', body);
+  return post<{ role: string; user: { userId: string; email: string; role: string; full_name?: string | null } }>('/api/auth/verify-otp', body);
 }
 
 export function resendOtp(body: { email: string }) {

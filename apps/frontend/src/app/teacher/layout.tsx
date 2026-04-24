@@ -1,17 +1,34 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/shared/components/layout/DashboardLayout";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
-// In a real application, userParams would be fetched from auth context/session.
-export default function TeacherLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (user.role !== "teacher" && user.role !== "pending") {
+      router.replace(`/${user.role}/overview`);
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) return null;
+
   return (
-    <DashboardLayout 
-      role="teacher" 
-      userParams={{ name: "Methum Pathirana", roleLevel: "Teacher" }}
+    <DashboardLayout
+      role="teacher"
+      userParams={{
+        name: user.full_name ?? user.email,
+        roleLevel: "Teacher",
+      }}
     >
       {children}
     </DashboardLayout>

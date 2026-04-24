@@ -13,6 +13,7 @@ import {
 } from './auth.schema';
 import { generateToken } from '../../common/utils/jwt';
 import { delCache, getCache, setCache } from '../../common/utils/cache';
+import { sendOtpEmail } from '../../common/utils/email';
 
 type PendingRegistration = {
   full_name: string;
@@ -41,7 +42,7 @@ const sanitizeUser = (user: {
   role: string;
   full_name: string | null;
 }) => ({
-  id: user.id,
+  userId: user.id,
   email: user.email,
   role: user.role,
   full_name: user.full_name,
@@ -129,8 +130,7 @@ export class AuthService {
       },
     });
 
-    // In development we log OTP to simplify local testing until email/SMS integration is added.
-    console.log(`[DEVELOPMENT ONLY] OTP for ${email} is ${otp}`);
+    await sendOtpEmail(email, otp);
   }
 
   private static async putPendingRegistration(input: PendingRegistration) {
@@ -223,7 +223,7 @@ export class AuthService {
       throw new Error('No pending registration found. Please register again.');
     }
 
-    await AuthService.verifyOtpCode(email, input.otp);
+    await AuthService.verifyOtpCode(email, input.otp_code);
 
     const hashedPassword = await hashPassword(pendingRegistration.password);
 
@@ -357,7 +357,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    await AuthService.verifyOtpCode(email, input.otp);
+    await AuthService.verifyOtpCode(email, input.otp_code);
     const password_hash = await hashPassword(input.new_password);
 
     await prisma.user.update({

@@ -2,21 +2,27 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie';
 import authRoutes from './modules/auth/auth.routes';
 import usersRoutes from './modules/users/users.routes';
 import schoolRoutes from './modules/school/school.routes';
 import gateRoutes from './modules/gate/gate.routes';
 import attendanceRoutes from './modules/attendance/attendance.routes';
-import announcementRoutes from './modules/announcements/announcements.routes';  
+import announcementRoutes from './modules/announcements/announcements.routes';
 import messageRoutes from './modules/messages/messages.routes';
 import complaintsRoutes from './modules/complaints/complaints.routes';
 import { errorHandler } from './common/middleware/errorHandler';
+import { env } from './config/env';
 
 const app = Fastify({
   logger: true
 });
 
-app.register(cors);
+app.register(cookie);
+app.register(cors, {
+  origin: [env.WEB_URL, env.FLUTTER_ORIGIN],
+  credentials: true,
+});
 app.register(helmet);
 app.register(rateLimit, {
   max: 100,
