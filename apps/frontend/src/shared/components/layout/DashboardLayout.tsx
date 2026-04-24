@@ -38,6 +38,7 @@ export function DashboardLayout({
         <Header
           toggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
           userParams={userParams}
+          profileLink={role === 'pending' ? '#' : `/${role}/profile`}
         />
         <main className="flex-1 overflow-y-auto bg-[#fafafa] p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">

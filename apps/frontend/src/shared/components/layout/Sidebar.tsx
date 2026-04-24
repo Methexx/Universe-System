@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { LogOut } from "lucide-react";
 import { SIDEBAR_MENU, Role } from "./sidebarConfig";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 interface SidebarProps {
   role: Role;
@@ -16,6 +17,7 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const menuItems = SIDEBAR_MENU[role] || SIDEBAR_MENU["admin"];
 
   return (
@@ -105,7 +107,10 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
             </div>
           </div>
           
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e31f26] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#c9181f]">
+          <button 
+            onClick={() => logout()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e31f26] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#c9181f]"
+          >
             <LogOut className="h-4 w-4" strokeWidth={2.5} />
             LogOut
           </button>

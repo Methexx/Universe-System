@@ -315,10 +315,6 @@ export class AuthService {
       throw new Error('Account disabled or suspended');
     }
 
-    if (user.role === 'pending') {
-      throw new Error('ACCOUNT_PENDING');
-    }
-
     return buildAuthPayload(user);
   }
 
