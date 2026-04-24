@@ -340,13 +340,13 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      return { message: 'If an account exists for this email, an OTP has been sent.' };
+      throw new Error('No account found with this email address');
     }
 
     await AuthService.ensureResendCooldown(email);
     await AuthService.createOtp(email);
 
-    return { message: 'If an account exists for this email, an OTP has been sent.' };
+    return { message: 'OTP sent to your email successfully.' };
   }
 
   static async resetPassword(input: ResetPasswordInput) {

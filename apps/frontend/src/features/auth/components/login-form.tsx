@@ -97,6 +97,7 @@ export function LoginForm() {
         onChange={(e) => setPassword(e.target.value)}
         error={errors.password}
         showForgotPassword={true}
+        forgotPasswordHref="/forgot-password"
       />
 
       <AuthCheckbox

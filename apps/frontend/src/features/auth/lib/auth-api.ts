@@ -17,7 +17,7 @@ async function request<T>(
       ...options,
     });
     const json = await res.json().catch(() => ({}));
-    if (res.ok) return { ok: true, data: json.data as T };
+    if (res.ok) return { ok: true, data: (json.data ?? json) as T };
     return { ok: false, status: res.status, error: json.error ?? json.message ?? 'UNKNOWN', retry_after: json.retry_after };
   } catch {
     return { ok: false, status: 0, error: 'NETWORK_ERROR' };
@@ -57,5 +57,19 @@ export function approvePendingUser(id: string, role: string) {
 export function rejectPendingUser(id: string) {
   return request<{ message: string }>(`/api/users/${id}/suspend`, {
     method: 'PUT',
+  });
+}
+
+export function forgotPassword(body: { email: string }) {
+  return request<{ message: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function resetPassword(body: { email: string; otp_code: string; new_password: string }) {
+  return request<{ message: string }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }

@@ -11,7 +11,7 @@ interface OtpInputProps {
 }
 
 export function OtpInput({ value, onChange, disabled, hasError, shake }: OtpInputProps) {
-  const digits = value.padEnd(6, '').split('').slice(0, 6);
+  const digits = value.padEnd(6, ' ').split('').slice(0, 6);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
