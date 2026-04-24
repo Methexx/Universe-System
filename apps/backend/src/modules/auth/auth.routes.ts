@@ -94,4 +94,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       },
     ],
   }, AuthController.updateFcmToken);
+
+  fastify.get('/me', {
+    preHandler: [authenticate],
+  }, AuthController.me);
 }

@@ -6,8 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { stepOneSchema, StepOneValues } from '@/features/auth/lib/register-schemas';
-// import { registerUser } from '@/features/auth/lib/register-api';
-// TODO: wire up real API call after auth backend is ready
+import { registerUser } from '@/features/auth/lib/register-api';
 import { PasswordStrengthBar } from './PasswordStrengthBar';
 
 interface StepOneDetailsProps {
@@ -21,6 +20,7 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
   const [loading, setLoading] = useState(false);
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [emailExistsError, setEmailExistsError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   const {
     control,
@@ -43,19 +43,14 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
 
   async function onSubmit(values: StepOneValues) {
     setEmailExistsError('');
+    setGeneralError('');
     setLoading(true);
 
-    // --- MOCK: skip real API call, go straight to step 2 ---
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
-    onSuccess({ full_name: values.full_name, email: values.email, role: values.role });
-    return;
-
-    /* TODO: uncomment when auth backend is ready
     const result = await registerUser({
       full_name: values.full_name,
       email: values.email,
       password: values.password,
+      role: values.role,
     });
     setLoading(false);
 
@@ -71,17 +66,16 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
 
     if (result.error === 'RATE_LIMIT') {
       setRateLimitSeconds(result.retry_after ?? 60);
-      onToast('Too many registration attempts. Please wait a few minutes.');
+      setGeneralError('Too many registration attempts. Please wait a few minutes.');
       return;
     }
 
     if (result.error === 'VALIDATION_ERROR') {
-      onToast('Please check your details and try again.');
+      setGeneralError('Please check your details and try again.');
       return;
     }
 
-    onToast('Something went wrong. Please try again.');
-    */
+    setGeneralError('Something went wrong. Please try again.');
   }
 
   const formatCountdown = (s: number) => `0:${String(s).padStart(2, '0')}`;
@@ -146,7 +140,6 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
               }`}
             >
               <option value="">Choose a role...</option>
-              <option value="administrative">Administrative</option>
               <option value="teacher">Teacher</option>
               <option value="security">Security</option>
             </select>
@@ -217,6 +210,10 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
             <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
           )}
         </div>
+
+        {generalError && (
+          <p className="text-sm text-red-500 text-center">{generalError}</p>
+        )}
 
         {/* Submit */}
         <button

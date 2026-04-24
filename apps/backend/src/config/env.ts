@@ -11,6 +11,8 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string(),
   SUPABASE_SERVICE_KEY: z.string(),
   JWT_SECRET: z.string().min(32),
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().email(),
   OPENAI_API_KEY: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
   WEB_URL: z.string().url().default('http://localhost:3000'),
