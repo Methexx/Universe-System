@@ -41,8 +41,8 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
     }, 1000);
   }
 
-  async function submitOtp(code: string) {
-    if (code.length !== 6 || loading || maxAttemptsReached) return;
+  async function submitOtp(code?: string) {
+    if (loading || maxAttemptsReached) return;
     setError('');
     setLoading(true);
 
@@ -184,8 +184,8 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
 
         <button
           type="button"
-          onClick={() => submitOtp(otpValue)}
-          disabled={otpValue.length < 6 || loading || maxAttemptsReached}
+          onClick={() => submitOtp()}
+          disabled={loading || maxAttemptsReached}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
         >
           {loading ? (

@@ -10,6 +10,7 @@ import { StepThreePending } from './StepThreePending';
 interface FormData {
   full_name: string;
   email: string;
+  role: string;
 }
 
 const variants = {
@@ -32,7 +33,15 @@ export function RegisterFlow() {
   }
 
   function handleStepTwoSuccess() {
-    goToStep(3);
+    if (formData.role === 'teacher') {
+      window.location.href = '/teacher/overview?status=pending';
+    } else if (formData.role === 'administrative') {
+      window.location.href = '/admin/overview?status=pending';
+    } else if (formData.role === 'security') {
+      window.location.href = '/security/overview?status=pending';
+    } else {
+      goToStep(3);
+    }
   }
 
   function handleBack() {
@@ -60,6 +69,7 @@ export function RegisterFlow() {
                     ? {
                         full_name: formData.full_name,
                         email: formData.email,
+                        role: formData.role,
                       }
                     : undefined
                 }

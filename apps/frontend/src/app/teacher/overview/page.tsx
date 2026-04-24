@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { Eye } from "lucide-react";
+import { Eye, Loader2 } from "lucide-react";
 import { StatCard } from "@/shared/components/ui/StatCard";
 import { TabSelector } from "@/shared/components/ui/TabSelector";
 import { DonutChart } from "@/shared/components/ui/DonutChart";
@@ -14,8 +15,10 @@ const pieData = [
   { name: "Late", value: 10, color: "#cbd5e1" }, // slate 300
 ];
 
-export default function TeacherOverviewPage() {
+function OverviewContent() {
   const [activeTab, setActiveTab] = useState("10-a");
+  const searchParams = useSearchParams();
+  const isPending = searchParams.get("status") === "pending";
 
   return (
     <div className="flex flex-col gap-[20px] pb-12 w-full pr-2">
@@ -25,17 +28,27 @@ export default function TeacherOverviewPage() {
         subtitle="Welcome back Sarah Joseph!"
       />
 
-      {/* Class Selector */}
-      <div className="mt-2">
-        <TabSelector
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          options={[
-            {id: "10-a", label: "10 - A"},
-            {id: "11-b", label: "11 - B"}
-          ]}
-        />
-      </div>
+      <div className="relative mt-2">
+        {isPending && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center backdrop-blur-sm bg-white/30 rounded-xl">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+            <h3 className="text-[22px] font-bold text-gray-900 mb-2 shadow-sm bg-white/80 px-6 py-2 rounded-full border border-gray-200">Waiting for approval</h3>
+            <p className="text-gray-700 font-medium bg-white/80 px-4 py-1 rounded-full border border-gray-200 shadow-sm">Your account is currently under review</p>
+          </div>
+        )}
+
+        <div className={isPending ? "pointer-events-none blur-[6px] opacity-60 transition-all duration-500 select-none" : ""}>
+          {/* Class Selector */}
+          <div>
+            <TabSelector
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              options={[
+                {id: "10-a", label: "10 - A"},
+                {id: "11-b", label: "11 - B"}
+              ]}
+            />
+          </div>
 
       {/* Stats Section */}
       <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4 mt-2">
@@ -107,6 +120,16 @@ export default function TeacherOverviewPage() {
           </table>
         </div>
       </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function TeacherOverviewPage() {
+  return (
+    <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>}>
+      <OverviewContent />
+    </Suspense>
   );
 }

@@ -7,6 +7,7 @@ export const stepOneSchema = z
       .min(2, 'Name must be at least 2 characters')
       .max(80, 'Name must be at most 80 characters'),
     email: z.string().email('Enter a valid email address'),
+    role: z.string().min(1, 'Please select a role'),
     password: z
       .string()
       .min(8, 'Must be at least 8 characters')

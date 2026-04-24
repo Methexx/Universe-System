@@ -12,7 +12,7 @@ import { PasswordStrengthBar } from './PasswordStrengthBar';
 
 interface StepOneDetailsProps {
   defaultValues?: Partial<StepOneValues>;
-  onSuccess: (data: { full_name: string; email: string }) => void;
+  onSuccess: (data: { full_name: string; email: string; role: string }) => void;
 }
 
 export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps) {
@@ -48,7 +48,7 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
     // --- MOCK: skip real API call, go straight to step 2 ---
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onSuccess({ full_name: values.full_name, email: values.email });
+    onSuccess({ full_name: values.full_name, email: values.email, role: values.role });
     return;
 
     /* TODO: uncomment when auth backend is ready
@@ -60,7 +60,7 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
     setLoading(false);
 
     if (result.ok) {
-      onSuccess({ full_name: values.full_name, email: values.email });
+      onSuccess({ full_name: values.full_name, email: values.email, role: values.role });
       return;
     }
 
@@ -132,6 +132,32 @@ export function StepOneDetails({ defaultValues, onSuccess }: StepOneDetailsProps
                 Login instead?
               </Link>
             </p>
+          )}
+        </div>
+
+        {/* Role Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Select Role</label>
+          <div className="relative">
+            <select
+              {...register('role')}
+              className={`appearance-none w-full px-4 py-2.5 pr-10 rounded-lg border outline-none transition-all focus:ring-2 focus:ring-blue-600 focus:border-transparent text-sm bg-white ${
+                errors.role ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Choose a role...</option>
+              <option value="administrative">Administrative</option>
+              <option value="teacher">Teacher</option>
+              <option value="security">Security</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+              <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+              </svg>
+            </div>
+          </div>
+          {errors.role && (
+            <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>
           )}
         </div>
 
