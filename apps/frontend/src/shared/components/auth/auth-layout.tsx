@@ -11,7 +11,7 @@ export function AuthLayout({ children, reverse = false }: AuthLayoutProps) {
     <div className={`flex h-screen bg-white font-sans overflow-hidden ${reverse ? 'flex-row-reverse' : 'flex-row'}`}>
       
       {/* Form Column */}
-      <div className="flex-1 flex flex-col items-center justify-start pt-[12vh] relative p-8 overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-start pt-[12vh] relative px-10 py-8 overflow-y-auto">
         <div className={`absolute top-8 ${reverse ? 'right-8' : 'left-8'} flex items-center gap-2`}>
           {/* Logo */}
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,7 +22,7 @@ export function AuthLayout({ children, reverse = false }: AuthLayoutProps) {
           </svg>
         </div>
 
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[400px] min-w-0">
           {children}
         </div>
       </div>
