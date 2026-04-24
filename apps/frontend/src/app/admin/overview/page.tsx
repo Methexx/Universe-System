@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/features/auth/context/AuthContext";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { StatCard } from "@/shared/components/ui/StatCard";
-import { Eye, Bookmark, Activity, Loader2 } from "lucide-react";
+import { Eye, Bookmark, Activity, Loader2, Users } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getPendingUsers } from "@/features/auth/lib/auth-api";
 import {
   AreaChart,
   Area,
@@ -69,12 +71,51 @@ const pieData = [
   { name: "Absent", value: 200, color: "#f97316" }, // orange
 ];
 
+function PendingRequestsCard() {
+  const router = useRouter();
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    getPendingUsers().then((result) => {
+      if (result.ok) setCount(result.data.length);
+    });
+  }, []);
+
+  return (
+    <div
+      onClick={() => router.push("/admin/overview/pending-requests")}
+      className="cursor-pointer rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex items-center justify-between hover:border-blue-200 hover:shadow-md transition-all"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 border border-amber-100">
+          <Users className="h-5 w-5 text-amber-500" />
+        </div>
+        <div>
+          <h3 className="text-[15px] font-bold text-[#0f172a]">Pending Requests</h3>
+          <p className="text-[12px] text-[#64748b] mt-0.5">
+            {count === null ? "Loading…" : count === 0 ? "No pending approvals" : `${count} account${count !== 1 ? "s" : ""} awaiting approval`}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        {count !== null && count > 0 && (
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-white text-[12px] font-bold">
+            {count}
+          </span>
+        )}
+        <span className="text-[12px] font-bold text-blue-600 hover:text-blue-700">Review →</span>
+      </div>
+    </div>
+  );
+}
+
 function OverviewContent() {
   const [timeRange, setTimeRange] = useState("Last 30 days");
   const [chartColor, setChartColor] = useState("blue");
   const [systemStatus, setSystemStatus] = useState<"checking" | "online" | "offline">("online");
-  const searchParams = useSearchParams();
-  const isPending = searchParams.get("status") === "pending";
+  const { user } = useAuth();
+  const isPending = user?.role === "pending";
+  const displayName = user?.full_name ?? user?.email ?? "";
 
   const checkSystemStatus = async () => {
     setSystemStatus("checking");
@@ -113,7 +154,7 @@ function OverviewContent() {
     <div className="flex flex-col gap-[20px] pb-12 w-full pr-2">
       <PageHeader
         title="Overview"
-        subtitle="Welcome back Sarah Joseph!"
+        subtitle={`Welcome back ${displayName}!`}
       />
 
       <div className="relative mt-2">
@@ -245,6 +286,9 @@ function OverviewContent() {
         </div>
       </div>
 
+      {/* Pending Requests Row */}
+      <PendingRequestsCard />
+
       {/* Bottom Row */}
       <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4 mt-2">
         {/* Policies Management (1 span) */}
@@ -332,9 +376,5 @@ function OverviewContent() {
 }
 
 export default function AdminOverviewPage() {
-  return (
-    <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>}>
-      <OverviewContent />
-    </Suspense>
-  );
+  return <OverviewContent />;
 }

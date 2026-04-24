@@ -2,17 +2,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { OtpInput } from './OtpInput';
-// import { verifyOtp, resendOtp } from '@/features/auth/lib/register-api';
-// TODO: wire up real API calls after auth backend is ready
+import { verifyOtp, resendOtp } from '@/features/auth/lib/register-api';
+import { useAuth } from '@/features/auth/context/AuthContext';
+
+const ROLE_DASHBOARD: Record<string, string> = {
+  admin: '/admin/overview',
+  teacher: '/teacher/overview',
+  security: '/security/overview',
+};
 
 interface StepTwoOtpProps {
   email: string;
-  onSuccess: () => void;
+  role: string;
   onBack: () => void;
 }
 
-export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
+export function StepTwoOtp({ email, role, onBack }: StepTwoOtpProps) {
   const [otpValue, setOtpValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +28,9 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
   const [resendSuccess, setResendSuccess] = useState(false);
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
   const resendTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { setUser } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     startResendCountdown();
@@ -41,32 +51,26 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
     }, 1000);
   }
 
-  async function submitOtp(code?: string) {
-    if (loading || maxAttemptsReached) return;
+  async function submitOtp(code: string) {
+    if (loading || maxAttemptsReached || code.length !== 6) return;
     setError('');
     setLoading(true);
 
-    // --- MOCK: skip real API call, go straight to step 3 ---
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
-    onSuccess();
-    return;
-
-    /* TODO: uncomment when auth backend is ready
     const result = await verifyOtp({ email, otp_code: code });
     setLoading(false);
 
     if (result.ok) {
-      onSuccess();
+      setUser(result.data.user);
+      // All staff land as 'pending' — their dashboard will show the blur overlay
+      const destination = ROLE_DASHBOARD[role] ?? ROLE_DASHBOARD[result.data.role] ?? '/admin/overview';
+      router.push(destination);
       return;
     }
 
-    triggerShake();
     setOtpValue('');
 
     if (result.error === 'INVALID_OTP') {
-      const remaining = result.attempts_remaining ?? 0;
-      setError(`Incorrect code. ${remaining} attempt(s) remaining.`);
+      setError('Incorrect code. Please try again.');
       return;
     }
 
@@ -81,8 +85,7 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
       return;
     }
 
-    onToast('Something went wrong. Please try again.');
-    */
+    setError('Something went wrong. Please try again.');
   }
 
   function handleOtpChange(val: string) {
@@ -97,17 +100,6 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
     setResendLoading(true);
     setResendSuccess(false);
 
-    // --- MOCK: skip real API call ---
-    await new Promise((r) => setTimeout(r, 500));
-    setResendLoading(false);
-    setResendSuccess(true);
-    setOtpValue('');
-    setError('');
-    setMaxAttemptsReached(false);
-    startResendCountdown();
-    setTimeout(() => setResendSuccess(false), 4000);
-
-    /* TODO: uncomment when auth backend is ready
     const result = await resendOtp({ email });
     setResendLoading(false);
 
@@ -122,12 +114,11 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
     }
 
     if (result.error === 'RATE_LIMIT') {
-      onToast('Please wait before requesting another code.');
+      setError('Please wait before requesting another code.');
       return;
     }
 
-    onToast('Something went wrong. Please try again.');
-    */
+    setError('Something went wrong. Please try again.');
   }
 
   const formatSec = (s: number) => `0:${String(s).padStart(2, '0')}`;
@@ -184,7 +175,7 @@ export function StepTwoOtp({ email, onSuccess, onBack }: StepTwoOtpProps) {
 
         <button
           type="button"
-          onClick={() => submitOtp()}
+          onClick={() => submitOtp(otpValue)}
           disabled={loading || maxAttemptsReached}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
         >
