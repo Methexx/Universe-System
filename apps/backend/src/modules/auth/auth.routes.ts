@@ -9,6 +9,7 @@ import {
   resetPasswordSchema,
   updateFcmTokenSchema,
   verifyOtpSchema,
+  changePasswordSchema,
 } from './auth.schema';
 import { authenticate } from '../../common/middleware/authenticate';
 
@@ -73,6 +74,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
       linkChildSchema.parse({ body: request.body });
     },
   }, AuthController.linkChild);
+
+  fastify.put('/change-password', {
+    preHandler: [
+      authenticate,
+      async (request) => {
+        changePasswordSchema.parse({ body: request.body });
+      },
+    ],
+  }, AuthController.changePassword);
 
   fastify.post('/refresh', {
     preHandler: [authenticate],

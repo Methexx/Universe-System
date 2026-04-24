@@ -28,6 +28,7 @@ export default function SecurityLayout({ children }: { children: React.ReactNode
       userParams={{
         name: user.full_name ?? user.email,
         roleLevel: "Security",
+        avatarUrl: user.avatar_url ?? undefined,
       }}
     >
       {children}

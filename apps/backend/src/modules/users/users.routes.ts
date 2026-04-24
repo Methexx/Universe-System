@@ -16,6 +16,8 @@ export default async function usersRoutes(fastify: FastifyInstance) {
     preHandler: async (request) => { updateProfileSchema.parse({ body: request.body }) }
   }, UsersController.updateMe);
 
+  fastify.delete('/me', UsersController.deleteMe);
+
   // 2. ADMIN-ONLY ROUTES
   // We use the `authorize` RBAC middleware in the preHandler array
   fastify.get('/pending', {

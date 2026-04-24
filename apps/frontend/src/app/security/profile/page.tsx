@@ -3,13 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
-import { Eye, Edit2, Loader2, Check } from 'lucide-react';
+import { Eye, Edit2, Loader2, Check, Shield } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { updateProfile, changePassword, deleteMe } from '@/features/auth/lib/auth-api';
-import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 
-export default function ProfilePage() {
+export default function SecurityProfilePage() {
   const { user, setUser, logout } = useAuth();
   const router = useRouter();
 
@@ -31,7 +30,7 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [preferences, setPreferences] = useState({
     darkMode: false,
-    emailNotifications: false,
+    emailNotifications: true,
   });
 
   // Modals state
@@ -153,7 +152,7 @@ export default function ProfilePage() {
       <div className="relative">
         <PageHeader
           title="Profile"
-          subtitle="Manage your personal information and preferences"
+          subtitle="Manage your security officer account details and preferences."
         />
 
         {isDirty && (
@@ -185,17 +184,17 @@ export default function ProfilePage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="absolute top-6 right-6 text-[var(--muted)] hover:text-[#3b82f6] transition-colors"
+              className="absolute top-6 right-6 text-[var(--muted)] hover:text-[#0f172a] transition-colors"
             >
               <Edit2 className="w-[18px] h-[18px]" />
             </button>
 
-            <div className="w-[100px] h-[100px] rounded-full bg-gray-200 overflow-hidden mb-5">
+            <div className="w-[100px] h-[100px] rounded-full bg-gray-200 overflow-hidden mb-5 border-2 border-[#0f172a]/10">
               {profileImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-[#1e293b] flex items-center justify-center text-white text-3xl font-bold">
+                <div className="w-full h-full bg-[#0f172a] flex items-center justify-center text-white text-3xl font-bold">
                   {(formData.firstName.charAt(0) || user.email.charAt(0)).toUpperCase()}
                 </div>
               )}
@@ -204,13 +203,17 @@ export default function ProfilePage() {
             <h2 className="text-[18px] font-bold text-[#0f172a] mb-1">
               {formData.firstName || formData.lastName ? `${formData.firstName} ${formData.lastName}` : 'No Name'}
             </h2>
-            <p className="text-[13px] font-medium text-[var(--muted)]">{user.email}</p>
+            <p className="text-[13px] font-medium text-[var(--muted)] mb-3">{user.email}</p>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[12px] font-bold border border-slate-200">
+              <Shield className="w-3.5 h-3.5" />
+              Security
+            </span>
           </div>
 
           {/* Preferences Card */}
           <div className="bg-[var(--surface)] border border-[var(--line)] rounded-[20px] p-6 w-full shadow-sm">
             <h3 className="text-[16px] font-bold text-[#0f172a] mb-1">Preferences</h3>
-            <p className="text-[12px] font-medium text-[var(--muted)] mb-6">Customize ur web experience</p>
+            <p className="text-[12px] font-medium text-[var(--muted)] mb-6">Customize your dashboard</p>
 
             <div className="flex flex-col gap-6">
               {/* Dark Mode Toggle */}
@@ -221,12 +224,12 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <h4 className="text-[14px] font-bold text-[#0f172a]">Dark Mode</h4>
-                    <p className="text-[12px] font-medium text-[var(--muted)]">Customize ur web experience</p>
+                    <p className="text-[12px] font-medium text-[var(--muted)]">Enable dark theme</p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleToggle('darkMode')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.darkMode ? 'bg-[#3b82f6]' : 'bg-gray-200'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.darkMode ? 'bg-[#0f172a]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.darkMode ? 'left-[22px]' : 'left-[2px]'}`} />
                 </button>
@@ -236,16 +239,16 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[var(--muted)]">
-                    <Eye className="w-5 h-5" />
+                    <Shield className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-[14px] font-bold text-[#0f172a]">Email Notifications</h4>
-                    <p className="text-[12px] font-medium text-[var(--muted)]">Customize ur web experience</p>
+                    <h4 className="text-[14px] font-bold text-[#0f172a]">Security Alerts</h4>
+                    <p className="text-[12px] font-medium text-[var(--muted)]">Receive critical updates</p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleToggle('emailNotifications')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.emailNotifications ? 'bg-[#3b82f6]' : 'bg-gray-200'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.emailNotifications ? 'bg-[#0f172a]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.emailNotifications ? 'left-[22px]' : 'left-[2px]'}`} />
                 </button>
@@ -261,7 +264,7 @@ export default function ProfilePage() {
           {/* Personal Information Card */}
           <div className="bg-[var(--surface)] border border-[var(--line)] rounded-[20px] p-8 w-full shadow-sm">
             <h3 className="text-[16px] font-bold text-[#0f172a] mb-1">Personal Information</h3>
-            <p className="text-[12px] font-medium text-[var(--muted)] mb-8">Manage your personal information</p>
+            <p className="text-[12px] font-medium text-[var(--muted)] mb-8">Manage your personal details</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <TextInput
@@ -287,7 +290,7 @@ export default function ProfilePage() {
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 className="bg-transparent"
-                placeholder="+1 234 567 8900"
+                placeholder="+94 771 234 5678"
               />
               <TextInput
                 label="Email Address"
@@ -410,7 +413,7 @@ export default function ProfilePage() {
       {/* Delete Account Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 transition-opacity">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl p-8 w-full max-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Account</h3>
             <p className="text-sm text-gray-500 mb-6">Are you absolutely sure? This action cannot be undone and you will lose all data.</p>
             <div className="flex gap-3 justify-end">

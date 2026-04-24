@@ -28,6 +28,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       userParams={{
         name: user.full_name ?? user.email,
         roleLevel: "Teacher",
+        avatarUrl: user.avatar_url ?? undefined,
       }}
     >
       {children}

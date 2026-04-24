@@ -9,6 +9,8 @@ export type AuthUser = {
   email: string;
   role: string;
   full_name?: string | null;
+  phone_number?: string | null;
+  avatar_url?: string | null;
 };
 
 type AuthContextValue = {

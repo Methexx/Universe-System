@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from './auth.service';
 import {
+  ChangePasswordInput,
   ForgotPasswordInput,
   LinkChildInput,
   LoginInput,
@@ -86,14 +87,14 @@ export class AuthController {
     const user = await import('../../config/prisma').then(({ prisma }) =>
       prisma.user.findUnique({
         where: { id: userClaims.userId },
-        select: { id: true, email: true, role: true, full_name: true, is_active: true, is_suspended: true },
+        select: { id: true, email: true, role: true, full_name: true, phone_number: true, avatar_url: true, is_active: true, is_suspended: true },
       })
     );
     if (!user || !user.is_active || user.is_suspended) {
       return reply.status(401).send(errorResponse('Unauthorized'));
     }
     return reply.send(successResponse('OK', {
-      user: { userId: user.id, email: user.email, role: user.role, full_name: user.full_name },
+      user: { userId: user.id, email: user.email, role: user.role, full_name: user.full_name, phone_number: user.phone_number, avatar_url: user.avatar_url },
     }));
   }
 
@@ -121,6 +122,16 @@ export class AuthController {
   static async resetPassword(request: FastifyRequest<{ Body: ResetPasswordInput }>, reply: FastifyReply) {
     try {
       const result = await AuthService.resetPassword(request.body);
+      return reply.send(successResponse(result.message));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
+  static async changePassword(request: FastifyRequest<{ Body: ChangePasswordInput }>, reply: FastifyReply) {
+    try {
+      const userClaims = (request as any).user as { userId: string };
+      const result = await AuthService.changePassword(userClaims.userId, request.body);
       return reply.send(successResponse(result.message));
     } catch (error: any) {
       return reply.status(400).send(errorResponse(error.message));

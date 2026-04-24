@@ -3,7 +3,8 @@ import { z } from 'zod';
 export const updateProfileSchema = z.object({
   body: z.object({
     full_name: z.string().min(2, 'Name too short').optional(),
-    avatar_url: z.string().url('Invalid URL').optional(),
+    avatar_url: z.string().optional(),
+    phone_number: z.string().optional(),
   }),
 });
 

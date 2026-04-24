@@ -60,6 +60,7 @@ export type UserProfile = {
   is_suspended: boolean;
   created_at: string;
   avatar_url: string | null;
+  phone_number?: string | null;
 };
 
 export function getAllUsers() {
@@ -108,5 +109,25 @@ export function resetPassword(body: { email: string; otp_code: string; new_passw
   return request<{ message: string }>('/api/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+}
+
+export function updateProfile(body: { full_name?: string; avatar_url?: string; phone_number?: string }) {
+  return request<UserProfile>('/api/users/me', {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function changePassword(body: { old_password: string; new_password: string }) {
+  return request<{ message: string }>('/api/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMe() {
+  return request<{ message: string }>('/api/users/me', {
+    method: 'DELETE',
   });
 }
