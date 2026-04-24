@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
@@ -13,6 +13,9 @@ import {
   PendingUser,
   getAllUsers,
   UserProfile,
+  suspendUser,
+  unsuspendUser,
+  deleteUser,
 } from "@/features/auth/lib/auth-api";
 
 type TabType = 'Gate' | 'Pending requests' | 'All users';
@@ -26,15 +29,101 @@ const GATE_LOGS = [
   { id: '6', studentId: '48573', date: 'Oct 24, 2024', timeLabel: 'Yesterday', checkIn: '07:15 AM', checkOut: '03:00 PM', status: 'Manual' },
 ];
 
-
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    year: 'numeric', month: 'short', day: 'numeric',
   });
 }
+
+/* ───── inline dropdown component ───── */
+function UserActionsMenu({
+  user,
+  onSuspend,
+  onUnsuspend,
+  onDelete,
+}: {
+  user: UserProfile;
+  onSuspend: () => void;
+  onUnsuspend: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const openMenu = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const menuHeight = 150; // approx height of the menu
+      const spaceBelow = window.innerHeight - r.bottom;
+      
+      // If there's not enough space below, open upwards
+      const topPos = spaceBelow < menuHeight ? r.top - menuHeight : r.bottom + 4;
+      
+      // Since it's position: fixed, we only use viewport-relative coordinates
+      setPos({ top: topPos, left: r.right - 192 });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+          btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const wrap = (fn: () => void) => () => { setOpen(false); fn(); };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={openMenu}
+        className="p-1.5 rounded-md transition-colors text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+      >
+        <MoreVertical className="w-5 h-5" />
+      </button>
+
+      {open && (
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 192 }}
+          className="bg-white border border-gray-200 rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] py-1 text-left"
+        >
+          <button
+            onClick={wrap(onUnsuspend)}
+            disabled={!user.is_suspended}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Reactivate
+          </button>
+          <button
+            onClick={wrap(onSuspend)}
+            disabled={user.is_suspended}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Freeze Account
+          </button>
+          <hr className="my-1 border-gray-100" />
+          <button
+            onClick={wrap(onDelete)}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Delete User
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 
 export default function LogsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('Gate');
@@ -96,6 +185,27 @@ export default function LogsPage() {
       setPendingUsers(prev => prev.filter(req => req.id !== id));
     }
   };
+
+  const handleSuspend = async (id: string) => {
+    const res = await suspendUser(id);
+    if (res.ok) setAllUsers(prev => prev.map(u => u.id === id ? { ...u, is_suspended: true, is_active: false } : u));
+  };
+
+  const handleUnsuspend = async (id: string) => {
+    const res = await unsuspendUser(id);
+    if (res.ok) setAllUsers(prev => prev.map(u => u.id === id ? { ...u, is_suspended: false, is_active: true } : u));
+  };
+
+  const handleDelete = async (id: string) => {
+    const res = await deleteUser(id);
+    if (res.ok) setAllUsers(prev => prev.filter(u => u.id !== id));
+  };
+
+  const filteredAllUsers = allUsers.filter(u => {
+    if (searchUsers && !u.full_name?.toLowerCase().includes(searchUsers.toLowerCase())) return false;
+    if (filterRoleUsers && filterRoleUsers !== 'All' && u.role !== filterRoleUsers.toLowerCase()) return false;
+    return true;
+  });
 
   const renderGateTab = () => (
     <div className="bg-white border border-[var(--line)] rounded-[20px] p-6 w-full shadow-sm mt-6">
@@ -279,50 +389,33 @@ export default function LogsPage() {
   );
 
   const renderAllUsersTab = () => (
-    <div className="bg-white border border-[var(--line)] rounded-[20px] overflow-hidden w-full shadow-sm mt-6">
-      <div className="p-6 pb-0 mb-6">
-        <FilterBar
-          searchPlaceholder="Search User by ID"
-          searchValue={searchUsers}
-          onSearchChange={setSearchUsers}
-          filters={[
-            {
-              id: 'role',
-              label: 'Students',
-              value: filterRoleUsers,
-              onChange: setFilterRoleUsers,
-              options: [
-                { label: 'Students', value: 'Students' },
-                { label: 'Teachers', value: 'Teachers' }
-              ]
-            },
-            {
-              id: 'class',
-              label: 'All',
-              value: filterClassUsers,
-              onChange: setFilterClassUsers,
-              options: [
-                { label: 'All', value: 'All' },
-                { label: '11B', value: '11B' },
-                { label: '12B', value: '12B' }
-              ]
-            },
-            {
-              id: 'date',
-              label: 'Today',
-              value: filterDateUsers,
-              onChange: setFilterDateUsers,
-              options: [
-                { label: 'Today', value: 'Today' },
-                { label: 'Yesterday', value: 'Yesterday' }
-              ]
-            }
-          ]}
-        />
+    <div className="bg-white border border-[var(--line)] rounded-[20px] w-full shadow-sm mt-6">
+      {/* Header row: title left, filter right */}
+      <div className="p-6 flex items-center justify-between gap-4">
+        <h2 className="text-[18px] font-bold text-[#0f172a] whitespace-nowrap">All Users</h2>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <input
+            type="text"
+            placeholder="Search by name…"
+            value={searchUsers}
+            onChange={e => setSearchUsers(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 w-52"
+          />
+          <select
+            value={filterRoleUsers}
+            onChange={e => setFilterRoleUsers(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Roles</option>
+            <option value="teacher">Teachers</option>
+            <option value="security">Security</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
       </div>
 
       <div className="overflow-x-auto w-full">
-        <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
+        <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
           <thead className="bg-[#fafafa] border-y border-gray-100 text-[#0f172a] font-bold text-[13px]">
             <tr>
               <th className="py-4 px-6">Name</th>
@@ -340,36 +433,34 @@ export default function LogsPage() {
                   <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
                 </td>
               </tr>
-            ) : allUsers.length === 0 ? (
+            ) : filteredAllUsers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-gray-400">
-                  <p>No active users found.</p>
+                  <p>No users found.</p>
                 </td>
               </tr>
             ) : (
-              allUsers.map((user) => (
+              filteredAllUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50/50 text-[#334155] transition-colors">
                   <td className="py-3.5 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
                         {user.avatar_url ? (
                           <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                            {user.full_name?.charAt(0) || "U"}
+                            {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
                         )}
                       </div>
-                      <span className="font-bold text-[#0f172a]">{user.full_name ?? "—"}</span>
+                      <span className="font-bold text-[#0f172a]">{user.full_name ?? '—'}</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-6">
-                    <span className="capitalize">{user.role}</span>
-                  </td>
+                  <td className="py-3.5 px-6 capitalize">{user.role}</td>
                   <td className="py-3.5 px-6 text-sm">{user.email}</td>
                   <td className="py-3.5 px-6">
                     {user.is_suspended ? (
-                      <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Suspended</span>
+                      <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Freeze</span>
                     ) : user.is_active ? (
                       <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100">Active</span>
                     ) : (
@@ -378,9 +469,12 @@ export default function LogsPage() {
                   </td>
                   <td className="py-3.5 px-6">{formatDate(user.created_at)}</td>
                   <td className="py-3.5 px-6 text-right">
-                    <button className="p-1.5 rounded-md transition-colors text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <UserActionsMenu
+                      user={user}
+                      onSuspend={() => handleSuspend(user.id)}
+                      onUnsuspend={() => handleUnsuspend(user.id)}
+                      onDelete={() => handleDelete(user.id)}
+                    />
                   </td>
                 </tr>
               ))

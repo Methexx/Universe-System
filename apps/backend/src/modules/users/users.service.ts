@@ -88,6 +88,9 @@ export class UsersService {
   }
 
   static async suspendUser(targetUserId: string) {
+    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user) throw new Error('User not found');
+    if (user.role === 'admin') throw new Error('Cannot suspend an admin account');
     return prisma.user.update({
       where: { id: targetUserId },
       data: { is_suspended: true, is_active: false },
@@ -96,6 +99,8 @@ export class UsersService {
   }
 
   static async unsuspendUser(targetUserId: string) {
+    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user) throw new Error('User not found');
     return prisma.user.update({
       where: { id: targetUserId },
       data: { is_suspended: false, is_active: true },
@@ -104,9 +109,33 @@ export class UsersService {
   }
 
   static async deleteUser(targetUserId: string) {
-    return prisma.user.delete({
-      where: { id: targetUserId },
-      select: { id: true, email: true }
+    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user) throw new Error('User not found');
+    if (user.role === 'admin') throw new Error('Cannot delete an admin account');
+
+    return prisma.$transaction(async (tx) => {
+      // Nullify optional FK references that don't cascade
+      await tx.complaint.updateMany({
+        where: { assigned_to_id: targetUserId },
+        data: { assigned_to_id: null },
+      });
+      await tx.complaint.updateMany({
+        where: { resolved_by_id: targetUserId },
+        data: { resolved_by_id: null },
+      });
+      await tx.gateEvent.updateMany({
+        where: { scanned_by_id: targetUserId },
+        data: { scanned_by_id: null },
+      });
+      await tx.attendanceRecord.updateMany({
+        where: { marked_by_id: targetUserId },
+        data: { marked_by_id: null },
+      });
+      // Now delete the user (cascade handles the rest)
+      return tx.user.delete({
+        where: { id: targetUserId },
+        select: { id: true, email: true }
+      });
     });
   }
 }

@@ -23,9 +23,15 @@ app.register(cors, {
   origin: [env.WEB_URL, env.FLUTTER_ORIGIN, 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 });
-app.register(helmet);
+app.register(helmet, {
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+});
 app.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute'

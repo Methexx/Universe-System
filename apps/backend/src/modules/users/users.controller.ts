@@ -60,7 +60,7 @@ export class UsersController {
       const suspended = await UsersService.suspendUser(id);
       return reply.send(successResponse('User suspended', suspended));
     } catch (error: any) {
-      return reply.status(400).send(errorResponse('Failed to suspend user'));
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 
@@ -70,7 +70,7 @@ export class UsersController {
       const unsuspended = await UsersService.unsuspendUser(id);
       return reply.send(successResponse('User unsuspended', unsuspended));
     } catch (error: any) {
-      return reply.status(400).send(errorResponse('Failed to unsuspend user'));
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 
@@ -80,7 +80,7 @@ export class UsersController {
       const deleted = await UsersService.deleteUser(id);
       return reply.send(successResponse('User deleted', deleted));
     } catch (error: any) {
-      return reply.status(400).send(errorResponse('Failed to delete user'));
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 }

@@ -11,9 +11,13 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<ApiResult<T>> {
   try {
+    const hasBody = options.body !== undefined && options.body !== null;
     const res = await fetch(`${BASE}${path}`, {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers: {
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers,
+      },
       ...options,
     });
     const json = await res.json().catch(() => ({}));
@@ -70,6 +74,24 @@ export function approvePendingUser(id: string, role: string) {
 }
 
 export function rejectPendingUser(id: string) {
+  return request<{ message: string }>(`/api/users/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function suspendUser(id: string) {
+  return request<{ message: string }>(`/api/users/${id}/suspend`, {
+    method: 'PUT',
+  });
+}
+
+export function unsuspendUser(id: string) {
+  return request<{ message: string }>(`/api/users/${id}/unsuspend`, {
+    method: 'PUT',
+  });
+}
+
+export function deleteUser(id: string) {
   return request<{ message: string }>(`/api/users/${id}`, {
     method: 'DELETE',
   });
