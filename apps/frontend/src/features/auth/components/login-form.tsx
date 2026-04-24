@@ -14,6 +14,7 @@ const ROLE_DASHBOARD: Record<string, string> = {
   admin: '/admin/overview',
   teacher: '/teacher/overview',
   security: '/security/overview',
+  pending: '/pending',
 };
 
 export function LoginForm() {
@@ -97,6 +98,7 @@ export function LoginForm() {
         onChange={(e) => setPassword(e.target.value)}
         error={errors.password}
         showForgotPassword={true}
+        forgotPasswordHref="/forgot-password"
       />
 
       <AuthCheckbox

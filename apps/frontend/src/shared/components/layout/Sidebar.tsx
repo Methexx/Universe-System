@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { LogOut } from "lucide-react";
 import { SIDEBAR_MENU, Role } from "./sidebarConfig";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 interface SidebarProps {
   role: Role;
@@ -16,10 +17,41 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const menuItems = SIDEBAR_MENU[role] || SIDEBAR_MENU["admin"];
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
+
+  const confirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    logout();
+  };
 
   return (
     <>
+      {/* Logout Confirmation Modal */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl transform transition-all">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
+            <p className="text-sm text-gray-500 mb-6">Are you sure you want to log out?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                No
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#e31f26] hover:bg-[#c9181f] transition-colors"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile backdrop */}
       {isOpen && (
         <div
@@ -105,7 +137,10 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
             </div>
           </div>
           
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e31f26] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#c9181f]">
+          <button 
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e31f26] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#c9181f]"
+          >
             <LogOut className="h-4 w-4" strokeWidth={2.5} />
             LogOut
           </button>

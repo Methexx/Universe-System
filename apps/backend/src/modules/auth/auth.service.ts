@@ -286,6 +286,7 @@ export class AuthService {
           full_name: pendingRegistration.full_name,
           password_hash: hashedPassword,
           role: 'pending',
+          requested_role: pendingRegistration.role,
         },
       });
     });
@@ -314,10 +315,6 @@ export class AuthService {
       throw new Error('Account disabled or suspended');
     }
 
-    if (user.role === 'pending') {
-      throw new Error('ACCOUNT_PENDING');
-    }
-
     return buildAuthPayload(user);
   }
 
@@ -340,13 +337,13 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      return { message: 'If an account exists for this email, an OTP has been sent.' };
+      throw new Error('No account found with this email address');
     }
 
     await AuthService.ensureResendCooldown(email);
     await AuthService.createOtp(email);
 
-    return { message: 'If an account exists for this email, an OTP has been sent.' };
+    return { message: 'OTP sent to your email successfully.' };
   }
 
   static async resetPassword(input: ResetPasswordInput) {

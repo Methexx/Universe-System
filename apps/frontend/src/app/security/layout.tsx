@@ -15,8 +15,8 @@ export default function SecurityLayout({ children }: { children: React.ReactNode
       router.replace("/login");
       return;
     }
-    if (user.role !== "security" && user.role !== "pending") {
-      router.replace(`/${user.role}/overview`);
+    if (user.role !== "security") {
+      router.replace(user.role === "pending" ? "/pending" : `/${user.role}/overview`);
     }
   }, [user, loading, router]);
 
