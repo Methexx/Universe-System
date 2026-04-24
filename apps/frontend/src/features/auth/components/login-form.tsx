@@ -1,15 +1,17 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
 import React, { useState } from 'react';
 import { validateLogin } from '../lib/validators';
 import { LoginFormValues } from '../types/auth';
+import { AuthInput } from '@/shared/components/auth/auth-input';
+import { AuthCheckbox } from '@/shared/components/auth/auth-checkbox';
+import { AuthButton } from '@/shared/components/auth/auth-button';
+import { GoogleButton } from '@/shared/components/auth/google-button';
 
 export function LoginForm() {
   const [values, setValues] = useState<LoginFormValues>({ email: '', password: '' });
   const [errors, setErrors] = useState<Partial<Record<keyof LoginFormValues, string>>>({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   function onInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -23,67 +25,56 @@ export function LoginForm() {
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length === 0) {
-      // This will be replaced by API integration in the next step.
       window.location.assign('/admin/overview');
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="login-form">
-      <label htmlFor="login-email" className="login-label">
-        Enter your username or email address
-      </label>
-      <input
+    <form onSubmit={onSubmit} className="space-y-5">
+      <AuthInput
         id="login-email"
         name="email"
         type="email"
+        label="Email address"
+        placeholder="johnsmith@aeropanel.io"
         value={values.email}
         onChange={onInputChange}
-        placeholder="Username or email address"
-        className="auth-input"
+        error={errors.email}
       />
-      {errors.email ? <span className="form-error">{errors.email}</span> : null}
 
-      <label htmlFor="login-password" className="login-label">
-        Enter your Password
-      </label>
-      <div className="login-password-wrap">
-        <input
-          id="login-password"
-          name="password"
-          type={showPassword ? 'text' : 'password'}
-          value={values.password}
-          onChange={onInputChange}
-          placeholder="Password"
-          className="auth-input pr-11"
-        />
-        <button
-          type="button"
-          className="login-eye"
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
-          onClick={() => setShowPassword((previous) => !previous)}
-        >
-          {showPassword ? '🙈' : '👁️'}
-        </button>
+      <AuthInput
+        id="login-password"
+        name="password"
+        type="password"
+        label="Password"
+        placeholder="••••••••"
+        value={values.password}
+        onChange={onInputChange}
+        error={errors.password}
+        showForgotPassword={true}
+      />
+
+      <AuthCheckbox
+        id="remember-me"
+        label="Remember me"
+        checked={rememberMe}
+        onChange={(e) => setRememberMe(e.target.checked)}
+      />
+
+      <AuthButton type="submit">
+        Login
+      </AuthButton>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-gray-500">Or</span>
+        </div>
       </div>
-      {errors.password ? <span className="form-error">{errors.password}</span> : null}
 
-      <div className="text-right">
-        <Link href="#" className="forgot-link">
-          Forgot Password
-        </Link>
-      </div>
-
-      <button type="submit" className="auth-button mt-0.5">
-        Sign in
-      </button>
-
-      <p className="login-divider">OR</p>
-
-      <button type="button" className="google-button">
-        <Image src="/Assets/google.svg" alt="Google" width={28} height={28} className="google-icon" />
-        Sign in with Google
-      </button>
+      <GoogleButton />
     </form>
   );
 }
