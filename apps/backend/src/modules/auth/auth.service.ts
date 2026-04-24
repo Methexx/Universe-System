@@ -286,6 +286,7 @@ export class AuthService {
           full_name: pendingRegistration.full_name,
           password_hash: hashedPassword,
           role: 'pending',
+          requested_role: pendingRegistration.role,
         },
       });
     });

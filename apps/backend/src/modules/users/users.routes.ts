@@ -22,6 +22,10 @@ export default async function usersRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin'])]
   }, UsersController.getPending);
 
+  fastify.get('/all', {
+    preHandler: [authorize(['admin'])]
+  }, UsersController.getAll);
+
   fastify.put('/:id/promote', {
     preHandler: [
       authorize(['admin']),
@@ -42,4 +46,11 @@ export default async function usersRoutes(fastify: FastifyInstance) {
       async (request) => { paramsIdSchema.parse({ params: request.params }) }
     ]
   }, UsersController.unsuspend);
+
+  fastify.delete('/:id', {
+    preHandler: [
+      authorize(['admin']),
+      async (request) => { paramsIdSchema.parse({ params: request.params }) }
+    ]
+  }, UsersController.delete);
 }

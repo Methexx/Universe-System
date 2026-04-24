@@ -19,6 +19,7 @@ model User {
   email         String   @unique
   password_hash String
   role          String   @default("pending") // 'pending' | 'teacher' | 'security' | 'admin' | 'parent'
+  requested_role String?
   full_name     String?
   avatar_url    String?
   fcm_token     String?

@@ -42,6 +42,24 @@ export class UsersService {
         email: true,
         full_name: true,
         created_at: true,
+        requested_role: true,
+      },
+      orderBy: { created_at: 'desc' }
+    });
+  }
+
+  static async getAllUsers() {
+    return prisma.user.findMany({
+      where: { role: { not: 'pending' } },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+        is_suspended: true,
+        created_at: true,
+        avatar_url: true,
       },
       orderBy: { created_at: 'desc' }
     });
@@ -82,6 +100,13 @@ export class UsersService {
       where: { id: targetUserId },
       data: { is_suspended: false, is_active: true },
       select: { id: true, email: true, is_suspended: true }
+    });
+  }
+
+  static async deleteUser(targetUserId: string) {
+    return prisma.user.delete({
+      where: { id: targetUserId },
+      select: { id: true, email: true }
     });
   }
 }

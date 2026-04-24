@@ -26,7 +26,7 @@ async function request<T>(
 
 export type LoginResponse = { role: string; user: AuthUser };
 export type MeResponse = { user: AuthUser };
-export type PendingUser = { id: string; email: string; full_name: string | null; created_at: string };
+export type PendingUser = { id: string; email: string; full_name: string | null; created_at: string; requested_role?: string };
 
 export function loginUser(body: { email: string; password: string }) {
   return request<LoginResponse>('/api/auth/login', {
@@ -47,6 +47,21 @@ export function getPendingUsers() {
   return request<PendingUser[]>('/api/users/pending');
 }
 
+export type UserProfile = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_active: boolean;
+  is_suspended: boolean;
+  created_at: string;
+  avatar_url: string | null;
+};
+
+export function getAllUsers() {
+  return request<UserProfile[]>('/api/users/all');
+}
+
 export function approvePendingUser(id: string, role: string) {
   return request<{ message: string }>(`/api/users/${id}/promote`, {
     method: 'PUT',
@@ -55,8 +70,8 @@ export function approvePendingUser(id: string, role: string) {
 }
 
 export function rejectPendingUser(id: string) {
-  return request<{ message: string }>(`/api/users/${id}/suspend`, {
-    method: 'PUT',
+  return request<{ message: string }>(`/api/users/${id}`, {
+    method: 'DELETE',
   });
 }
 
