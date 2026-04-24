@@ -11,6 +11,7 @@ export class UsersService {
         role: true,
         full_name: true,
         avatar_url: true,
+        phone_number: true,
         is_active: true,
         created_at: true,
       }
@@ -29,6 +30,7 @@ export class UsersService {
         role: true,
         full_name: true,
         avatar_url: true,
+        phone_number: true,
       }
     });
     return updated;
@@ -108,10 +110,14 @@ export class UsersService {
     });
   }
 
-  static async deleteUser(targetUserId: string) {
+  static async deleteUser(targetUserId: string, actingUserId?: string) {
     const user = await prisma.user.findUnique({ where: { id: targetUserId } });
     if (!user) throw new Error('User not found');
-    if (user.role === 'admin') throw new Error('Cannot delete an admin account');
+    
+    // Only block if trying to delete an admin and it's NOT yourself
+    if (user.role === 'admin' && actingUserId !== targetUserId) {
+      throw new Error('Cannot delete an admin account');
+    }
 
     return prisma.$transaction(async (tx) => {
       // Nullify optional FK references that don't cascade

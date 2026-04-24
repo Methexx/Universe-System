@@ -25,6 +25,16 @@ export class UsersController {
     }
   }
 
+  static async deleteMe(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const userPayload = (request as any).user;
+      await UsersService.deleteUser(userPayload.userId, userPayload.userId);
+      return reply.send(successResponse('Account deleted successfully'));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
   static async getPending(request: FastifyRequest, reply: FastifyReply) {
     try {
       const pendingUsers = await UsersService.getPendingUsers();

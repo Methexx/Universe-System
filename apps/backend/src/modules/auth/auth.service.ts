@@ -41,11 +41,15 @@ const sanitizeUser = (user: {
   email: string;
   role: string;
   full_name: string | null;
+  avatar_url?: string | null;
+  phone_number?: string | null;
 }) => ({
   userId: user.id,
   email: user.email,
   role: user.role,
   full_name: user.full_name,
+  avatar_url: user.avatar_url,
+  phone_number: user.phone_number,
 });
 
 const buildAuthPayload = (user: {
@@ -53,6 +57,8 @@ const buildAuthPayload = (user: {
   role: string;
   email: string;
   full_name: string | null;
+  avatar_url?: string | null;
+  phone_number?: string | null;
 }) => ({
   token: generateToken({ userId: user.id, role: user.role, email: user.email }),
   role: user.role,
@@ -444,5 +450,21 @@ export class AuthService {
     });
 
     return { message: 'FCM token updated' };
+  }
+
+  static async changePassword(userId: string, input: { old_password: string; new_password: string }) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+
+    const isValid = await comparePassword(input.old_password, user.password_hash);
+    if (!isValid) throw new Error('Incorrect old password');
+
+    const newHash = await hashPassword(input.new_password);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: newHash },
+    });
+
+    return { message: 'Password updated successfully' };
   }
 }
