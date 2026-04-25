@@ -22,48 +22,72 @@ const zodToJsonSchema = (schema: any) => {
 // Fastify routes
 export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/register', {
-    preHandler: async (request, reply) => {
-      try {
-        registerSchema.parse({ body: request.body });
-      } catch (error) {
-        throw error;
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute'
       }
+    },
+    preHandler: async (request) => {
+      registerSchema.parse({ body: request.body });
     }
   }, AuthController.register);
 
   fastify.post('/verify-otp', {
-    preHandler: async (request, reply) => {
-      try {
-        verifyOtpSchema.parse({ body: request.body });
-      } catch (error) {
-        throw error;
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute'
       }
+    },
+    preHandler: async (request) => {
+      verifyOtpSchema.parse({ body: request.body });
     }
   }, AuthController.verifyOtp);
 
   fastify.post('/login', {
-    preHandler: async (request, reply) => {
-      try {
-        loginSchema.parse({ body: request.body });
-      } catch (error) {
-        throw error;
+    config: {
+      rateLimit: {
+        max: 15,
+        timeWindow: '1 minute'
       }
+    },
+    preHandler: async (request) => {
+      loginSchema.parse({ body: request.body });
     }
   }, AuthController.login);
 
   fastify.post('/resend-otp', {
+    config: {
+      rateLimit: {
+        max: 3,
+        timeWindow: '1 minute'
+      }
+    },
     preHandler: async (request) => {
       resendOtpSchema.parse({ body: request.body });
     },
   }, AuthController.resendOtp);
 
   fastify.post('/forgot-password', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute'
+      }
+    },
     preHandler: async (request) => {
       forgotPasswordSchema.parse({ body: request.body });
     },
   }, AuthController.forgotPassword);
 
   fastify.post('/reset-password', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute'
+      }
+    },
     preHandler: async (request) => {
       resetPasswordSchema.parse({ body: request.body });
     },
