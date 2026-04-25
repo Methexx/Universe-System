@@ -35,7 +35,14 @@ app.register(helmet, {
 });
 app.register(rateLimit, {
   max: 100,
-  timeWindow: '1 minute'
+  timeWindow: '1 minute',
+  errorResponseBuilder: (request, context) => {
+    return {
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: `I'm sorry, you're doing that too fast. Please wait ${context.after} before trying again.`
+    }
+  }
 });
 
 // Error Handler
