@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { SectionCard } from './components/SectionCard';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
@@ -8,18 +8,30 @@ import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
 import { FileUploadInput } from '@/shared/components/ui/forms/FileUploadInput';
 import { Trash2, ChevronDown } from 'lucide-react';
 
+/** Auto-generates a Student ID in the format SCH-YYYY-XXXX */
+function generateStudentId(): string {
+  const year = new Date().getFullYear();
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return `SCH-${year}-${rand}`;
+}
+
+/** Returns today's date as YYYY-MM-DD */
+function todayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export default function EnrollmentsPage() {
+  const autoStudentId = useMemo(() => generateStudentId(), []);
+  const autoAdmissionDate = useMemo(() => todayDate(), []);
+
   const [formData, setFormData] = useState({
     // Student Details
     firstName: '',
     lastName: '',
     gender: 'Male',
     age: '',
-    email: '',
     birthday: '',
-    admissionDate: '',
-    studentIdNumber: '',
-    
+
     // Parent Details
     parentName: '',
     parentId: '',
@@ -60,28 +72,28 @@ export default function EnrollmentsPage() {
           summaryContent={
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
               <div><span className="text-xs text-gray-500 block">Name</span><span className="font-semibold text-sm">{formData.firstName || '-'} {formData.lastName}</span></div>
-              <div><span className="text-xs text-gray-500 block">Student ID</span><span className="font-semibold text-sm">{formData.studentIdNumber || '-'}</span></div>
-              <div><span className="text-xs text-gray-500 block">Email</span><span className="font-semibold text-sm">{formData.email || '-'}</span></div>
-              <div><span className="text-xs text-gray-500 block">Admission Date</span><span className="font-semibold text-sm">{formData.admissionDate || '-'}</span></div>
+              <div><span className="text-xs text-gray-500 block">Student ID</span><span className="font-semibold text-sm">{autoStudentId}</span></div>
+              <div><span className="text-xs text-gray-500 block">Birthday</span><span className="font-semibold text-sm">{formData.birthday || '-'}</span></div>
+              <div><span className="text-xs text-gray-500 block">Admission Date</span><span className="font-semibold text-sm">{autoAdmissionDate}</span></div>
             </div>
           }
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <TextInput 
+            <TextInput
               label="First Name"
               name="firstName"
               placeholder="e.g. Methum"
               value={formData.firstName}
               onChange={handleChange}
             />
-            <TextInput 
+            <TextInput
               label="Last Name"
               name="lastName"
               placeholder="e.g. Pathirana"
               value={formData.lastName}
               onChange={handleChange}
             />
-            <SelectInput 
+            <SelectInput
               label="Gender"
               name="gender"
               value={formData.gender}
@@ -92,48 +104,44 @@ export default function EnrollmentsPage() {
                 { label: 'Other', value: 'Other' }
               ]}
             />
-            <TextInput 
+            <TextInput
               label="Age"
               name="age"
-              placeholder="12 Years Old"
+              placeholder="12"
               value={formData.age}
               onChange={handleChange}
             />
-            <TextInput 
-              label="Email"
-              name="email"
-              type="email"
-              placeholder="methum.edu@gmail.com"
-              value={formData.email}
-              onChange={handleChange}
-            />
-            
-            <TextInput 
+            <TextInput
               label="Birthday"
               name="birthday"
-              placeholder="e.g. 2003.09.23"
+              placeholder="e.g. 2003-09-23"
               value={formData.birthday}
               onChange={handleChange}
             />
-            <TextInput 
-              label="Admission Date"
-              name="admissionDate"
-              placeholder="2026.07.18"
-              value={formData.admissionDate}
-              onChange={handleChange}
-            />
-            <TextInput 
-              label="Student ID Number"
-              name="studentIdNumber"
-              placeholder="29854"
-              value={formData.studentIdNumber}
-              onChange={handleChange}
-            />
-            <div className="lg:col-span-2">
-               <FileUploadInput 
-                 label="Upload Image"
-                 placeholderText="Browse Files"
-               />
+
+            {/* Auto-generated: Student ID Number */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[13px] font-bold text-[#475569] tracking-wide">Student ID Number</label>
+              <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-3">
+                <span className="text-[#334155] font-semibold text-sm flex-1">{autoStudentId}</span>
+                <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">AUTO</span>
+              </div>
+            </div>
+
+            {/* Auto-generated: Admission Date */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[13px] font-bold text-[#475569] tracking-wide">Admission Date</label>
+              <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-3">
+                <span className="text-[#334155] font-semibold text-sm flex-1">{autoAdmissionDate}</span>
+                <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">AUTO</span>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3">
+              <FileUploadInput
+                label="Upload Image"
+                placeholderText="Browse Files"
+              />
             </div>
           </div>
         </SectionCard>
