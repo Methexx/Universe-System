@@ -459,12 +459,10 @@ export default function LogsPage() {
                   <td className="py-3.5 px-6 capitalize">{user.role}</td>
                   <td className="py-3.5 px-6 text-sm">{user.email}</td>
                   <td className="py-3.5 px-6">
-                    {user.is_suspended ? (
-                      <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Freeze</span>
-                    ) : user.is_active ? (
-                      <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100">Active</span>
+                    {user.is_suspended || !user.is_active ? (
+                      <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Suspended</span>
                     ) : (
-                      <span className="bg-gray-50 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">Inactive</span>
+                      <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100">Active</span>
                     )}
                   </td>
                   <td className="py-3.5 px-6">{formatDate(user.created_at)}</td>

@@ -1,13 +1,16 @@
 echo "📝 Checking commit message format..."
 
-if ! npx --no -- commitlint --edit "$1"; then
+# Try to run commitlint using npx (searching local node_modules first)
+if ! npx --no-install commitlint --edit "$1"; then
   echo ""
-  echo "❌ Invalid commit message."
+  echo "❌ Invalid commit message format."
   echo ""
-  echo "✅ Use conventional commit format, for example:"
-  echo "   feat: add user authentication"
-  echo "   fix: resolve token refresh bug"
-  echo "   chore: setup ci pipeline"
+  echo "✅ This repository uses Conventional Commits."
+  echo "   Example: feat: add student photo upload"
+  echo "   Example: fix: resolve student ID collision"
+  echo ""
+  echo "💡 For conversational messages, use the --no-verify flag:"
+  echo "   git commit -m \"Fixed the student details page and added a spinner\" --no-verify"
   echo ""
   exit 1
 fi

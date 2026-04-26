@@ -5,7 +5,9 @@ import { authorize } from '../../common/middleware/rbac';
 import { 
   createGradeSchema,
   createClassSchema,
-  createStudentSchema 
+  createStudentSchema,
+  updateStudentSchema,
+  UpdateStudentInput
 } from './school.schema';
 
 export default async function schoolRoutes(fastify: FastifyInstance) {
@@ -63,4 +65,16 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
   fastify.get('/students', {
     preHandler: [authorize(['admin', 'teacher'])]
   }, SchoolController.getStudents);
+
+  fastify.patch<{ Params: { id: string }, Body: UpdateStudentInput }>('/students/:id', {
+    preHandler: [authorize(['admin']), async (request) => { updateStudentSchema.parse({ body: request.body, params: request.params }) }]
+  }, SchoolController.updateStudent);
+
+  fastify.delete<{ Params: { id: string } }>('/students/:id', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.deleteStudent);
+
+  fastify.get('/overview/stats', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.getOverviewStats);
 }

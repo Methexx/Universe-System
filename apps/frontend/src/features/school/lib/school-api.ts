@@ -53,6 +53,7 @@ export type StudentRecord = {
   parent_email: string | null;
   parent_mobile: string | null;
   parent_id_no: string | null;
+  parent_name: string | null;
   is_parent_linked: boolean;
   is_active: boolean;
   created_at: string;
@@ -70,6 +71,7 @@ export type CreateStudentBody = {
   class_id?: string;
   parent_email?: string;
   parent_mobile?: string;
+  parent_name?: string;
   photo_url?: string;
 };
 
@@ -111,4 +113,28 @@ export async function uploadStudentPhoto(file: File): Promise<ApiResult<{ photo_
   } catch {
     return { ok: false, status: 0, error: 'NETWORK_ERROR' };
   }
+}
+
+export function updateStudent(id: string, body: Partial<CreateStudentBody> & { is_active?: boolean }) {
+  return request<StudentRecord>(`/api/school/students/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteStudent(id: string) {
+  return request<void>(`/api/school/students/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export type OverviewStats = {
+  activeStudents: number;
+  suspendedStudents: number;
+  lockedAccounts: number;
+  todayAttendance: number;
+};
+
+export function getOverviewStats() {
+  return request<OverviewStats>('/api/school/overview/stats');
 }

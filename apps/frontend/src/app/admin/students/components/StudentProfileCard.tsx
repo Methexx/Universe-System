@@ -27,6 +27,7 @@ interface Student {
   email: string;
   status?: string;
   parentId?: string;
+  parentName?: string;
   parentMobile?: string;
 }
 
@@ -135,8 +136,8 @@ export function StudentProfileCard({ student }: StudentProfileCardProps) {
               <span className="text-[#64748b] font-medium">—</span>
             </div>
             <div className="flex justify-between items-center text-[13px]">
-              <span className="font-bold text-[#0f172a]">Parent ID</span>
-              <span className="text-[#64748b] font-medium">{student.parentId || '—'}</span>
+              <span className="font-bold text-[#0f172a]">Parent Name</span>
+              <span className="text-[#64748b] font-medium">{student.parentName || '—'}</span>
             </div>
             <div className="flex justify-between items-center text-[13px]">
               <span className="font-bold text-[#0f172a]">Account Status</span>

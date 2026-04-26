@@ -23,11 +23,30 @@ export const createStudentSchema = z.object({
     gender: z.string().optional().nullable(),
     parent_email: z.string().email('Invalid email').optional().nullable(),
     parent_mobile: z.string().optional().nullable(),
+    parent_name: z.string().optional().nullable(),
     photo_url: z.string().optional().nullable(),
     student_id_no: z.string().min(1).optional()
+  }),
+});
+
+export const updateStudentSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Student ID is required')
+  }),
+  body: z.object({
+    full_name: z.string().min(2, 'Name too short').optional(),
+    date_of_birth: z.string().refine(val => !isNaN(Date.parse(val)), 'Invalid date format').optional(),
+    class_id: z.string().uuid('Invalid class ID').optional().nullable(),
+    gender: z.string().optional().nullable(),
+    parent_email: z.string().email('Invalid email').optional().nullable(),
+    parent_mobile: z.string().optional().nullable(),
+    parent_name: z.string().optional().nullable(),
+    photo_url: z.string().optional().nullable(),
+    is_active: z.boolean().optional()
   }),
 });
 
 export type CreateGradeInput = z.infer<typeof createGradeSchema>['body'];
 export type CreateClassInput = z.infer<typeof createClassSchema>['body'];
 export type CreateStudentInput = z.infer<typeof createStudentSchema>['body'];
+export type UpdateStudentInput = z.infer<typeof updateStudentSchema>['body'];
