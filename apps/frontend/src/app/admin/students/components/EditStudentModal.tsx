@@ -28,6 +28,7 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
     student ? { ...student, status: student.status || 'Active', parentId: student.parentId || 'P-12345' } : null
   );
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen || !formData) return null;
@@ -60,10 +61,14 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
     setFormData(prev => prev ? { ...prev, avatar: '' } : null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData) {
+      setIsSaving(true);
+      // Wait for 3 seconds as requested by the user
+      await new Promise(resolve => setTimeout(resolve, 3000));
       onSave(formData);
+      setIsSaving(false);
     }
   };
 
@@ -273,10 +278,11 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
             <button
               type="submit"
               form="edit-student-form"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
-              disabled={isUploading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+              disabled={isUploading || isSaving}
             >
-              Save Changes
+              {(isUploading || isSaving) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>

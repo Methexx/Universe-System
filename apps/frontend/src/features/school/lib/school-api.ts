@@ -127,3 +127,14 @@ export function deleteStudent(id: string) {
     method: 'DELETE',
   });
 }
+
+export type OverviewStats = {
+  activeStudents: number;
+  suspendedStudents: number;
+  lockedAccounts: number;
+  todayAttendance: number;
+};
+
+export function getOverviewStats() {
+  return request<OverviewStats>('/api/school/overview/stats');
+}

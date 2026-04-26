@@ -73,4 +73,8 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>('/students/:id', {
     preHandler: [authorize(['admin'])]
   }, SchoolController.deleteStudent);
+
+  fastify.get('/overview/stats', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.getOverviewStats);
 }
