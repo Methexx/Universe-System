@@ -8,6 +8,7 @@ import { Eye, Bookmark, Activity, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getPendingUsers } from "@/features/auth/lib/auth-api";
+import { getOverviewStats, type OverviewStats } from "@/features/school/lib/school-api";
 import {
   AreaChart,
   Area,
@@ -113,6 +114,7 @@ function OverviewContent() {
   const [timeRange, setTimeRange] = useState("Last 30 days");
   const [chartColor, setChartColor] = useState("blue");
   const [systemStatus, setSystemStatus] = useState<"checking" | "online" | "offline">("online");
+  const [stats, setStats] = useState<OverviewStats | null>(null);
   const { user } = useAuth();
   const isPending = user?.role === "pending";
   const displayName = user?.full_name ?? user?.email ?? "";
@@ -137,6 +139,9 @@ function OverviewContent() {
     // which triggers the react-hooks/set-state-in-effect lint rule.
     const initialCheck = setTimeout(() => {
       checkSystemStatus();
+      getOverviewStats().then(res => {
+        if (res.ok) setStats(res.data);
+      });
     }, 0);
     return () => clearTimeout(initialCheck);
   }, []);
@@ -197,7 +202,7 @@ function OverviewContent() {
         {/* Stat Card 1 */}
         <StatCard 
           title="Today's Attendance"
-          value="13245"
+          value={stats !== null ? stats.todayAttendance.toString() : "..."}
           icon={Eye}
           trendValue="+12.5%"
           variant="default"
@@ -206,15 +211,15 @@ function OverviewContent() {
         {/* Stat Card 2 */}
         <StatCard 
           title="Active Students Accounts"
-          value="15000"
+          value={stats !== null ? stats.activeStudents.toString() : "..."}
           icon={Eye}
           variant="default"
         />
 
         {/* Stat Card 3 (Red) */}
         <StatCard 
-          title="Locked Accounts"
-          value="10"
+          title="Suspended Accounts"
+          value={stats !== null ? stats.lockedAccounts.toString() : "..."}
           icon={Eye}
           variant="danger"
         />

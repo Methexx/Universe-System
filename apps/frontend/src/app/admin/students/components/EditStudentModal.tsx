@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Camera, Trash2, Loader2 } from 'lucide-react';
+import { uploadStudentPhoto } from '@/features/school/lib/school-api';
 
 export interface Student {
   id: string;
@@ -10,6 +11,7 @@ export interface Student {
   avatar: string;
   status?: 'Active' | 'Suspended';
   parentId?: string;
+  parentName?: string;
   parentMobile?: string;
 }
 
@@ -25,6 +27,9 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
   const [formData, setFormData] = useState<Student | null>(
     student ? { ...student, status: student.status || 'Active', parentId: student.parentId || 'P-12345' } : null
   );
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen || !formData) return null;
 
@@ -33,10 +38,37 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
     setFormData((prev) => (prev ? { ...prev, [name]: value } : null));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const res = await uploadStudentPhoto(file);
+      if (res.ok) {
+        setFormData(prev => prev ? { ...prev, avatar: res.data.photo_url } : null);
+      } else {
+        alert('Failed to upload photo: ' + res.error);
+      }
+    } catch (err) {
+      alert('An error occurred while uploading the photo.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => prev ? { ...prev, avatar: '' } : null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData) {
+      setIsSaving(true);
+      // Wait for 3 seconds as requested by the user
+      await new Promise(resolve => setTimeout(resolve, 3000));
       onSave(formData);
+      setIsSaving(false);
     }
   };
 
@@ -56,27 +88,67 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-          <form id="edit-student-form" onSubmit={handleSubmit} className="space-y-5">
-            {/* Avatar URL Edit */}
-            <div className="flex flex-col items-center gap-3">
+          <form id="edit-student-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={formData.avatar} 
-                  alt={formData.name} 
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md mx-auto"
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-gray-100 flex items-center justify-center">
+                  {formData.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img 
+                      src={formData.avatar} 
+                      alt={formData.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-gray-400 font-bold text-xl">
+                      {formData.name.charAt(0)}
+                    </div>
+                  )}
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 p-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                  disabled={isUploading}
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+                <input 
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*"
                 />
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Profile Image URL</label>
-                <input 
-                  type="text"
-                  name="avatar"
-                  value={formData.avatar}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  placeholder="https://..."
-                />
+              
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Change Photo
+                </button>
+                {formData.avatar && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Remove
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -157,6 +229,16 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Name</label>
+                <input 
+                  type="text"
+                  name="parentName"
+                  value={formData.parentName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow"
+                />
+              </div>
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Parent ID</label>
                 <input 
                   type="text"
@@ -196,13 +278,15 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
             <button
               type="submit"
               form="edit-student-form"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+              disabled={isUploading || isSaving}
             >
-              Save Changes
+              {(isUploading || isSaving) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>
       </div>
     </div>
   );
-}
+}

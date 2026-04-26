@@ -35,8 +35,8 @@ export default function TeachersPage() {
 
   const filteredTeachers = teachers.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.id.includes(searchQuery);
-    // const matchesClass = classFilter ? t.class === classFilter : true;
-    return matchesSearch; // && matchesClass;
+    const matchesStatus = statusFilter ? t.status?.toLowerCase() === statusFilter.toLowerCase() : true;
+    return matchesSearch && matchesStatus;
   });
 
   const selectedTeacher = filteredTeachers.find(t => t.id === selectedTeacherId);
@@ -99,7 +99,7 @@ export default function TeachersPage() {
                     onChange: setStatusFilter,
                     options: [
                       { label: "Active", value: "active" },
-                      { label: "Inactive", value: "inactive" }
+                      { label: "Suspended", value: "suspended" }
                     ]
                   },
                   {

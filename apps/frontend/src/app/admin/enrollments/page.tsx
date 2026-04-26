@@ -180,6 +180,7 @@ export default function EnrollmentsPage() {
         class_id: selectedClassId || undefined,
         parent_email: formData.parentEmail || undefined,
         parent_mobile: formData.parentContact || undefined,
+        parent_name: formData.parentName || undefined,
         photo_url,
       }),
       new Promise<void>(res => setTimeout(res, 3000)),
