@@ -38,6 +38,11 @@ export class SchoolController {
     return reply.send(successResponse('Classes fetched', results));
   }
 
+  static async getGradesWithClasses(request: FastifyRequest, reply: FastifyReply) {
+    const results = await getOrSetCache('school:grades-with-classes', () => SchoolService.getGradesWithClasses());
+    return reply.send(successResponse('Grades with classes fetched', results));
+  }
+
   static async getMyClasses(request: FastifyRequest, reply: FastifyReply) {
     const user = (request as any).user;
     const cacheKey = `school:my-classes:${user.userId}`;
@@ -65,5 +70,26 @@ export class SchoolController {
   static async getStudents(request: FastifyRequest, reply: FastifyReply) {
     const results = await getOrSetCache('school:students', () => SchoolService.getStudents());
     return reply.send(successResponse('Students fetched', results));
+  }
+
+  static async getNextStudentId(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const next_id = await SchoolService.getNextStudentId();
+      return reply.send(successResponse('Next student ID fetched', { next_id }));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
+  }
+
+  static async uploadStudentPhoto(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const data = await request.file();
+      if (!data) return reply.status(400).send(errorResponse('No file uploaded'));
+      const buffer = await data.toBuffer();
+      const photo_url = await SchoolService.uploadStudentPhoto(buffer, data.mimetype, data.filename);
+      return reply.send(successResponse('Photo uploaded', { photo_url }));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
   }
 }

@@ -55,6 +55,7 @@ export default function SecurityProfilePage() {
         phoneNumber: user.phone_number || '',
       };
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(newData);
       setInitialData(newData);
       setProfileImage(user.avatar_url || null);

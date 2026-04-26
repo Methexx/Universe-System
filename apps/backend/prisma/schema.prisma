@@ -24,6 +24,7 @@ model User {
   avatar_url    String?
   phone_number  String?
   fcm_token     String?
+  user_id_no    String?  @unique
   is_active     Boolean  @default(true)
   is_suspended  Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamptz()
@@ -99,6 +100,7 @@ model Student {
   qr_code          String   @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   class_id         String?  @db.Uuid
   class            Class?   @relation(fields: [class_id], references: [id])
+  gender           String?
   parent_email     String?
   parent_mobile    String?
   is_parent_linked Boolean  @default(false)

@@ -261,12 +261,16 @@ export class AuthService {
           throw new Error('Registration email does not match school records');
         }
 
+        const parentCount = await tx.user.count({ where: { role: 'parent' } });
+        const parent_user_id_no = `P-${String(parentCount + 1).padStart(6, '0')}`;
+
         const parent = await tx.user.create({
           data: {
             email,
             full_name: pendingRegistration.full_name,
             password_hash: hashedPassword,
             role: 'parent',
+            user_id_no: parent_user_id_no,
           },
         });
 
