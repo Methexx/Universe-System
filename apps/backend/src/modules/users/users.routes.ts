@@ -55,4 +55,8 @@ export default async function usersRoutes(fastify: FastifyInstance) {
       async (request) => { paramsIdSchema.parse({ params: request.params }) }
     ]
   }, UsersController.delete);
+
+  fastify.get('/teachers', {
+    preHandler: [authorize(['admin'])]
+  }, UsersController.getTeachers);
 }

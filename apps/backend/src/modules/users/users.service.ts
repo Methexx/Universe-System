@@ -67,22 +67,37 @@ export class UsersService {
     });
   }
 
+  static async getTeachers() {
+    return prisma.user.findMany({
+      where: { role: 'teacher', is_active: true, is_suspended: false },
+      select: { id: true, full_name: true, email: true, user_id_no: true },
+      orderBy: { full_name: 'asc' }
+    });
+  }
+
   static async promoteUser(targetUserId: string, role: string) {
     const user = await prisma.user.findUnique({ where: { id: targetUserId } });
-    
+
     if (!user) throw new Error('User not found');
     if (user.role === 'admin') {
       throw new Error('Cannot change the role of an existing admin this way');
     }
 
+    let user_id_no: string | undefined;
+    if (role === 'teacher' && !user.user_id_no) {
+      const count = await prisma.user.count({ where: { role: 'teacher' } });
+      user_id_no = `T-${String(count + 1).padStart(6, '0')}`;
+    }
+
     const updated = await prisma.user.update({
       where: { id: targetUserId },
-      data: { role },
+      data: { role, ...(user_id_no ? { user_id_no } : {}) },
       select: {
         id: true,
         email: true,
         role: true,
         full_name: true,
+        user_id_no: true,
       }
     });
 

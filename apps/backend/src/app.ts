@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import cookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
 import authRoutes from './modules/auth/auth.routes';
 import usersRoutes from './modules/users/users.routes';
 import schoolRoutes from './modules/school/school.routes';
@@ -20,6 +21,7 @@ const app = Fastify({
 });
 
 app.register(cookie);
+app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 app.register(cors, {
   origin: [env.WEB_URL, env.FLUTTER_ORIGIN, 'http://localhost:3000'],
   credentials: true,
@@ -35,7 +37,14 @@ app.register(helmet, {
 });
 app.register(rateLimit, {
   max: 100,
-  timeWindow: '1 minute'
+  timeWindow: '1 minute',
+  errorResponseBuilder: (request, context) => {
+    return {
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: `I'm sorry, you're doing that too fast. Please wait ${context.after} before trying again.`
+    }
+  }
 });
 
 // Error Handler

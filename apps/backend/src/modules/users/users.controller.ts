@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { UsersService } from './users.service';
 import { successResponse, errorResponse } from '../../common/utils/response';
 import { PromoteUserInput, ParamsIdInput, UpdateProfileInput } from './users.schema';
+import { getOrSetCache } from '../../common/utils/cache';
 
 export class UsersController {
   
@@ -92,5 +93,10 @@ export class UsersController {
     } catch (error: any) {
       return reply.status(400).send(errorResponse(error.message));
     }
+  }
+
+  static async getTeachers(request: FastifyRequest, reply: FastifyReply) {
+    const results = await getOrSetCache('users:teachers', () => UsersService.getTeachers());
+    return reply.send(successResponse('Teachers fetched', results));
   }
 }
