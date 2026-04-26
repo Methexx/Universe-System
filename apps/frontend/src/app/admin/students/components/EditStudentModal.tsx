@@ -10,6 +10,7 @@ export interface Student {
   avatar: string;
   status?: 'Active' | 'Suspended';
   parentId?: string;
+  parentMobile?: string;
 }
 
 interface EditStudentModalProps {

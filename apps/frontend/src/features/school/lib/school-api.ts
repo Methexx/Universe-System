@@ -48,9 +48,11 @@ export type StudentRecord = {
   student_id_no: string;
   date_of_birth: string;
   photo_url: string | null;
+  gender: string | null;
   class_id: string | null;
   parent_email: string | null;
   parent_mobile: string | null;
+  parent_id_no: string | null;
   is_parent_linked: boolean;
   is_active: boolean;
   created_at: string;
@@ -64,9 +66,11 @@ export type StudentRecord = {
 export type CreateStudentBody = {
   full_name: string;
   date_of_birth: string;
+  gender?: string;
   class_id?: string;
   parent_email?: string;
   parent_mobile?: string;
+  photo_url?: string;
 };
 
 export function getGradesWithClasses() {
@@ -86,4 +90,25 @@ export function createStudent(body: CreateStudentBody) {
 
 export function getTeachers() {
   return request<TeacherInfo[]>('/api/users/teachers');
+}
+
+export function getNextStudentId() {
+  return request<{ next_id: string }>('/api/school/students/next-id');
+}
+
+export async function uploadStudentPhoto(file: File): Promise<ApiResult<{ photo_url: string }>> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BASE}/api/school/students/photo`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, data: (json.data ?? json) as { photo_url: string } };
+    return { ok: false, status: res.status, error: json.error ?? json.message ?? 'UNKNOWN' };
+  } catch {
+    return { ok: false, status: 0, error: 'NETWORK_ERROR' };
+  }
 }

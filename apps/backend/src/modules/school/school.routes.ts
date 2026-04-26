@@ -48,6 +48,14 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
   // ==========================
   // STUDENTS (/api/school/students)
   // ==========================
+  fastify.get('/students/next-id', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.getNextStudentId);
+
+  fastify.post('/students/photo', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.uploadStudentPhoto);
+
   fastify.post('/students', {
     preHandler: [authorize(['admin']), async (request) => { createStudentSchema.parse({ body: request.body }) }]
   }, SchoolController.createStudent);

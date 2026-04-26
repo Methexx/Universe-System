@@ -71,4 +71,25 @@ export class SchoolController {
     const results = await getOrSetCache('school:students', () => SchoolService.getStudents());
     return reply.send(successResponse('Students fetched', results));
   }
+
+  static async getNextStudentId(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const next_id = await SchoolService.getNextStudentId();
+      return reply.send(successResponse('Next student ID fetched', { next_id }));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
+  }
+
+  static async uploadStudentPhoto(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const data = await request.file();
+      if (!data) return reply.status(400).send(errorResponse('No file uploaded'));
+      const buffer = await data.toBuffer();
+      const photo_url = await SchoolService.uploadStudentPhoto(buffer, data.mimetype, data.filename);
+      return reply.send(successResponse('Photo uploaded', { photo_url }));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
+  }
 }

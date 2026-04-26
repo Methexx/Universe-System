@@ -5,12 +5,13 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { SectionCard } from './components/SectionCard';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
 import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
-import { FileUploadInput } from '@/shared/components/ui/forms/FileUploadInput';
-import { Trash2, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Trash2, CheckCircle2, ImagePlus, X, Pencil } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import {
   getGradesWithClasses,
   createStudent,
+  getNextStudentId,
+  uploadStudentPhoto,
   type GradeWithClasses,
   type ClassItem,
 } from '@/features/school/lib/school-api';
@@ -33,6 +34,14 @@ const DEFAULT_FORM = {
   parentEmail: '',
 };
 
+const DEFAULT_PARENT = {
+  parentName: '',
+  parentId: '',
+  parentContact: '',
+  parentRelationship: 'Mother',
+  parentEmail: '',
+};
+
 export default function EnrollmentsPage() {
   const autoAdmissionDate = useMemo(() => todayDate(), []);
 
@@ -40,18 +49,26 @@ export default function EnrollmentsPage() {
   const [grades, setGrades] = useState<GradeWithClasses[]>([]);
   const [selectedGradeId, setSelectedGradeId] = useState('');
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [nextStudentId, setNextStudentId] = useState('');
 
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enrolledStudentId, setEnrolledStudentId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const qrRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     getGradesWithClasses().then(res => {
       if (res.ok) setGrades(res.data);
+    });
+    getNextStudentId().then(res => {
+      if (res.ok) setNextStudentId(res.data.next_id);
     });
   }, []);
 
@@ -59,9 +76,22 @@ export default function EnrollmentsPage() {
   const classesForGrade: ClassItem[] = selectedGrade?.classes ?? [];
   const selectedClass = classesForGrade.find(c => c.id === selectedClassId);
 
+  // --- input handlers ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^a-zA-Z\s\-']/g, '');
+    setFormData(prev => ({ ...prev, [e.target.name]: value }));
+    if (fieldErrors[e.target.name]) setFieldErrors(prev => ({ ...prev, [e.target.name]: '' }));
+  };
+
+  const handleDigitsOnly = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setFormData(prev => ({ ...prev, [e.target.name]: value }));
   };
 
   const handleGradeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -69,28 +99,91 @@ export default function EnrollmentsPage() {
     setSelectedClassId('');
   };
 
-  const resetForm = () => {
-    setFormData(DEFAULT_FORM);
+  // --- photo handlers ---
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo must be under 5 MB.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setError(null);
+    setPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreviewUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // --- section resets ---
+  const resetStudentSection = () => {
+    setFormData(prev => ({ ...prev, firstName: '', lastName: '', gender: 'Male', age: '', birthday: '' }));
+    clearPhoto();
+    setFieldErrors({});
+  };
+
+  const resetParentSection = () => {
+    setFormData(prev => ({ ...prev, ...DEFAULT_PARENT }));
+  };
+
+  const resetClassSection = () => {
     setSelectedGradeId('');
     setSelectedClassId('');
+  };
+
+  const resetForm = () => {
+    setFormData(DEFAULT_FORM);
+    resetClassSection();
+    clearPhoto();
     setError(null);
+    setFieldErrors({});
+  };
+
+  // --- validation ---
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!formData.firstName.trim()) errors.firstName = 'First name is required';
+    if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!formData.birthday) errors.birthday = 'Birthday is required';
+    if (!formData.gender) errors.gender = 'Gender is required';
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!formData.firstName.trim() || !formData.birthday) {
-      setError('First name and birthday are required.');
-      return;
-    }
+    if (!validate()) return;
+
     setIsSubmitting(true);
     setError(null);
 
-    const result = await createStudent({
-      full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
-      date_of_birth: formData.birthday,
-      class_id: selectedClassId || undefined,
-      parent_email: formData.parentEmail || undefined,
-      parent_mobile: formData.parentContact || undefined,
-    });
+    let photo_url: string | undefined;
+    if (photoFile) {
+      const uploadResult = await uploadStudentPhoto(photoFile);
+      if (uploadResult.ok) {
+        photo_url = uploadResult.data.photo_url;
+      } else {
+        setIsSubmitting(false);
+        setError(`Photo upload failed: ${uploadResult.error}. Please try again or enroll without a photo.`);
+        return;
+      }
+    }
+
+    const [result] = await Promise.all([
+      createStudent({
+        full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+        date_of_birth: formData.birthday,
+        gender: formData.gender,
+        class_id: selectedClassId || undefined,
+        parent_email: formData.parentEmail || undefined,
+        parent_mobile: formData.parentContact || undefined,
+        photo_url,
+      }),
+      new Promise<void>(res => setTimeout(res, 3000)),
+    ]);
 
     setIsSubmitting(false);
 
@@ -124,7 +217,6 @@ export default function EnrollmentsPage() {
 
         <div className="flex flex-col items-center justify-center py-16 animate-in fade-in duration-500">
           <div className="bg-white border border-gray-200 rounded-[24px] shadow-sm p-10 flex flex-col items-center gap-6 w-full max-w-md">
-            {/* Green success icon */}
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center animate-in zoom-in duration-500">
               <CheckCircle2 className="w-12 h-12 text-green-500" />
             </div>
@@ -139,9 +231,8 @@ export default function EnrollmentsPage() {
               <span className="text-xl font-bold text-[#0f172a]">{enrolledStudentId}</span>
             </div>
 
-            {/* QR Code */}
             <div className="flex flex-col items-center gap-3 w-full">
-              <div ref={qrRef} className="p-4 bg-white border border-gray-200 rounded-xl">
+              <div className="p-4 bg-white border border-gray-200 rounded-xl">
                 <QRCode value={enrolledStudentId} size={180} />
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -182,7 +273,7 @@ export default function EnrollmentsPage() {
         {/* Student Details Section */}
         <SectionCard
           title="Student Details"
-          onDelete={() => {}}
+          onDelete={resetStudentSection}
           headerAction={
             <button
               onClick={handleSubmit}
@@ -206,14 +297,16 @@ export default function EnrollmentsPage() {
               name="firstName"
               placeholder="e.g. Methum"
               value={formData.firstName}
-              onChange={handleChange}
+              onChange={handleNameChange}
+              error={fieldErrors.firstName}
             />
             <TextInput
               label="Last Name"
               name="lastName"
               placeholder="e.g. Pathirana"
               value={formData.lastName}
-              onChange={handleChange}
+              onChange={handleNameChange}
+              error={fieldErrors.lastName}
             />
             <SelectInput
               label="Gender"
@@ -225,21 +318,24 @@ export default function EnrollmentsPage() {
                 { label: 'Female', value: 'Female' },
                 { label: 'Other', value: 'Other' }
               ]}
+              error={fieldErrors.gender}
             />
             <TextInput
               label="Age"
               name="age"
               placeholder="12"
               value={formData.age}
-              onChange={handleChange}
+              onChange={handleDigitsOnly}
+              maxLength={2}
+              inputMode="numeric"
             />
             <TextInput
               label="Birthday"
               name="birthday"
               type="date"
-              placeholder="e.g. 2003-09-23"
               value={formData.birthday}
               onChange={handleChange}
+              error={fieldErrors.birthday}
             />
 
             {/* Auto-generated: Admission Date */}
@@ -251,19 +347,52 @@ export default function EnrollmentsPage() {
               </div>
             </div>
 
-            {/* Student ID — server-generated */}
+            {/* Student ID — next available */}
             <div className="flex flex-col gap-1">
               <label className="text-[13px] font-bold text-[#475569] tracking-wide">Student ID Number</label>
               <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-4 py-3">
-                <span className="text-[#334155] font-semibold text-sm flex-1 text-gray-400 italic">Auto-assigned on save</span>
+                <span className="text-[#334155] font-semibold text-sm flex-1">{nextStudentId || 'Loading...'}</span>
                 <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">AUTO</span>
               </div>
             </div>
 
-            <div className="lg:col-span-3">
-              <FileUploadInput
-                label="Upload Image"
-                placeholderText="Browse Files"
+            {/* Photo upload */}
+            <div className="lg:col-span-3 flex flex-col gap-1.5 w-full">
+              <label className="text-[13px] font-bold text-[#475569] tracking-wide">Upload Image</label>
+              {photoPreviewUrl ? (
+                <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200"
+                  >
+                    <X className="w-3 h-3 text-gray-600" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200"
+                  >
+                    <Pencil className="w-3 h-3 text-gray-600" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-400 flex items-center justify-between cursor-pointer hover:border-blue-400 transition-colors"
+                >
+                  <span>Browse Files</span>
+                  <ImagePlus className="w-5 h-5 text-gray-500" />
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
               />
             </div>
           </div>
@@ -272,7 +401,7 @@ export default function EnrollmentsPage() {
         {/* Parent Details Section */}
         <SectionCard
           title="Parent Details"
-          onDelete={() => {}}
+          onDelete={resetParentSection}
           summaryContent={
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
               <div><span className="text-xs text-gray-500 block">Name</span><span className="font-semibold text-sm">{formData.parentName || '-'}</span></div>
@@ -288,12 +417,12 @@ export default function EnrollmentsPage() {
               name="parentName"
               placeholder="e.g. Anjali Perera"
               value={formData.parentName}
-              onChange={handleChange}
+              onChange={handleNameChange}
             />
             <TextInput
               label="Parent ID"
               name="parentId"
-              placeholder="e.g. 110457"
+              placeholder="e.g. P-000110"
               value={formData.parentId}
               onChange={handleChange}
             />
@@ -302,7 +431,9 @@ export default function EnrollmentsPage() {
               name="parentContact"
               placeholder="e.g. 0771234567"
               value={formData.parentContact}
-              onChange={handleChange}
+              onChange={handleDigitsOnly}
+              inputMode="numeric"
+              maxLength={15}
             />
             <SelectInput
               label="Relationship"
@@ -329,7 +460,7 @@ export default function EnrollmentsPage() {
         {/* Class Assignment Section */}
         <SectionCard
           title="Class Assignment"
-          onDelete={() => {}}
+          onDelete={resetClassSection}
           summaryContent={
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
               <div><span className="text-xs text-gray-500 block">Grade</span><span className="font-semibold text-sm">{selectedGrade?.name || '-'}</span></div>

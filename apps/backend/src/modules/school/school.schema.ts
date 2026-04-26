@@ -20,8 +20,10 @@ export const createStudentSchema = z.object({
     full_name: z.string().min(2, 'Name too short'),
     date_of_birth: z.string().refine(val => !isNaN(Date.parse(val)), 'Invalid date format'),
     class_id: z.string().uuid('Invalid class ID').optional().nullable(),
+    gender: z.string().optional().nullable(),
     parent_email: z.string().email('Invalid email').optional().nullable(),
     parent_mobile: z.string().optional().nullable(),
+    photo_url: z.string().optional().nullable(),
     student_id_no: z.string().min(1).optional()
   }),
 });

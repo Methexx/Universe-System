@@ -13,6 +13,16 @@ import { GradesHistory } from './components/GradesHistory';
 import { EditStudentModal, Student } from './components/EditStudentModal';
 import { getStudents, type StudentRecord } from '@/features/school/lib/school-api';
 
+function dedupeFullName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  const half = Math.floor(parts.length / 2);
+  if (parts.length >= 2 && parts.length % 2 === 0 &&
+      parts.slice(0, half).join(' ') === parts.slice(half).join(' ')) {
+    return parts.slice(0, half).join(' ');
+  }
+  return name;
+}
+
 function mapApiStudentToStudent(s: StudentRecord): Student {
   const gradeName = s.class?.school_grade?.name ?? '';
   const className = s.class?.name ?? '';
@@ -20,13 +30,14 @@ function mapApiStudentToStudent(s: StudentRecord): Student {
 
   return {
     id: s.student_id_no,
-    name: s.full_name,
+    name: dedupeFullName(s.full_name),
     email: s.parent_email ?? '',
     class: classDisplay,
-    gender: '',
+    gender: s.gender ?? '',
     avatar: s.photo_url ?? '',
     status: s.is_active ? 'Active' : 'Suspended',
-    parentId: '',
+    parentId: s.parent_id_no ?? '',
+    parentMobile: s.parent_mobile ?? '',
   };
 }
 

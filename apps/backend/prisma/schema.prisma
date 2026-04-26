@@ -100,6 +100,7 @@ model Student {
   qr_code          String   @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   class_id         String?  @db.Uuid
   class            Class?   @relation(fields: [class_id], references: [id])
+  gender           String?
   parent_email     String?
   parent_mobile    String?
   is_parent_linked Boolean  @default(false)
