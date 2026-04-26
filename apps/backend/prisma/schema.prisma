@@ -103,6 +103,7 @@ model Student {
   gender           String?
   parent_email     String?
   parent_mobile    String?
+  parent_name      String?
   is_parent_linked Boolean  @default(false)
   is_active        Boolean  @default(true)
   created_at       DateTime @default(now()) @db.Timestamptz()

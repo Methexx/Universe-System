@@ -11,7 +11,7 @@ import { StudentProfileCard } from './components/StudentProfileCard';
 import { AddStudentButton } from './components/AddStudentButton';
 import { GradesHistory } from './components/GradesHistory';
 import { EditStudentModal, Student } from './components/EditStudentModal';
-import { getStudents, type StudentRecord } from '@/features/school/lib/school-api';
+import { getStudents, type StudentRecord, updateStudent, deleteStudent as deleteStudentApi } from '@/features/school/lib/school-api';
 
 function dedupeFullName(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -37,6 +37,7 @@ function mapApiStudentToStudent(s: StudentRecord): Student {
     avatar: s.photo_url ?? '',
     status: s.is_active ? 'Active' : 'Suspended',
     parentId: s.parent_id_no ?? '',
+    parentName: s.parent_name ?? '',
     parentMobile: s.parent_mobile ?? '',
   };
 }
@@ -84,19 +85,37 @@ export default function StudentsPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveStudent = (updatedStudent: Student) => {
-    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
-    setIsEditModalOpen(false);
-    setEditingStudentId(null);
+  const handleSaveStudent = async (updatedStudent: Student) => {
+    const res = await updateStudent(updatedStudent.id, {
+      full_name: updatedStudent.name,
+      parent_email: updatedStudent.email,
+      gender: updatedStudent.gender,
+      photo_url: updatedStudent.avatar,
+      parent_name: updatedStudent.parentName,
+      is_active: updatedStudent.status === 'Active'
+    });
+
+    if (res.ok) {
+      setStudents(prev => prev.map(s => s.id === updatedStudent.id ? mapApiStudentToStudent(res.data) : s));
+      setIsEditModalOpen(false);
+      setEditingStudentId(null);
+    } else {
+      alert('Failed to update student: ' + res.error);
+    }
   };
 
-  const handleDeleteStudent = (id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
-    if (selectedStudentId === id) {
-      setSelectedStudentId('');
+  const handleDeleteStudent = async (id: string) => {
+    const res = await deleteStudentApi(id);
+    if (res.ok) {
+      setStudents(prev => prev.filter(s => s.id !== id));
+      if (selectedStudentId === id) {
+        setSelectedStudentId('');
+      }
+      setIsEditModalOpen(false);
+      setEditingStudentId(null);
+    } else {
+      alert('Failed to delete student: ' + res.error);
     }
-    setIsEditModalOpen(false);
-    setEditingStudentId(null);
   };
 
   return (
@@ -155,11 +174,8 @@ export default function StudentsPage() {
                       onChange: setStatusFilter,
 
                       options: [
-
                         { label: "Active", value: "active" },
-
-                        { label: "Inactive", value: "inactive" }
-
+                        { label: "Suspended", value: "suspended" }
                       ]
 
                     },

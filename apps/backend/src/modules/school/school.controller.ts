@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SchoolService } from './school.service';
-import { CreateGradeInput, CreateClassInput, CreateStudentInput } from './school.schema';
+import { CreateGradeInput, CreateClassInput, CreateStudentInput, UpdateStudentInput } from './school.schema';
 import { successResponse, errorResponse } from '../../common/utils/response';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
@@ -90,6 +90,25 @@ export class SchoolController {
       return reply.send(successResponse('Photo uploaded', { photo_url }));
     } catch (error: any) {
       return reply.status(500).send(errorResponse(error.message));
+    }
+  }
+  static async updateStudent(request: FastifyRequest<{ Params: { id: string }, Body: UpdateStudentInput }>, reply: FastifyReply) {
+    try {
+      const result = await SchoolService.updateStudent(request.params.id, request.body);
+      await delCacheByPattern('school:*');
+      return reply.send(successResponse('Student updated successfully', result));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
+  static async deleteStudent(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    try {
+      await SchoolService.deleteStudent(request.params.id);
+      await delCacheByPattern('school:*');
+      return reply.send(successResponse('Student deleted successfully'));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 }
