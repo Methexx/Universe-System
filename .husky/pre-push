@@ -1,3 +1,5 @@
+export PATH="/c/Program Files/nodejs:$PATH"
+
 #echo "🧪 Running backend tests..."
 
 # if ! npm run test; then

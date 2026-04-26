@@ -1,3 +1,4 @@
+export PATH="/c/Program Files/nodejs:$PATH"
 
 echo "🔍 Running lint and formatting checks..."
 
