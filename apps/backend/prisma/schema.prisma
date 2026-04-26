@@ -24,6 +24,7 @@ model User {
   avatar_url    String?
   phone_number  String?
   fcm_token     String?
+  user_id_no    String?  @unique
   is_active     Boolean  @default(true)
   is_suspended  Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamptz()

@@ -2,6 +2,21 @@ import React from 'react';
 import clsx from 'clsx';
 import { Edit2 } from 'lucide-react';
 
+const AVATAR_COLORS = [
+  'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500',
+  'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-rose-500',
+];
+
+function LetterAvatar({ name, id, className }: { name: string; id: string; className?: string }) {
+  const colorIndex = id.charCodeAt(0) % AVATAR_COLORS.length;
+  const letter = (name?.[0] ?? '?').toUpperCase();
+  return (
+    <div className={clsx('rounded-full flex items-center justify-center text-white font-bold text-sm border-2 border-white shadow-sm', AVATAR_COLORS[colorIndex], className)}>
+      {letter}
+    </div>
+  );
+}
+
 export interface DirectoryUser {
   id: string;
   name: string;
@@ -57,8 +72,12 @@ export function DirectoryTable({
               >
                 <td className="py-3 px-6">
                   <div className="flex items-center gap-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
+                    {user.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
+                    ) : (
+                      <LetterAvatar name={user.name} id={user.id} className="w-9 h-9" />
+                    )}
                     <span className={clsx("font-bold text-[14px]", isSelected ? "text-white" : "text-[#0f172a]")}>{user.name}</span>
                   </div>
                 </td>

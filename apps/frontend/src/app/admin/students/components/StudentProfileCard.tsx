@@ -1,6 +1,21 @@
 import React from 'react';
 import { GraduationCap, Phone, Mail, Search } from 'lucide-react';
 
+const AVATAR_COLORS = [
+  'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500',
+  'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-rose-500',
+];
+
+function LetterAvatar({ name, id }: { name: string; id: string }) {
+  const colorIndex = id.charCodeAt(0) % AVATAR_COLORS.length;
+  const letter = (name?.[0] ?? '?').toUpperCase();
+  return (
+    <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-5xl ${AVATAR_COLORS[colorIndex]}`}>
+      {letter}
+    </div>
+  );
+}
+
 interface Student {
   id: string;
   name: string;
@@ -22,13 +37,17 @@ export function StudentProfileCard({ student }: StudentProfileCardProps) {
       {student ? (
         <>
           {/* Very large avatar in the center */}
-          <div className="relative w-40 h-40 rounded-full mb-6">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                  src={student.avatar} 
-                  alt={student.name} 
-                  className="w-full h-full rounded-full object-cover shadow-sm bg-gray-100" 
-              />
+          <div className="relative w-40 h-40 rounded-full mb-6 shadow-sm overflow-hidden">
+              {student.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={student.avatar}
+                  alt={student.name}
+                  className="w-full h-full rounded-full object-cover bg-gray-100"
+                />
+              ) : (
+                <LetterAvatar name={student.name} id={student.id} />
+              )}
           </div>
           
           <h3 className="text-xl font-bold text-[#0f172a]">{student.name}</h3>

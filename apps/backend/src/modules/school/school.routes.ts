@@ -33,6 +33,10 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin'])]
   }, SchoolController.getClasses);
 
+  fastify.get('/grades-with-classes', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.getGradesWithClasses);
+
   fastify.get('/classes/mine', {
     preHandler: [authorize(['teacher'])]
   }, SchoolController.getMyClasses);

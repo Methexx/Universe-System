@@ -22,7 +22,7 @@ export const createStudentSchema = z.object({
     class_id: z.string().uuid('Invalid class ID').optional().nullable(),
     parent_email: z.string().email('Invalid email').optional().nullable(),
     parent_mobile: z.string().optional().nullable(),
-    student_id_no: z.string().min(1, 'Student ID No is required')
+    student_id_no: z.string().min(1).optional()
   }),
 });
 

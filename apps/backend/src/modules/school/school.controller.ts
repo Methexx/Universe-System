@@ -38,6 +38,11 @@ export class SchoolController {
     return reply.send(successResponse('Classes fetched', results));
   }
 
+  static async getGradesWithClasses(request: FastifyRequest, reply: FastifyReply) {
+    const results = await getOrSetCache('school:grades-with-classes', () => SchoolService.getGradesWithClasses());
+    return reply.send(successResponse('Grades with classes fetched', results));
+  }
+
   static async getMyClasses(request: FastifyRequest, reply: FastifyReply) {
     const user = (request as any).user;
     const cacheKey = `school:my-classes:${user.userId}`;

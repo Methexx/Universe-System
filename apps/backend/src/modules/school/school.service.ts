@@ -72,14 +72,36 @@ export class SchoolService {
     });
   }
 
+  static async getGradesWithClasses() {
+    return prisma.schoolGrade.findMany({
+      include: {
+        classes: {
+          include: {
+            teacher: { select: { id: true, full_name: true, email: true, user_id_no: true } }
+          },
+          orderBy: { name: 'asc' }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
+
   // --- STUDENTS ---
   static async createStudent(input: CreateStudentInput) {
-    const existingId = await prisma.student.findUnique({ where: { student_id_no: input.student_id_no } });
+    let student_id_no = input.student_id_no;
+    if (!student_id_no) {
+      const count = await prisma.student.count();
+      student_id_no = `S-${String(count + 1).padStart(6, '0')}`;
+    }
+
+    const existingId = await prisma.student.findUnique({ where: { student_id_no } });
     if (existingId) throw new Error('Student ID Number already exists');
 
+    const { student_id_no: _omit, ...rest } = input;
     return prisma.student.create({
       data: {
-        ...input,
+        ...rest,
+        student_id_no,
         date_of_birth: new Date(input.date_of_birth),
       }
     });
