@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SchoolService } from './school.service';
-import { CreateGradeInput, CreateClassInput, CreateStudentInput, UpdateStudentInput } from './school.schema';
+import { CreateGradeInput, CreateClassInput, CreateStudentInput, UpdateStudentInput, UpdateClassInput } from './school.schema';
 import { successResponse, errorResponse } from '../../common/utils/response';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
@@ -54,6 +54,36 @@ export class SchoolController {
     const cacheKey = `school:class-students:${request.params.id}`;
     const results = await getOrSetCache(cacheKey, () => SchoolService.getClassStudents(request.params.id));
     return reply.send(successResponse('Class students fetched', results));
+  }
+
+  static async deleteGrade(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    try {
+      await SchoolService.deleteGrade(request.params.id);
+      await delCacheByPattern('school:*');
+      return reply.send(successResponse('Grade deleted successfully'));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
+  static async deleteClass(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    try {
+      await SchoolService.deleteClass(request.params.id);
+      await delCacheByPattern('school:*');
+      return reply.send(successResponse('Class deleted successfully'));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
+  static async updateClass(request: FastifyRequest<{ Params: { id: string }; Body: UpdateClassInput }>, reply: FastifyReply) {
+    try {
+      const result = await SchoolService.updateClass(request.params.id, request.body);
+      await delCacheByPattern('school:*');
+      return reply.send(successResponse('Class updated successfully', result));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
   }
 
   // --- STUDENTS ---

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
@@ -135,8 +135,6 @@ export default function LogsPage() {
 
   const [searchUsers, setSearchUsers] = useState('');
   const [filterRoleUsers, setFilterRoleUsers] = useState('');
-  const [filterClassUsers, setFilterClassUsers] = useState('');
-  const [filterDateUsers, setFilterDateUsers] = useState('');
 
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);

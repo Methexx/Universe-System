@@ -7,7 +7,6 @@ import { AuthInput } from '@/shared/components/auth/auth-input';
 import { AuthButton } from '@/shared/components/auth/auth-button';
 import { forgotPassword, resetPassword } from '../lib/auth-api';
 import Link from 'next/link';
-import { StepTwoOtp } from '@/shared/components/auth/register/StepTwoOtp'; // Assuming we can reuse it, or we build our own OTP input.
 // Wait, StepTwoOtp might be specific to register flow. Let's just build a simple OTP input for here.
 
 export function ForgotPasswordForm() {

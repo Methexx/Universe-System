@@ -6,11 +6,9 @@ import { TextInput } from '@/shared/components/ui/forms/TextInput';
 import { Eye, Edit2, Loader2, Check, Shield } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { updateProfile, changePassword, deleteMe } from '@/features/auth/lib/auth-api';
-import { useRouter } from 'next/navigation';
 
 export default function SecurityProfilePage() {
   const { user, setUser, logout } = useAuth();
-  const router = useRouter();
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

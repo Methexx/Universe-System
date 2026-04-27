@@ -87,6 +87,37 @@ export class SchoolService {
     });
   }
 
+  static async deleteGrade(id: string) {
+    const grade = await prisma.schoolGrade.findUnique({ where: { id } });
+    if (!grade) throw new Error('Grade not found');
+    return prisma.schoolGrade.delete({ where: { id } });
+  }
+
+  static async deleteClass(id: string) {
+    const cls = await prisma.class.findUnique({ where: { id } });
+    if (!cls) throw new Error('Class not found');
+    return prisma.class.delete({ where: { id } });
+  }
+
+  static async updateClass(id: string, input: { teacher_id?: string | null; name?: string; subject?: string | null }) {
+    const cls = await prisma.class.findUnique({ where: { id } });
+    if (!cls) throw new Error('Class not found');
+
+    if (input.teacher_id) {
+      const teacher = await prisma.user.findUnique({ where: { id: input.teacher_id } });
+      if (!teacher || teacher.role !== 'teacher') throw new Error('Assigned user must be a valid teacher');
+    }
+
+    return prisma.class.update({
+      where: { id },
+      data: input,
+      include: {
+        school_grade: true,
+        teacher: { select: { id: true, full_name: true, email: true } }
+      }
+    });
+  }
+
   // --- STUDENTS ---
   static async createStudent(input: CreateStudentInput) {
     let student_id_no = input.student_id_no;
