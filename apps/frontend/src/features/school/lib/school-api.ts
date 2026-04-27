@@ -138,3 +138,32 @@ export type OverviewStats = {
 export function getOverviewStats() {
   return request<OverviewStats>('/api/school/overview/stats');
 }
+
+export function createGrade(name: string) {
+  return request<{ id: string; name: string }>('/api/school/grades', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteGrade(id: string) {
+  return request<void>(`/api/school/grades/${id}`, { method: 'DELETE' });
+}
+
+export function createClass(body: { school_grade_id: string; name: string; teacher_id?: string | null }) {
+  return request<ClassItem & { school_grade_id: string }>('/api/school/classes', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteClass(id: string) {
+  return request<void>(`/api/school/classes/${id}`, { method: 'DELETE' });
+}
+
+export function updateClass(id: string, body: { teacher_id?: string | null }) {
+  return request<ClassItem>(`/api/school/classes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
