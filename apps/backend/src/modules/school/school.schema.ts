@@ -46,7 +46,16 @@ export const updateStudentSchema = z.object({
   }),
 });
 
+export const updateClassSchema = z.object({
+  body: z.object({
+    teacher_id: z.string().uuid('Invalid teacher ID').nullable().optional(),
+    name: z.string().min(1).optional(),
+    subject: z.string().optional().nullable(),
+  }),
+});
+
 export type CreateGradeInput = z.infer<typeof createGradeSchema>['body'];
 export type CreateClassInput = z.infer<typeof createClassSchema>['body'];
 export type CreateStudentInput = z.infer<typeof createStudentSchema>['body'];
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>['body'];
+export type UpdateClassInput = z.infer<typeof updateClassSchema>['body'];

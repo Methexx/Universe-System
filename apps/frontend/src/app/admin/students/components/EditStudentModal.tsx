@@ -50,7 +50,7 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
       } else {
         alert('Failed to upload photo: ' + res.error);
       }
-    } catch (err) {
+    } catch {
       alert('An error occurred while uploading the photo.');
     } finally {
       setIsUploading(false);

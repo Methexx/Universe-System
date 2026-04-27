@@ -5,7 +5,7 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { SectionCard } from './components/SectionCard';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
 import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
-import { Trash2, CheckCircle2, ImagePlus, X, Pencil } from 'lucide-react';
+import { CheckCircle2, ImagePlus, X, Pencil } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import {
   getGradesWithClasses,
