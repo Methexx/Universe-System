@@ -17,12 +17,14 @@ export default function TeacherProfilePage() {
     firstName: '',
     lastName: '',
     phoneNumber: '',
+    gender: '',
   });
 
   const [initialData, setInitialData] = useState({
     firstName: '',
     lastName: '',
     phoneNumber: '',
+    gender: '',
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +53,7 @@ export default function TeacherProfilePage() {
         firstName: first,
         lastName: last,
         phoneNumber: user.phone_number || '',
+        gender: user.gender || '',
       };
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -64,9 +67,10 @@ export default function TeacherProfilePage() {
     formData.firstName !== initialData.firstName ||
     formData.lastName !== initialData.lastName ||
     formData.phoneNumber !== initialData.phoneNumber ||
+    formData.gender !== initialData.gender ||
     profileImage !== (user?.avatar_url || null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -95,6 +99,7 @@ export default function TeacherProfilePage() {
       full_name: fullName,
       phone_number: formData.phoneNumber,
       avatar_url: profileImage || undefined,
+      gender: formData.gender || undefined,
     });
 
     if (result.ok) {
@@ -103,6 +108,7 @@ export default function TeacherProfilePage() {
         full_name: fullName,
         phone_number: formData.phoneNumber,
         avatar_url: profileImage,
+        gender: formData.gender || null,
       });
       setInitialData(formData);
     }
@@ -298,6 +304,23 @@ export default function TeacherProfilePage() {
                 className="bg-gray-50 text-gray-500 cursor-not-allowed"
                 disabled
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-[var(--muted)]">Gender</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 rounded-xl border border-[var(--line)] bg-transparent text-[14px] font-medium text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:border-[#4f46e5] transition-all appearance-none"
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
           </div>
 

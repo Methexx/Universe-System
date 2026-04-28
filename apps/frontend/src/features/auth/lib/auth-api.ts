@@ -112,7 +112,7 @@ export function resetPassword(body: { email: string; otp_code: string; new_passw
   });
 }
 
-export function updateProfile(body: { full_name?: string; avatar_url?: string; phone_number?: string }) {
+export function updateProfile(body: { full_name?: string; avatar_url?: string; phone_number?: string; gender?: string }) {
   return request<UserProfile>('/api/users/me', {
     method: 'PUT',
     body: JSON.stringify(body),

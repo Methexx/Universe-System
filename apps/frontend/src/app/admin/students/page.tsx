@@ -94,7 +94,8 @@ export default function StudentsPage() {
       gender: updatedStudent.gender,
       photo_url: updatedStudent.avatar,
       parent_name: updatedStudent.parentName,
-      is_active: updatedStudent.status === 'Active'
+      is_active: updatedStudent.status === 'Active',
+      class_id: updatedStudent.classId ?? undefined,
     });
 
     if (res.ok) {

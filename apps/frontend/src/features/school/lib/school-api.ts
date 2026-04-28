@@ -95,6 +95,27 @@ export function getTeachers() {
   return request<TeacherInfo[]>('/api/users/teachers');
 }
 
+export type AdminTeacherRecord = {
+  id: string;
+  full_name: string | null;
+  email: string;
+  user_id_no: string | null;
+  gender: string | null;
+  phone_number: string | null;
+  avatar_url: string | null;
+  is_active: boolean;
+  is_suspended: boolean;
+  classes_taught: {
+    id: string;
+    name: string;
+    school_grade: { id: string; name: string };
+  }[];
+};
+
+export function getTeachersAdmin() {
+  return request<AdminTeacherRecord[]>('/api/users/teachers');
+}
+
 export function getNextStudentId() {
   return request<{ next_id: string }>('/api/school/students/next-id');
 }
@@ -121,7 +142,7 @@ export async function uploadStudentPhoto(file: File): Promise<ApiResult<{ photo_
   }
 }
 
-export function updateStudent(id: string, body: Partial<CreateStudentBody> & { is_active?: boolean }) {
+export function updateStudent(id: string, body: Partial<CreateStudentBody> & { is_active?: boolean; class_id?: string | null }) {
   return request<StudentRecord>(`/api/school/students/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),

@@ -11,6 +11,7 @@ export type AuthUser = {
   full_name?: string | null;
   phone_number?: string | null;
   avatar_url?: string | null;
+  gender?: string | null;
 };
 
 type AuthContextValue = {
