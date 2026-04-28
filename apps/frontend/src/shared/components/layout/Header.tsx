@@ -26,14 +26,24 @@ export function Header({ toggleSidebar, userParams, profileLink = "/admin/profil
     const parts = pathname.split("/").filter(Boolean);
     const mappings: Record<string, string> = {
       admin: "Admin",
+      teacher: "Teacher",
+      security: "Security",
+      pending: "Pending",
       overview: "Overview",
       policies: "Policies",
+      dashboard: "Dashboard",
     };
     
     return parts.map((part, index) => {
-      const url = `/${parts.slice(0, index + 1).join("/")}`;
+      let url = `/${parts.slice(0, index + 1).join("/")}`;
       const name = mappings[part] || part.charAt(0).toUpperCase() + part.slice(1);
       const isLast = index === parts.length - 1;
+      
+      if (index === 0) {
+        if (part === "admin") url = "/admin/overview";
+        else if (part === "teacher") url = "/teacher/overview";
+        else if (part === "security") url = "/security/dashboard";
+      }
       
       return { name, url, isLast };
     });
@@ -56,7 +66,7 @@ export function Header({ toggleSidebar, userParams, profileLink = "/admin/profil
         <nav aria-label="Breadcrumb" className="hidden items-center sm:flex max-w-[400px] overflow-hidden whitespace-nowrap truncate">
           {breadcrumbs.length > 0 ? (
             breadcrumbs.map((crumb, index) => (
-              <React.Fragment key={crumb.url}>
+              <React.Fragment key={`${crumb.url}-${index}`}>
                 {index > 0 && <ChevronRight className="mx-[10px] h-[16px] w-[16px] shrink-0 text-[#94a3b8] relative top-[1px]" strokeWidth={2.5} />}
                 <Link
                   href={crumb.url}

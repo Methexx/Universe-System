@@ -44,8 +44,16 @@ export function EditTeacherModal({ isOpen, onClose, teacher, onSave, onDelete }:
 
   useEffect(() => {
     if (!isOpen || !teacher) return;
-    setFormData(teacherToRecord(teacher));
-    setIsSaved(false);
+    
+    // Defer state updates to avoid React's synchronous setState-in-effect warning
+    const timeoutId = setTimeout(() => {
+      setFormData(teacherToRecord(teacher));
+      setIsSaved(false);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [isOpen, teacher]);
 
   if (!isOpen || !formData || !teacher) return null;

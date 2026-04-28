@@ -72,8 +72,13 @@ export function EditStudentModal({ isOpen, onClose, student, onSave, onDelete }:
 
   useEffect(() => {
     if (!isOpen || !student) return;
-    setFormData(studentToRecord(student));
-    setIsSaved(false);
+    
+    // Defer state updates to avoid React's synchronous setState-in-effect warning
+    const timeoutId = setTimeout(() => {
+      setFormData(studentToRecord(student));
+      setIsSaved(false);
+    }, 0);
+
     getGradesWithClasses().then(res => {
       if (!res.ok) return;
       setGrades(res.data);
