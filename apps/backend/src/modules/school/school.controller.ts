@@ -113,10 +113,8 @@ export class SchoolController {
 
   static async uploadStudentPhoto(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const data = await request.file();
-      if (!data) return reply.status(400).send(errorResponse('No file uploaded'));
-      const buffer = await data.toBuffer();
-      const photo_url = await SchoolService.uploadStudentPhoto(buffer, data.mimetype, data.filename);
+      const { photo_url } = request.body as { photo_url: string };
+      if (!photo_url) return reply.status(400).send(errorResponse('No photo provided'));
       return reply.send(successResponse('Photo uploaded', { photo_url }));
     } catch (error: any) {
       return reply.status(500).send(errorResponse(error.message));
