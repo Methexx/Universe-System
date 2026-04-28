@@ -12,6 +12,7 @@ export class UsersService {
         full_name: true,
         avatar_url: true,
         phone_number: true,
+        gender: true,
         is_active: true,
         created_at: true,
       }
@@ -31,6 +32,7 @@ export class UsersService {
         full_name: true,
         avatar_url: true,
         phone_number: true,
+        gender: true,
       }
     });
     return updated;
@@ -69,8 +71,25 @@ export class UsersService {
 
   static async getTeachers() {
     return prisma.user.findMany({
-      where: { role: 'teacher', is_active: true, is_suspended: false },
-      select: { id: true, full_name: true, email: true, user_id_no: true },
+      where: { role: 'teacher' },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        user_id_no: true,
+        gender: true,
+        phone_number: true,
+        avatar_url: true,
+        is_active: true,
+        is_suspended: true,
+        classes_taught: {
+          select: {
+            id: true,
+            name: true,
+            school_grade: { select: { id: true, name: true } },
+          }
+        },
+      },
       orderBy: { full_name: 'asc' }
     });
   }
@@ -85,8 +104,15 @@ export class UsersService {
 
     let user_id_no: string | undefined;
     if (role === 'teacher' && !user.user_id_no) {
-      const count = await prisma.user.count({ where: { role: 'teacher' } });
-      user_id_no = `T-${String(count + 1).padStart(6, '0')}`;
+      const existing = await prisma.user.findMany({
+        where: { user_id_no: { startsWith: 'T-' } },
+        select: { user_id_no: true },
+      });
+      const maxNum = existing.reduce((max, u) => {
+        const n = parseInt(u.user_id_no?.replace('T-', '') ?? '0', 10);
+        return n > max ? n : max;
+      }, 0);
+      user_id_no = `T-${String(maxNum + 1).padStart(4, '0')}`;
     }
 
     const updated = await prisma.user.update({

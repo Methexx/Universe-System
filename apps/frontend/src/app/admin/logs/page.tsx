@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
@@ -17,8 +17,23 @@ import {
   unsuspendUser,
   deleteUser,
 } from "@/features/auth/lib/auth-api";
+import { getStudents } from '@/features/school/lib/school-api';
 
 type TabType = 'Gate' | 'Pending requests' | 'All users';
+
+type StudentEntry = {
+  entryType: 'student';
+  id: string;
+  full_name: string | null;
+  role: 'student';
+  email: string;
+  is_active: boolean;
+  is_suspended: false;
+  created_at: string;
+  avatar_url: string | null;
+};
+
+type DisplayEntry = (UserProfile & { entryType: 'user' }) | StudentEntry;
 
 const GATE_LOGS = [
   { id: '1', studentId: '29854', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '09:12 AM', checkOut: '-- : --', status: 'QR' },
@@ -138,6 +153,7 @@ export default function LogsPage() {
 
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allStudentEntries, setAllStudentEntries] = useState<StudentEntry[]>([]);
   const [loadingPending, setLoadingPending] = useState(true);
   const [loadingAllUsers, setLoadingAllUsers] = useState(true);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
@@ -154,9 +170,20 @@ export default function LogsPage() {
       setLoadingPending(false);
     });
 
-    getAllUsers().then((result) => {
-      if (result.ok) {
-        setAllUsers(result.data);
+    Promise.all([getAllUsers(), getStudents()]).then(([usersRes, studentsRes]) => {
+      if (usersRes.ok) setAllUsers(usersRes.data);
+      if (studentsRes.ok) {
+        setAllStudentEntries(studentsRes.data.map(s => ({
+          entryType: 'student' as const,
+          id: s.student_id_no,
+          full_name: s.full_name,
+          role: 'student' as const,
+          email: s.parent_email ?? '',
+          is_active: s.is_active,
+          is_suspended: false as const,
+          created_at: s.created_at,
+          avatar_url: s.photo_url ?? null,
+        })));
       }
       setLoadingAllUsers(false);
     });
@@ -199,9 +226,18 @@ export default function LogsPage() {
     if (res.ok) setAllUsers(prev => prev.filter(u => u.id !== id));
   };
 
-  const filteredAllUsers = allUsers.filter(u => {
-    if (searchUsers && !u.full_name?.toLowerCase().includes(searchUsers.toLowerCase())) return false;
-    if (filterRoleUsers && filterRoleUsers !== 'All' && u.role !== filterRoleUsers.toLowerCase()) return false;
+  const allEntries = useMemo<DisplayEntry[]>(() => {
+    const userEntries: DisplayEntry[] = allUsers.map(u => ({ ...u, entryType: 'user' as const }));
+    return [...userEntries, ...allStudentEntries].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [allUsers, allStudentEntries]);
+
+  const filteredEntries = allEntries.filter(entry => {
+    if (searchUsers && !entry.full_name?.toLowerCase().includes(searchUsers.toLowerCase())) return false;
+    if (filterRoleUsers && filterRoleUsers !== 'All') {
+      if (entry.role !== filterRoleUsers.toLowerCase()) return false;
+    }
     return true;
   });
 
@@ -408,6 +444,7 @@ export default function LogsPage() {
             <option value="teacher">Teachers</option>
             <option value="security">Security</option>
             <option value="admin">Admin</option>
+            <option value="student">Students</option>
           </select>
         </div>
       </div>
@@ -431,49 +468,57 @@ export default function LogsPage() {
                   <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
                 </td>
               </tr>
-            ) : filteredAllUsers.length === 0 ? (
+            ) : filteredEntries.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-gray-400">
                   <p>No users found.</p>
                 </td>
               </tr>
             ) : (
-              filteredAllUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50/50 text-[#334155] transition-colors">
-                  <td className="py-3.5 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                            {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                          </div>
-                        )}
+              filteredEntries.map((entry) => {
+                const rowKey = entry.entryType === 'student' ? `student-${entry.id}` : entry.id;
+                return (
+                  <tr key={rowKey} className="hover:bg-gray-50/50 text-[#334155] transition-colors">
+                    <td className="py-3.5 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          {entry.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={entry.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                              {entry.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-bold text-[#0f172a]">{entry.full_name ?? '—'}</span>
                       </div>
-                      <span className="font-bold text-[#0f172a]">{user.full_name ?? '—'}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-6 capitalize">{user.role}</td>
-                  <td className="py-3.5 px-6 text-sm">{user.email}</td>
-                  <td className="py-3.5 px-6">
-                    {user.is_suspended || !user.is_active ? (
-                      <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Suspended</span>
-                    ) : (
-                      <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100">Active</span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-6">{formatDate(user.created_at)}</td>
-                  <td className="py-3.5 px-6 text-right">
-                    <UserActionsMenu
-                      user={user}
-                      onSuspend={() => handleSuspend(user.id)}
-                      onUnsuspend={() => handleUnsuspend(user.id)}
-                      onDelete={() => handleDelete(user.id)}
-                    />
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="py-3.5 px-6 capitalize">{entry.role}</td>
+                    <td className="py-3.5 px-6 text-sm">{entry.email || '—'}</td>
+                    <td className="py-3.5 px-6">
+                      {entry.is_suspended || !entry.is_active ? (
+                        <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-100">Suspended</span>
+                      ) : (
+                        <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100">Active</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-6">{formatDate(entry.created_at)}</td>
+                    <td className="py-3.5 px-6 text-right">
+                      {entry.entryType === 'user' ? (
+                        <UserActionsMenu
+                          user={entry}
+                          onSuspend={() => handleSuspend(entry.id)}
+                          onUnsuspend={() => handleUnsuspend(entry.id)}
+                          onDelete={() => handleDelete(entry.id)}
+                        />
+                      ) : (
+                        <span />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -5,6 +5,7 @@ export const updateProfileSchema = z.object({
     full_name: z.string().min(2, 'Name too short').optional(),
     avatar_url: z.string().optional(),
     phone_number: z.string().optional(),
+    gender: z.string().optional(),
   }),
 });
 
