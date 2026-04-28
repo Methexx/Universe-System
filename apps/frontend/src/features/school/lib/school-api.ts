@@ -61,6 +61,7 @@ export type StudentRecord = {
     id: string;
     name: string;
     school_grade: { id: string; name: string };
+    teacher?: { id: string; full_name: string | null } | null;
   } | null;
 };
 
@@ -100,12 +101,17 @@ export function getNextStudentId() {
 
 export async function uploadStudentPhoto(file: File): Promise<ApiResult<{ photo_url: string }>> {
   try {
-    const formData = new FormData();
-    formData.append('file', file);
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
     const res = await fetch(`${BASE}/api/school/students/photo`, {
       method: 'POST',
       credentials: 'include',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photo_url: dataUrl }),
     });
     const json = await res.json().catch(() => ({}));
     if (res.ok) return { ok: true, data: (json.data ?? json) as { photo_url: string } };

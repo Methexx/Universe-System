@@ -39,6 +39,8 @@ function mapApiStudentToStudent(s: StudentRecord): Student {
     parentId: s.parent_id_no ?? '',
     parentName: s.parent_name ?? '',
     parentMobile: s.parent_mobile ?? '',
+    teacherName: s.class?.teacher?.full_name ?? undefined,
+    classId: s.class?.id ?? undefined,
   };
 }
 
@@ -289,7 +291,11 @@ export default function StudentsPage() {
 </div>
 
         {/* Right Column - Profile Card */}
-        <StudentProfileCard student={selectedStudent} />
+        <StudentProfileCard
+          student={selectedStudent}
+          allStudents={students}
+          onSelectStudent={setSelectedStudentId}
+        />
       </div>
 
       {isEditModalOpen && editingStudentId && (

@@ -8,11 +8,11 @@ const AVATAR_COLORS = [
   'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-rose-500',
 ];
 
-function LetterAvatar({ name, id }: { name: string; id: string }) {
+function LetterAvatar({ name, id, textSize }: { name: string; id: string; textSize?: string }) {
   const colorIndex = id.charCodeAt(0) % AVATAR_COLORS.length;
   const letter = (name?.[0] ?? '?').toUpperCase();
   return (
-    <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold text-5xl ${AVATAR_COLORS[colorIndex]}`}>
+    <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-bold ${textSize ?? 'text-5xl'} ${AVATAR_COLORS[colorIndex]}`}>
       {letter}
     </div>
   );
@@ -29,10 +29,14 @@ interface Student {
   parentId?: string;
   parentName?: string;
   parentMobile?: string;
+  teacherName?: string;
+  classId?: string;
 }
 
 interface StudentProfileCardProps {
   student: Student | undefined;
+  allStudents: Student[];
+  onSelectStudent: (id: string) => void;
 }
 
 function ContactPopup({ label, value, onClose }: { label: string; value: string; onClose: () => void }) {
@@ -60,12 +64,18 @@ function ContactPopup({ label, value, onClose }: { label: string; value: string;
   );
 }
 
-export function StudentProfileCard({ student }: StudentProfileCardProps) {
+export function StudentProfileCard({ student, allStudents, onSelectStudent }: StudentProfileCardProps) {
   const [activePopup, setActivePopup] = useState<'phone' | 'email' | null>(null);
 
   const togglePopup = (type: 'phone' | 'email') => {
     setActivePopup(prev => (prev === type ? null : type));
   };
+
+  const classmates = student
+    ? allStudents.filter(s => s.id !== student.id && !!s.classId && s.classId === student.classId)
+    : [];
+  const displayClassmates = classmates.slice(0, 5);
+  const extraCount = Math.max(0, classmates.length - 5);
 
   return (
     <div className="w-full lg:w-[340px] shrink-0 bg-white rounded-[24px] border border-[#e2e8f0] shadow-[0_2px_20px_rgba(0,0,0,0.02)] flex flex-col items-center pt-10 pb-8 px-6 overflow-hidden">
@@ -133,7 +143,7 @@ export function StudentProfileCard({ student }: StudentProfileCardProps) {
             </div>
             <div className="flex justify-between items-center text-[13px]">
               <span className="font-bold text-[#0f172a]">Class Teacher</span>
-              <span className="text-[#64748b] font-medium">—</span>
+              <span className="text-[#64748b] font-medium">{student.teacherName || '—'}</span>
             </div>
             <div className="flex justify-between items-center text-[13px]">
               <span className="font-bold text-[#0f172a]">Parent Name</span>
@@ -151,17 +161,32 @@ export function StudentProfileCard({ student }: StudentProfileCardProps) {
 
           <div className="w-full mt-10 px-2">
             <h4 className="text-[13px] font-bold text-[#0f172a] mb-4">People from the same class</h4>
-            <div className="flex items-center gap-3">
-              <div className="flex -space-x-3">
-                {/* eslint-disable @next/next/no-img-element */}
-                <img src="https://i.pravatar.cc/150?img=1" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                <img src="https://i.pravatar.cc/150?img=2" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                <img src="https://i.pravatar.cc/150?img=3" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                <img src="https://i.pravatar.cc/150?img=4" className="w-9 h-9 rounded-full border-2 border-white object-cover" alt="Student" />
-                {/* eslint-enable @next/next/no-img-element */}
+            {classmates.length === 0 ? (
+              <p className="text-[12px] text-[#94a3b8]">No classmates found.</p>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-3">
+                  {displayClassmates.map(cm => (
+                    <button
+                      key={cm.id}
+                      onClick={() => onSelectStudent(cm.id)}
+                      title={cm.name}
+                      className="relative w-9 h-9 rounded-full border-2 border-white overflow-hidden flex-shrink-0 hover:z-10 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-transform"
+                    >
+                      {cm.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cm.avatar} className="w-full h-full object-cover" alt={cm.name} />
+                      ) : (
+                        <LetterAvatar name={cm.name} id={cm.id} textSize="text-sm" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {extraCount > 0 && (
+                  <span className="text-[12px] font-bold text-[#3b82f6]">+{extraCount} more</span>
+                )}
               </div>
-              <span className="text-[12px] font-bold text-[#3b82f6]">+12 more</span>
-            </div>
+            )}
           </div>
         </>
       ) : (

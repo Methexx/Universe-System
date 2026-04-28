@@ -142,7 +142,10 @@ export class SchoolService {
     const students = await prisma.student.findMany({
       include: {
         class: {
-          include: { school_grade: true }
+          include: {
+            school_grade: true,
+            teacher: { select: { id: true, full_name: true } }
+          }
         }
       },
       orderBy: { full_name: 'asc' }
@@ -210,7 +213,10 @@ export class SchoolService {
       data,
       include: {
         class: {
-          include: { school_grade: true }
+          include: {
+            school_grade: true,
+            teacher: { select: { id: true, full_name: true } }
+          }
         }
       }
     });

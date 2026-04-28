@@ -13,6 +13,8 @@ export interface Student {
   parentId?: string;
   parentName?: string;
   parentMobile?: string;
+  teacherName?: string;
+  classId?: string;
 }
 
 interface EditStudentModalProps {
