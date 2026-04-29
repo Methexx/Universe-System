@@ -51,6 +51,7 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
   ],
   security: [
     { title: "Dashboard", icon: LayoutDashboard, path: "/security/dashboard" },
+    { title: "Profile", icon: User, path: "/security/profile" },
   ],
   pending: [
     { title: "Account Status", icon: LayoutDashboard, path: "/pending" },
