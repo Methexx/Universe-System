@@ -18,6 +18,11 @@ export const createAnnouncement = async (request: FastifyRequest, reply: Fastify
         target: data.target,
         class_id: data.class_id,
         author_id: user.userId
+      },
+      include: {
+        author: {
+          select: { full_name: true, role: true, avatar_url: true }
+        }
       }
     });
 

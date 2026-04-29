@@ -38,6 +38,7 @@ interface NoticeCardProps {
 }
 
 export function NoticeCard({ notice, onDelete, canDelete, onClick, variant = 'full' }: NoticeCardProps) {
+  const author = notice.author ?? { full_name: 'Unknown', role: 'unknown', avatar_url: null };
   const getScopeBadge = (scope: string) => {
     if (scope === 'school_wide') {
       return {
@@ -128,26 +129,26 @@ export function NoticeCard({ notice, onDelete, canDelete, onClick, variant = 'fu
         <div className="flex items-center gap-3 flex-1">
           <div className="relative h-12 w-12 flex-shrink-0">
             <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-600 border border-indigo-200 overflow-hidden font-bold text-sm">
-              {notice.author.avatar_url ? (
+              {author.avatar_url ? (
                 <Image
-                  src={notice.author.avatar_url}
-                  alt={notice.author.full_name}
+                  src={author.avatar_url}
+                  alt={author.full_name}
                   fill
                   className="object-cover"
                   unoptimized
                 />
               ) : (
-                notice.author.full_name.charAt(0)
+                author.full_name.charAt(0)
               )}
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-[14px] font-bold text-slate-900">
-              {notice.author.full_name}
+              {author.full_name}
             </h4>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide">
-                {capitalizeRole(notice.author.role)}
+                {capitalizeRole(author.role)}
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-[11px] text-slate-500">{timeAgo}</span>
