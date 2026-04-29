@@ -98,21 +98,25 @@ export function Header({ toggleSidebar, userParams, profileLink = "/admin/profil
               {userParams.roleLevel}
             </span>
           </div>
-          <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200 border border-[var(--line)]">
-            {userParams.avatarUrl ? (
-              <Image
-                src={userParams.avatarUrl}
-                alt="User avatar"
-                width={36}
-                height={36}
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[#1e293b] text-white font-bold text-sm">
-                {userParams.name.charAt(0)}
-              </div>
-            )}
+          <div className="relative h-9 w-9 flex-shrink-0">
+            <div className="h-full w-full overflow-hidden rounded-full bg-gray-200 border border-[var(--line)]">
+              {userParams.avatarUrl ? (
+                <Image
+                  src={userParams.avatarUrl}
+                  alt="User avatar"
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[#1e293b] text-white font-bold text-sm">
+                  {userParams.name.charAt(0)}
+                </div>
+              )}
+            </div>
+            {/* Online badge - outside the overflow hidden */}
+            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500 z-10" />
           </div>
         </div>
       </Link>

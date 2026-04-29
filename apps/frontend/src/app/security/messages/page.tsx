@@ -9,96 +9,29 @@ import {
   MessageSquare,
   ShieldAlert,
   GraduationCap,
-  Circle,
+  Trash2,
 } from "lucide-react";
+import Image from "next/image";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
+import { getInbox, getContacts, getThread, sendMessage, markAsRead, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { Loader2 } from "lucide-react";
+import { UserStatus } from "@/shared/components/ui/UserStatus";
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers
 // ---------------------------------------------------------------------------
 
-type RoleFilter = "all" | "admin" | "teacher";
-
-type Message = {
-  id: string;
-  from: "security" | "other";
-  text: string;
-  timestamp: string;
-};
-
-type Thread = {
-  id: string;
-  contactName: string;
-  role: "admin" | "teacher";
-  roleLabel: string;
-  unread: number;
-  lastMessage: string;
-  lastTimestamp: string;
-  messages: Message[];
-};
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const INITIAL_THREADS: Thread[] = [
-  {
-    id: "t1",
-    contactName: "Admin Support",
-    role: "admin",
-    roleLabel: "System Administrator",
-    unread: 1,
-    lastMessage: "Please check the visitor log from 2PM.",
-    lastTimestamp: "10:42 AM",
-    messages: [
-      {
-        id: "m1",
-        from: "security",
-        text: "I noticed some issues with the sensor at Gate 1.",
-        timestamp: "Today, 10:40 AM",
-      },
-      {
-        id: "m2",
-        from: "other",
-        text: "Understood. Please check the visitor log from 2PM as well.",
-        timestamp: "Today, 10:42 AM",
-      },
-    ],
-  },
-  {
-    id: "t2",
-    contactName: "Mrs. Nkwonta",
-    role: "teacher",
-    roleLabel: "Science Dept. Head",
-    unread: 0,
-    lastMessage: "Thank you for the update.",
-    lastTimestamp: "Yesterday",
-    messages: [
-      {
-        id: "m3",
-        from: "other",
-        text: "Hello Security, could you verify if a student (Amara) left early today?",
-        timestamp: "Yesterday, 2:10 PM",
-      },
-      {
-        id: "m4",
-        from: "security",
-        text: "Yes, her parents picked her up at 1:30 PM with admin approval.",
-        timestamp: "Yesterday, 2:15 PM",
-      },
-      {
-        id: "m5",
-        from: "other",
-        text: "Thank you for the update.",
-        timestamp: "Yesterday, 3:45 PM",
-      },
-    ],
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+function formatTimestamp(isoString: string) {
+  const date = new Date(isoString);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 function UnreadBadge({ count }: { count: number }) {
   if (count === 0) return null;
@@ -114,11 +47,11 @@ function ThreadListItem({
   isActive,
   onClick,
 }: {
-  thread: Thread;
+  thread: MessageThread;
   isActive: boolean;
   onClick: () => void;
 }) {
-  const Icon = thread.role === "admin" ? ShieldAlert : GraduationCap;
+  const Icon = thread.user.role === "admin" ? ShieldAlert : GraduationCap;
 
   return (
     <button
@@ -130,56 +63,126 @@ function ThreadListItem({
       )}
     >
       {/* Avatar */}
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a]">
-        <Icon className="h-4 w-4" />
+      <div className="relative h-9 w-9 flex-shrink-0">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
+          {thread.user.avatar_url ? (
+            <Image 
+              src={thread.user.avatar_url} 
+              alt="" 
+              width={36} 
+              height={36} 
+              className="h-full w-full object-cover" 
+              unoptimized
+            />
+          ) : (
+            <Icon className="h-4 w-4" />
+          )}
+        </div>
+        {thread.user.is_online && (
+          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 z-10" />
+        )}
       </div>
 
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-1">
-          <p className="truncate text-[13px] font-bold text-[#0f172a]">{thread.contactName}</p>
-          <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{thread.lastTimestamp}</span>
+          <p className="truncate text-[13px] font-bold text-[#0f172a]">{thread.user.full_name}</p>
+          <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{formatTimestamp(thread.lastMessage.created_at)}</span>
         </div>
-        <p className="text-[11px] text-[#64748b] font-medium">
-          {thread.roleLabel}
+        <p className="text-[11px] text-[#64748b] font-medium flex items-center gap-2">
+          {capitalizeRole(thread.user.role)}
         </p>
         <div className="mt-0.5 flex items-center gap-1">
           <p
             className={clsx(
               "truncate text-[12px]",
-              thread.unread > 0 ? "font-semibold text-[#334155]" : "text-[#94a3b8]"
+              thread.unreadCount > 0 ? "font-semibold text-[#334155]" : "text-[#94a3b8]"
             )}
           >
-            {thread.lastMessage}
+            {thread.lastMessage.content}
           </p>
-          <UnreadBadge count={thread.unread} />
+          <UnreadBadge count={thread.unreadCount} />
         </div>
       </div>
     </button>
   );
 }
 
-function ChatBubble({ message }: { message: Message }) {
-  const isSecurity = message.from === "security";
+function ContactListItem({
+  contact,
+  onClick,
+}: {
+  contact: MessageContact;
+  onClick: () => void;
+}) {
+  const Icon = contact.role === "admin" ? ShieldAlert : GraduationCap;
   return (
-    <div className={clsx("flex", isSecurity ? "justify-end" : "justify-start")}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-3 border-b border-[#e2e8f0] px-4 py-3.5 text-left transition-colors hover:bg-[#f8fafc]"
+    >
+      <div className="relative h-9 w-9 flex-shrink-0">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
+          {contact.avatar_url ? (
+            <Image 
+              src={contact.avatar_url} 
+              alt="" 
+              width={36} 
+              height={36} 
+              className="h-full w-full object-cover" 
+              unoptimized
+            />
+          ) : (
+            <Icon className="h-4 w-4" />
+          )}
+        </div>
+        {contact.is_online && (
+          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 z-10" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-bold text-[#0f172a]">{contact.full_name}</p>
+        <p className="text-[11px] text-[#64748b] font-medium flex items-center gap-2">
+          {capitalizeRole(contact.role)}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage; currentUserId: string; onDelete: (id: string) => void }) {
+  const isMe = message.sender_id === currentUserId;
+  return (
+    <div className={clsx("group flex relative", isMe ? "justify-end" : "justify-start")}>
       <div
         className={clsx(
-          "max-w-[72%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm",
-          isSecurity
+          "max-w-[72%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm relative",
+          isMe
             ? "rounded-br-sm bg-[#1e293b] text-white"
             : "rounded-bl-sm bg-white text-[#0f172a] border border-[#e2e8f0]"
         )}
       >
-        <p>{message.text}</p>
+        <p>{message.content}</p>
         <p
           className={clsx(
             "mt-1 text-[10px]",
-            isSecurity ? "text-gray-300" : "text-[#94a3b8]"
+            isMe ? "text-gray-300" : "text-[#94a3b8]"
           )}
         >
-          {message.timestamp}
+          {formatTimestamp(message.created_at)}
         </p>
+
+        {/* Delete button on hover (only for sender) */}
+        {isMe && (
+          <button
+            onClick={() => onDelete(message.id)}
+            className="absolute top-2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-red-500 hover:text-white text-gray-400"
+            title="Delete message"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -190,71 +193,133 @@ function ChatBubble({ message }: { message: Message }) {
 // ---------------------------------------------------------------------------
 
 export default function SecurityMessagesPage() {
-  const [threads, setThreads] = useState<Thread[]>(INITIAL_THREADS);
+  const { user } = useAuth();
+  const [threads, setThreads] = useState<MessageThread[]>([]);
+  const [contacts, setContacts] = useState<MessageContact[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [activeMessages, setActiveMessages] = useState<ApiMessage[]>([]);
   const [search, setSearch] = useState("");
   const [compose, setCompose] = useState("");
-  const messageIdCounterRef = useRef(1000);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Total unread across all threads
-  const totalUnread = threads.reduce((sum, t) => sum + t.unread, 0);
+  const totalUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
+
+  const fetchData = React.useCallback(async () => {
+    const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
+    if (inboxRes.ok) setThreads(inboxRes.data);
+    if (contactsRes.ok) setContacts(contactsRes.data);
+    setIsLoading(false);
+  }, []);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchData]);
+
+  // Polling for real-time updates
+  React.useEffect(() => {
+    const interval = setInterval(async () => {
+      // Refresh inbox
+      const inboxRes = await getInbox();
+      if (inboxRes.ok) setThreads(inboxRes.data);
+
+      // If a thread is open, refresh its messages
+      if (activeThreadId) {
+        const threadRes = await getThread(activeThreadId);
+        if (threadRes.ok) {
+          setActiveMessages(threadRes.data);
+        }
+      }
+      
+      // Refresh contacts occasionally too
+      const contactsRes = await getContacts();
+      if (contactsRes.ok) setContacts(contactsRes.data);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activeThreadId]);
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
-      const matchesRole = roleFilter === "all" || t.role === roleFilter;
       const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        t.contactName.toLowerCase().includes(q) ||
-        t.roleLabel.toLowerCase().includes(q);
-      return matchesRole && matchesSearch;
+      return !q || t.user.full_name?.toLowerCase().includes(q);
     });
-  }, [threads, roleFilter, search]);
+  }, [threads, search]);
 
-  const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      const q = search.toLowerCase();
+      return !q || c.full_name?.toLowerCase().includes(q);
+    });
+  }, [contacts, search]);
 
-  // Mark thread as read when opened
-  const openThread = (threadId: string) => {
-    setActiveThreadId(threadId);
-    setThreads((prev) =>
-      prev.map((t) => (t.id === threadId ? { ...t, unread: 0 } : t))
-    );
+  const activeThread = useMemo(() => {
+    const t = threads.find((t) => t.user.id === activeThreadId);
+    if (t) return t;
+    return contacts.find((c) => c.id === activeThreadId);
+  }, [threads, contacts, activeThreadId]);
+
+  const activeUser = useMemo(() => {
+    if (!activeThread) return null;
+    return 'user' in activeThread ? activeThread.user : activeThread;
+  }, [activeThread]);
+
+  const openThread = async (userId: string) => {
+    setActiveThreadId(userId);
+    setShowContacts(false);
+    const res = await getThread(userId);
+    if (res.ok) {
+      setActiveMessages(res.data);
+      // Mark as read
+      const unreadMsgs = res.data.filter(m => !m.is_read && m.receiver_id === user?.userId);
+      for (const m of unreadMsgs) {
+        markAsRead(m.id);
+      }
+      setThreads(prev => prev.map(t => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
+    }
     setCompose("");
-    // Scroll to bottom after render
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
+    }, 100);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!compose.trim() || !activeThreadId) return;
+    setIsSending(true);
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newMsg: Message = {
-      id: `m-${messageIdCounterRef.current++}`,
-      from: "security",
-      text: compose.trim(),
-      timestamp: `Today, ${timeStr}`,
-    };
+    const res = await sendMessage({
+      receiver_id: activeThreadId,
+      content: compose.trim(),
+    });
 
-    setThreads((prev) =>
-      prev.map((t) => {
-        if (t.id !== activeThreadId) return t;
-        return {
-          ...t,
-          messages: [...t.messages, newMsg],
-          lastMessage: newMsg.text,
-          lastTimestamp: timeStr,
-        };
-      })
-    );
-    setCompose("");
+    if (res.ok) {
+      // Refresh thread
+      const threadRes = await getThread(activeThreadId);
+      if (threadRes.ok) setActiveMessages(threadRes.data);
+      setCompose("");
+      // Refresh inbox
+      const inboxRes = await getInbox();
+      if (inboxRes.ok) setThreads(inboxRes.data);
+    }
+    setIsSending(false);
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
+    }, 100);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message for everyone?")) return;
+    const res = await deleteMessage(messageId);
+    if (res.ok) {
+      setActiveMessages(prev => prev.filter(m => m.id !== messageId));
+      fetchData(); 
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -286,42 +351,52 @@ export default function SecurityMessagesPage() {
             activeThread ? "hidden md:flex" : "flex"
           )}
         >
-          {/* Search + filter */}
+          {/* Search + action */}
           <div className="border-b border-[#e2e8f0] p-4">
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search admin or staff…"
-                className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-[#1e293b]"
-              />
-            </div>
-
-            {/* Role filter tabs */}
-            <div className="flex gap-2">
-              {(["all", "admin", "teacher"] as RoleFilter[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setRoleFilter(f)}
-                  className={clsx(
-                    "rounded-full px-3 py-1 text-[12px] font-bold transition-colors capitalize",
-                    roleFilter === f
-                      ? "bg-[#1e293b] text-white"
-                      : "bg-[#f1f5f9] text-[#475569] hover:bg-[#e2e8f0]"
-                  )}
-                >
-                  {f === "all" ? "All Contacts" : f}
-                </button>
-              ))}
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={showContacts ? "Search contacts..." : "Search messages..."}
+                  className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-[#1e293b]"
+                />
+              </div>
+              <button 
+                onClick={() => setShowContacts(!showContacts)}
+                className={clsx(
+                  "px-3 py-2 rounded-lg text-[13px] font-bold transition-colors",
+                  showContacts ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
+                )}
+              >
+                {showContacts ? "Back" : "New"}
+              </button>
             </div>
           </div>
 
-          {/* Thread list */}
+          {/* List area */}
           <div className="flex-1 overflow-y-auto">
-            {filteredThreads.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-900" />
+              </div>
+            ) : showContacts ? (
+              filteredContacts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-[#94a3b8]">
+                  <p className="text-[13px]">No contacts found.</p>
+                </div>
+              ) : (
+                filteredContacts.map((contact) => (
+                  <ContactListItem
+                    key={contact.id}
+                    contact={contact}
+                    onClick={() => openThread(contact.id)}
+                  />
+                ))
+              )
+            ) : filteredThreads.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-[#94a3b8]">
                 <MessageSquare className="h-8 w-8 opacity-40" />
                 <p className="text-[13px]">No conversations found.</p>
@@ -329,10 +404,10 @@ export default function SecurityMessagesPage() {
             ) : (
               filteredThreads.map((thread) => (
                 <ThreadListItem
-                  key={thread.id}
+                  key={thread.user.id}
                   thread={thread}
-                  isActive={thread.id === activeThreadId}
-                  onClick={() => openThread(thread.id)}
+                  isActive={thread.user.id === activeThreadId}
+                  onClick={() => openThread(thread.user.id)}
                 />
               ))
             )}
@@ -361,31 +436,46 @@ export default function SecurityMessagesPage() {
                   Back
                 </button>
 
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a]">
-                  {activeThread.role === "admin" ? <ShieldAlert className="h-4 w-4" /> : <GraduationCap className="h-4 w-4" />}
+                <div className="relative h-10 w-10 flex-shrink-0">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
+                    {activeUser?.avatar_url ? (
+                      <Image 
+                        src={activeUser.avatar_url} 
+                        alt="" 
+                        width={40} 
+                        height={40} 
+                        className="h-full w-full object-cover" 
+                        unoptimized
+                      />
+                    ) : (
+                      <ShieldAlert className="h-5 w-5" />
+                    )}
+                  </div>
+                  {activeUser?.is_online && (
+                    <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 z-10" />
+                  )}
                 </div>
 
                 <div>
                   <p className="text-[14px] font-bold text-[#0f172a]">
-                    {activeThread.contactName}
+                    {activeUser?.full_name}
                   </p>
-                  <p className="text-[11px] text-[#64748b]">
-                    {activeThread.roleLabel}
-                  </p>
+                  <p className="text-[11px] font-medium text-[#64748b]">{capitalizeRole(activeUser?.role || "")}</p>
                 </div>
 
-                {/* Oversight notice */}
-                <div className="ml-auto hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
-                  <Circle className="h-2 w-2 fill-green-500 text-green-500" />
-                  Online
-                </div>
+                {/* Status indicator */}
+                <UserStatus 
+                  isOnline={!!activeUser?.is_online} 
+                  lastSeen={activeUser?.last_seen}
+                  className="ml-auto rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1"
+                />
               </div>
 
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto bg-[#f8fafc] px-5 py-4">
                 <div className="flex flex-col gap-3">
-                  {activeThread.messages.map((msg) => (
-                    <ChatBubble key={msg.id} message={msg} />
+                  {activeMessages.map((msg) => (
+                    <ChatBubble key={msg.id} message={msg} currentUserId={user?.userId || ""} onDelete={handleDeleteMessage} />
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
@@ -405,10 +495,10 @@ export default function SecurityMessagesPage() {
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!compose.trim()}
+                    disabled={!compose.trim() || isSending}
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1e293b] text-white hover:bg-[#0f172a] disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
-                    <Send className="h-4 w-4" />
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-[#94a3b8]">

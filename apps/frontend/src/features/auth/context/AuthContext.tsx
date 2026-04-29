@@ -12,6 +12,7 @@ export type AuthUser = {
   phone_number?: string | null;
   avatar_url?: string | null;
   gender?: string | null;
+  last_seen?: string | null;
 };
 
 type AuthContextValue = {
