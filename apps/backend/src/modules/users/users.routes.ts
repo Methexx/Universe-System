@@ -11,12 +11,14 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
   // 1. GENERAL ALL-ROLE ROUTES
   fastify.get('/me', UsersController.getMe);
-  
+
   fastify.put('/me', {
     preHandler: async (request) => { updateProfileSchema.parse({ body: request.body }) }
   }, UsersController.updateMe);
 
   fastify.delete('/me', UsersController.deleteMe);
+
+  fastify.put('/fcm-token', UsersController.updateFcmToken);
 
   // 2. ADMIN-ONLY ROUTES
   // We use the `authorize` RBAC middleware in the preHandler array

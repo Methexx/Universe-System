@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { createAnnouncementSchema, getAnnouncementsSchema } from './announcements.schema';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
+import { sendMulticastFcmNotification } from '../../config/firebase';
 
 export const createAnnouncement = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -12,6 +13,7 @@ export const createAnnouncement = async (request: FastifyRequest, reply: Fastify
       data: {
         title: data.title,
         content: data.content,
+        image_url: data.image_url,
         scope: data.scope,
         target: data.target,
         class_id: data.class_id,
@@ -19,9 +21,51 @@ export const createAnnouncement = async (request: FastifyRequest, reply: Fastify
       }
     });
 
-    // TODO: Trigger Firebase Push Notifications (FCM) based on scope/target
-
     await delCacheByPattern('announcements:*');
+
+    // Trigger Firebase Push Notifications (FCM) based on scope/target
+    try {
+      const tokens: string[] = [];
+
+      if (data.scope === 'school_wide') {
+        if (data.target === 'all' || data.target === 'students') {
+          const students = await prisma.student.findMany({
+            select: { fcm_token: true },
+            where: { fcm_token: { not: null } }
+          });
+          tokens.push(...students.map(s => s.fcm_token).filter(Boolean) as string[]);
+        }
+        if (data.target === 'all' || data.target === 'parents_only') {
+          const parents = await prisma.user.findMany({
+            select: { fcm_token: true },
+            where: { role: 'parent', fcm_token: { not: null } }
+          });
+          tokens.push(...parents.map(p => p.fcm_token).filter(Boolean) as string[]);
+        }
+        if (data.target === 'all' || data.target === 'teachers') {
+          const teachers = await prisma.user.findMany({
+            select: { fcm_token: true },
+            where: { role: 'teacher', fcm_token: { not: null } }
+          });
+          tokens.push(...teachers.map(t => t.fcm_token).filter(Boolean) as string[]);
+        }
+      }
+
+      if (tokens.length > 0) {
+        await sendMulticastFcmNotification(
+          tokens,
+          announcement.title,
+          announcement.content,
+          {
+            announcementId: announcement.id,
+            scope: announcement.scope,
+            target: announcement.target
+          }
+        );
+      }
+    } catch (fcmError) {
+      console.error('FCM notification failed (non-blocking):', fcmError);
+    }
 
     return reply.status(201).send({
       success: true,

@@ -1,165 +1,141 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { NoticeCard, Notice } from '@/shared/components/ui/NoticeCard';
 import { NoticeForm } from '@/shared/components/ui/NoticeForm';
+import { NoticeFilters } from '@/shared/components/ui/NoticeFilters';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Megaphone, Search, Filter } from 'lucide-react';
-
-const DUMMY_NOTICES: Notice[] = [
-  {
-    id: '1',
-    title: 'Grade 10-A Science Project Deadline',
-    content: 'All students are reminded that the Ecosystems project is due this Friday. Please upload your final reports to the portal. Late submissions will incur a 10% penalty per day.',
-    scope: 'class',
-    target: 'Grade 10-A',
-    created_at: new Date().toISOString(),
-    author: {
-      full_name: 'Ms. T. Kumari',
-      role: 'teacher',
-      avatar_url: null
-    }
-  },
-  {
-    id: '2',
-    title: 'UniVerse Annual Sports Meet 2024',
-    content: 'Get ready for the biggest event of the year! The UniVerse Sports Meet is scheduled for next month. All students are encouraged to participate in at least one event. Registration forms are available at the front desk.',
-    image_url: 'https://images.unsplash.com/photo-1502904550040-7534597429ae?q=80&w=2069&auto=format&fit=crop',
-    scope: 'school_wide',
-    target: 'all',
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    author: {
-      full_name: 'Dr. Sarah Wilson',
-      role: 'admin',
-      avatar_url: 'https://i.pravatar.cc/150?u=sarah'
-    }
-  }
-];
+import { getAnnouncements, createAnnouncement, deleteAnnouncement } from '@/features/notices/lib/notices-api';
+import { AnimatePresence } from 'framer-motion';
+import { Megaphone } from 'lucide-react';
 
 export default function TeacherNoticesPage() {
   const { user } = useAuth();
-  const [notices, setNotices] = useState<Notice[]>(DUMMY_NOTICES);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'school'>('all');
   const [search, setSearch] = useState('');
 
-  const handlePublish = (data: {
+  const fetchNotices = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAnnouncements();
+      setNotices(Array.isArray(data) ? data : data.announcements || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch announcements');
+      setNotices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchNotices();
+  }, [fetchNotices]);
+
+  const handlePublish = async (data: {
     title: string;
     content: string;
     scope: string;
     target: string;
-    imageFile: File | null;
+    image_url: string | null;
+    class_id?: string | null;
   }) => {
-    const newNotice: Notice = {
-      id: Date.now().toString(),
-      title: data.title,
-      content: data.content,
-      scope: data.scope,
-      target: data.target,
-      image_url: data.imageFile ? URL.createObjectURL(data.imageFile) : null,
-      created_at: new Date().toISOString(),
-      author: {
-        full_name: user?.full_name || 'Teacher User',
-        role: user?.role || 'teacher',
-        avatar_url: user?.avatar_url
-      }
-    };
-
-    setNotices(prev => [newNotice, ...prev]);
+    try {
+      setError(null);
+      const newNotice = await createAnnouncement(data);
+      setNotices(prev => [newNotice.data || newNotice, ...prev]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to publish announcement');
+    }
   };
 
-  const filteredNotices = useMemo(() => {
-    return notices.filter(n => {
-      const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) || 
-                           n.content.toLowerCase().includes(search.toLowerCase());
-      
-      if (activeTab === 'mine') return matchesSearch && n.author.full_name === user?.full_name;
-      if (activeTab === 'school') return matchesSearch && n.scope === 'school_wide';
-      return matchesSearch;
-    });
-  }, [notices, search, activeTab, user]);
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Delete this announcement?')) {
+      try {
+        setError(null);
+        await deleteAnnouncement(id);
+        setNotices(prev => prev.filter(n => n.id !== id));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete announcement');
+      }
+    }
+  };
+
+  const filteredNotices = notices.filter(n => {
+    const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) ||
+                         n.content.toLowerCase().includes(search.toLowerCase());
+
+    if (activeTab === 'mine') return matchesSearch && n.author.full_name === user?.full_name;
+    if (activeTab === 'school') return matchesSearch && n.scope === 'school_wide';
+    return matchesSearch;
+  });
 
   return (
-    <div className="flex flex-col gap-8 pb-20 max-w-5xl mx-auto w-full px-4">
-      <PageHeader 
+    <div className="flex flex-col gap-8 pb-20 max-w-6xl mx-auto w-full px-4">
+      <PageHeader
         title="Notices"
-        subtitle="Post class updates and keep track of school-wide announcements"
+        subtitle="Post class updates and stay informed about school-wide announcements"
       />
 
-      {/* Creation Area */}
-      <div className="w-full">
-        <NoticeForm onPublish={handlePublish} />
-      </div>
-
-      {/* Feed & Filter Area */}
-      <div className="flex flex-col gap-6">
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
-            {(['all', 'mine', 'school'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${
-                  activeTab === tab 
-                    ? 'bg-white text-indigo-600 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3 flex-1 md:flex-none md:min-w-[300px]">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text"
-                placeholder="Search announcements..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <button className="p-2.5 bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl transition-all">
-              <Filter className="w-4 h-4" />
-            </button>
-          </div>
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+          {error}
         </div>
+      )}
 
-        <div className="grid grid-cols-1 gap-6">
-          <AnimatePresence mode="popLayout">
-            {filteredNotices.map((notice) => (
-              <NoticeCard 
-                key={notice.id} 
-                notice={notice} 
-                canDelete={notice.author.full_name === user?.full_name}
-                onDelete={(id) => {
-                  if (window.confirm('Delete this announcement?')) {
-                    setNotices(prev => prev.filter(n => n.id !== id));
-                  }
-                }}
+      {/* Form */}
+      <NoticeForm onPublish={handlePublish} />
+
+      {/* Filters */}
+      <NoticeFilters
+        tabs={[
+          { key: 'all', label: 'All Notices' },
+          { key: 'mine', label: 'My Notices' },
+          { key: 'school', label: 'School Wide' }
+        ]}
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab as 'all' | 'mine' | 'school')}
+        search={search}
+        onSearchChange={setSearch}
+        itemCount={filteredNotices.length}
+      />
+
+      {/* Feed */}
+      <div className="grid grid-cols-1 gap-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-slate-500">Loading announcements...</div>
+          </div>
+        ) : (
+          <>
+            <AnimatePresence mode="popLayout">
+              {filteredNotices.map((notice) => (
+                <NoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  canDelete={notice.author.full_name === user?.full_name}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </AnimatePresence>
+
+            {filteredNotices.length === 0 && (
+              <EmptyState
+                icon={Megaphone}
+                title="No notices found"
+                description={search ? 'Try adjusting your search or filters.' : 'Start by posting your first class announcement.'}
+                action={!search ? { label: 'Post Announcement', onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) } : undefined}
               />
-            ))}
-          </AnimatePresence>
-
-          {filteredNotices.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-20 text-center"
-            >
-              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
-                <Megaphone className="w-10 h-10" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">No notices found</h3>
-              <p className="text-slate-500 text-sm mt-1 max-w-xs">
-                Try adjusting your filters or search keywords.
-              </p>
-            </motion.div>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
