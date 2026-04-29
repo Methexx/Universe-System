@@ -25,6 +25,12 @@ export const authenticate = async (request: FastifyRequest, reply: FastifyReply)
       return reply.status(401).send({ success: false, message: 'Unauthorized: User no longer exists' });
     }
 
+    // Update last seen
+    await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { last_seen: new Date() },
+    }).catch(() => {});
+
     (request as any).user = { ...decoded, role: dbUser.role };
   } catch (error) {
     return reply.status(401).send({ success: false, message: 'Unauthorized: Invalid token' });

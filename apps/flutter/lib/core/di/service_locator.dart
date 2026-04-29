@@ -3,6 +3,7 @@ import 'package:universe_app/core/api/api_client.dart';
 import 'package:universe_app/core/api/api_config.dart';
 import 'package:universe_app/core/storage/secure_storage.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
+import 'package:universe_app/features/messages/repositories/messages_repository.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -12,6 +13,7 @@ class ServiceLocator {
   late final ApiClient apiClient;
   late final SecureStorageService secureStorageService;
   late final AuthRepository authRepository;
+  late final MessagesRepository messagesRepository;
 
   void setup() {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -20,5 +22,6 @@ class ServiceLocator {
       dio: apiClient.dio,
       secureStorage: secureStorageService,
     );
+    messagesRepository = MessagesRepository(apiClient);
   }
 }

@@ -395,7 +395,13 @@ export class AuthService {
     return buildAuthPayload(user);
   }
 
-  static async logout() {
+  static async logout(userId?: string) {
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { last_seen: new Date(Date.now() - 31000) },
+      }).catch(() => {});
+    }
     return { message: 'Logout successful' };
   }
 

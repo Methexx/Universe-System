@@ -8,4 +8,10 @@ class ApiEndpoints {
   static const String logout = '$basePath/auth/logout';
   static const String forgotPassword = '$basePath/auth/forgot-password';
   static const String resetPassword = '$basePath/auth/reset-password';
+
+  // Messaging
+  static const String getContacts = '$basePath/messages/contacts';
+  static const String getInbox = '$basePath/messages/inbox';
+  static const String getThread = '$basePath/messages/thread';
+  static const String sendMessage = '$basePath/messages/send';
 }

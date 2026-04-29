@@ -8,181 +8,31 @@ import {
   Sparkles,
   ChevronLeft,
   MessageSquare,
-  Circle,
+  Trash2,
 } from "lucide-react";
+import Image from "next/image";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
+import { getInbox, getContacts, getThread, sendMessage, markAsRead, generateAiDraft, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { Loader2 } from "lucide-react";
+import { UserStatus } from "@/shared/components/ui/UserStatus";
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers
 // ---------------------------------------------------------------------------
 
-type ClassFilter = "all" | "10-A" | "11-B";
-
-type Message = {
-  id: string;
-  from: "teacher" | "parent";
-  text: string;
-  timestamp: string;
-};
-
-type Thread = {
-  id: string;
-  parentName: string;
-  studentName: string;
-  studentId: string;
-  className: "10-A" | "11-B";
-  unread: number;
-  lastMessage: string;
-  lastTimestamp: string;
-  messages: Message[];
-};
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const INITIAL_THREADS: Thread[] = [
-  {
-    id: "t1",
-    parentName: "Mrs. Nkwonta",
-    studentName: "Amara Nkwonta",
-    studentId: "29854",
-    className: "10-A",
-    unread: 2,
-    lastMessage: "Thank you for letting me know about the exam.",
-    lastTimestamp: "9:42 AM",
-    messages: [
-      {
-        id: "m1",
-        from: "teacher",
-        text: "Hello Mrs. Nkwonta, Amara has been absent for 3 consecutive days. Please let us know if everything is alright.",
-        timestamp: "Yesterday, 2:10 PM",
-      },
-      {
-        id: "m2",
-        from: "parent",
-        text: "Thank you for reaching out. She has been unwell but will return tomorrow.",
-        timestamp: "Yesterday, 3:45 PM",
-      },
-      {
-        id: "m3",
-        from: "teacher",
-        text: "Understood. Please bring a doctor's note when she returns. The upcoming Science exam is on Friday.",
-        timestamp: "Today, 8:55 AM",
-      },
-      {
-        id: "m4",
-        from: "parent",
-        text: "Thank you for letting me know about the exam.",
-        timestamp: "Today, 9:42 AM",
-      },
-    ],
-  },
-  {
-    id: "t2",
-    parentName: "Mr. Okoro",
-    studentName: "Ikenna Okoro",
-    studentId: "18392",
-    className: "10-A",
-    unread: 0,
-    lastMessage: "We will make sure he completes it over the weekend.",
-    lastTimestamp: "Yesterday",
-    messages: [
-      {
-        id: "m5",
-        from: "teacher",
-        text: "Hi Mr. Okoro, Ikenna has not submitted the Maths assignment that was due last week.",
-        timestamp: "2 days ago, 11:00 AM",
-      },
-      {
-        id: "m6",
-        from: "parent",
-        text: "We will make sure he completes it over the weekend.",
-        timestamp: "Yesterday, 10:20 AM",
-      },
-    ],
-  },
-  {
-    id: "t3",
-    parentName: "Mrs. Eze",
-    studentName: "Ngozi Eze",
-    studentId: "29855",
-    className: "10-A",
-    unread: 1,
-    lastMessage: "Is there anything specific Ngozi should focus on?",
-    lastTimestamp: "10:15 AM",
-    messages: [
-      {
-        id: "m7",
-        from: "parent",
-        text: "Good morning, I wanted to check on Ngozi's progress in Science.",
-        timestamp: "Today, 9:50 AM",
-      },
-      {
-        id: "m8",
-        from: "parent",
-        text: "Is there anything specific Ngozi should focus on?",
-        timestamp: "Today, 10:15 AM",
-      },
-    ],
-  },
-  {
-    id: "t4",
-    parentName: "Mr. Okafor",
-    studentName: "Obinna Okafor",
-    studentId: "40122",
-    className: "11-B",
-    unread: 0,
-    lastMessage: "Thank you, teacher.",
-    lastTimestamp: "Mon",
-    messages: [
-      {
-        id: "m9",
-        from: "teacher",
-        text: "Obinna showed great improvement in this term's English results. Well done!",
-        timestamp: "Mon, 1:00 PM",
-      },
-      {
-        id: "m10",
-        from: "parent",
-        text: "Thank you, teacher.",
-        timestamp: "Mon, 4:30 PM",
-      },
-    ],
-  },
-  {
-    id: "t5",
-    parentName: "Mrs. Musa",
-    studentName: "Adaobi Musa",
-    studentId: "10293",
-    className: "11-B",
-    unread: 0,
-    lastMessage: "We will speak with her at home.",
-    lastTimestamp: "Tue",
-    messages: [
-      {
-        id: "m11",
-        from: "teacher",
-        text: "Adaobi has been arriving late to class this week. Please help remind her about punctuality.",
-        timestamp: "Tue, 9:00 AM",
-      },
-      {
-        id: "m12",
-        from: "parent",
-        text: "We will speak with her at home.",
-        timestamp: "Tue, 11:45 AM",
-      },
-    ],
-  },
-];
-
-// ---------------------------------------------------------------------------
-// AI draft helper (mock — replace with real API call)
-// ---------------------------------------------------------------------------
-
-function generateAiDraft(studentName: string, recentAbsences: number): string {
-  return `Dear Parent, I am reaching out regarding ${studentName}, who has been marked absent ${recentAbsences} time(s) recently. We are concerned about the impact on their learning progress and would appreciate an update on their wellbeing. Please feel free to reply here or contact the school directly. Thank you.`;
+function formatTimestamp(isoString: string) {
+  const date = new Date(isoString);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
+
+// generateAiDraft helper is imported from messages-api.ts
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -202,7 +52,7 @@ function ThreadListItem({
   isActive,
   onClick,
 }: {
-  thread: Thread;
+  thread: MessageThread;
   isActive: boolean;
   onClick: () => void;
 }) {
@@ -216,56 +66,125 @@ function ThreadListItem({
       )}
     >
       {/* Avatar */}
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5]">
-        {thread.parentName.charAt(thread.parentName.lastIndexOf(" ") + 1)}
+      <div className="relative h-9 w-9 flex-shrink-0">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+          {thread.user.avatar_url ? (
+            <Image 
+              src={thread.user.avatar_url} 
+              alt="" 
+              width={36} 
+              height={36} 
+              className="h-full w-full object-cover" 
+              unoptimized
+            />
+          ) : (
+            thread.user.full_name?.charAt(0) || "?"
+          )}
+        </div>
+        {thread.user.is_online && (
+          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 z-10" />
+        )}
       </div>
 
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-1">
-          <p className="truncate text-[13px] font-bold text-[#0f172a]">{thread.parentName}</p>
-          <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{thread.lastTimestamp}</span>
+          <p className="truncate text-[13px] font-bold text-[#0f172a]">{thread.user.full_name}</p>
+          <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{formatTimestamp(thread.lastMessage.created_at)}</span>
         </div>
-        <p className="text-[11px] text-[#64748b]">
-          {thread.studentName} · {thread.className}
+        <p className="text-[11px] text-[#64748b] flex items-center gap-2">
+          {capitalizeRole(thread.user.role)}
         </p>
         <div className="mt-0.5 flex items-center gap-1">
           <p
             className={clsx(
               "truncate text-[12px]",
-              thread.unread > 0 ? "font-semibold text-[#334155]" : "text-[#94a3b8]"
+              thread.unreadCount > 0 ? "font-semibold text-[#334155]" : "text-[#94a3b8]"
             )}
           >
-            {thread.lastMessage}
+            {thread.lastMessage.content}
           </p>
-          <UnreadBadge count={thread.unread} />
+          <UnreadBadge count={thread.unreadCount} />
         </div>
       </div>
     </button>
   );
 }
 
-function ChatBubble({ message }: { message: Message }) {
-  const isTeacher = message.from === "teacher";
+function ContactListItem({
+  contact,
+  onClick,
+}: {
+  contact: MessageContact;
+  onClick: () => void;
+}) {
   return (
-    <div className={clsx("flex", isTeacher ? "justify-end" : "justify-start")}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-3 border-b border-[#e2e8f0] px-4 py-3.5 text-left transition-colors hover:bg-[#f8fafc]"
+    >
+      <div className="relative h-9 w-9 flex-shrink-0">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+          {contact.avatar_url ? (
+            <Image 
+              src={contact.avatar_url} 
+              alt="" 
+              width={36} 
+              height={36} 
+              className="h-full w-full object-cover" 
+              unoptimized
+            />
+          ) : (
+            contact.full_name?.charAt(0) || "?"
+          )}
+        </div>
+        {contact.is_online && (
+          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 z-10" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-bold text-[#0f172a]">{contact.full_name}</p>
+        <p className="text-[11px] text-[#64748b] flex items-center gap-2">
+          {contact.role === 'parent' ? `Parent of ${contact.student_name}` : capitalizeRole(contact.role)}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage; currentUserId: string; onDelete: (id: string) => void }) {
+  const isMe = message.sender_id === currentUserId;
+  return (
+    <div className={clsx("group flex relative", isMe ? "justify-end" : "justify-start")}>
       <div
         className={clsx(
-          "max-w-[72%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm",
-          isTeacher
+          "max-w-[72%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm relative",
+          isMe
             ? "rounded-br-sm bg-[#4f46e5] text-white"
             : "rounded-bl-sm bg-white text-[#0f172a] border border-[#e2e8f0]"
         )}
       >
-        <p>{message.text}</p>
+        <p>{message.content}</p>
         <p
           className={clsx(
             "mt-1 text-[10px]",
-            isTeacher ? "text-indigo-200" : "text-[#94a3b8]"
+            isMe ? "text-indigo-200" : "text-[#94a3b8]"
           )}
         >
-          {message.timestamp}
+          {formatTimestamp(message.created_at)}
         </p>
+
+        {/* Delete button on hover (only for sender) */}
+        {isMe && (
+          <button
+            onClick={() => onDelete(message.id)}
+            className="absolute top-2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-red-500 hover:text-white text-gray-400"
+            title="Delete message"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -276,73 +195,134 @@ function ChatBubble({ message }: { message: Message }) {
 // ---------------------------------------------------------------------------
 
 export default function TeacherMessagesPage() {
-  const [threads, setThreads] = useState<Thread[]>(INITIAL_THREADS);
+  const { user } = useAuth();
+  const [threads, setThreads] = useState<MessageThread[]>([]);
+  const [contacts, setContacts] = useState<MessageContact[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [classFilter, setClassFilter] = useState<ClassFilter>("all");
+  const [activeMessages, setActiveMessages] = useState<ApiMessage[]>([]);
   const [search, setSearch] = useState("");
   const [compose, setCompose] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const messageIdCounterRef = useRef(1000);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Total unread across all threads
-  const totalUnread = threads.reduce((sum, t) => sum + t.unread, 0);
+  const totalUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
+
+  const fetchData = React.useCallback(async () => {
+    const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
+    if (inboxRes.ok) setThreads(inboxRes.data);
+    if (contactsRes.ok) setContacts(contactsRes.data);
+    setIsLoading(false);
+  }, []);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchData]);
+
+  // Polling for real-time updates
+  React.useEffect(() => {
+    const interval = setInterval(async () => {
+      // Refresh inbox
+      const inboxRes = await getInbox();
+      if (inboxRes.ok) setThreads(inboxRes.data);
+
+      // If a thread is open, refresh its messages
+      if (activeThreadId) {
+        const threadRes = await getThread(activeThreadId);
+        if (threadRes.ok) {
+          setActiveMessages(threadRes.data);
+        }
+      }
+      
+      // Refresh contacts occasionally too
+      const contactsRes = await getContacts();
+      if (contactsRes.ok) setContacts(contactsRes.data);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activeThreadId]);
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
-      const matchesClass = classFilter === "all" || t.className === classFilter;
       const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        t.parentName.toLowerCase().includes(q) ||
-        t.studentName.toLowerCase().includes(q) ||
-        t.studentId.includes(q);
-      return matchesClass && matchesSearch;
+      return !q || t.user.full_name?.toLowerCase().includes(q);
     });
-  }, [threads, classFilter, search]);
+  }, [threads, search]);
 
-  const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      const q = search.toLowerCase();
+      return !q || c.full_name?.toLowerCase().includes(q);
+    });
+  }, [contacts, search]);
 
-  // Mark thread as read when opened
-  const openThread = (threadId: string) => {
-    setActiveThreadId(threadId);
-    setThreads((prev) =>
-      prev.map((t) => (t.id === threadId ? { ...t, unread: 0 } : t))
-    );
+  const activeThread = useMemo(() => {
+    const t = threads.find((t) => t.user.id === activeThreadId);
+    if (t) return t;
+    return contacts.find((c) => c.id === activeThreadId);
+  }, [threads, contacts, activeThreadId]);
+
+  const activeUser = useMemo(() => {
+    if (!activeThread) return null;
+    return 'user' in activeThread ? activeThread.user : activeThread;
+  }, [activeThread]);
+
+  const openThread = async (userId: string) => {
+    setActiveThreadId(userId);
+    setShowContacts(false);
+    const res = await getThread(userId);
+    if (res.ok) {
+      setActiveMessages(res.data);
+      // Mark as read
+      const unreadMsgs = res.data.filter(m => !m.is_read && m.receiver_id === user?.userId);
+      for (const m of unreadMsgs) {
+        markAsRead(m.id);
+      }
+      setThreads(prev => prev.map(t => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
+    }
     setCompose("");
-    // Scroll to bottom after render
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
+    }, 100);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!compose.trim() || !activeThreadId) return;
+    setIsSending(true);
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newMsg: Message = {
-      id: `m-${messageIdCounterRef.current++}`,
-      from: "teacher",
-      text: compose.trim(),
-      timestamp: `Today, ${timeStr}`,
-    };
+    const res = await sendMessage({
+      receiver_id: activeThreadId,
+      content: compose.trim(),
+    });
 
-    setThreads((prev) =>
-      prev.map((t) => {
-        if (t.id !== activeThreadId) return t;
-        return {
-          ...t,
-          messages: [...t.messages, newMsg],
-          lastMessage: newMsg.text,
-          lastTimestamp: timeStr,
-        };
-      })
-    );
-    setCompose("");
+    if (res.ok) {
+      // Refresh thread
+      const threadRes = await getThread(activeThreadId);
+      if (threadRes.ok) setActiveMessages(threadRes.data);
+      setCompose("");
+      // Refresh inbox
+      const inboxRes = await getInbox();
+      if (inboxRes.ok) setThreads(inboxRes.data);
+    }
+    setIsSending(false);
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
+    }, 100);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message for everyone?")) return;
+    const res = await deleteMessage(messageId);
+    if (res.ok) {
+      setActiveMessages(prev => prev.filter(m => m.id !== messageId));
+      fetchData(); 
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -352,15 +332,15 @@ export default function TeacherMessagesPage() {
     }
   };
 
-  const handleAiDraft = () => {
-    if (!activeThread) return;
+  const handleAiDraft = async () => {
+    if (!activeThreadId) return;
     setIsAiLoading(true);
-    // Mock: simulate a brief delay then fill the compose box
-    setTimeout(() => {
-      const draft = generateAiDraft(activeThread.studentName, 3);
-      setCompose(draft);
-      setIsAiLoading(false);
-    }, 900);
+    // In a real app, you might need a student_id. For now we use a dummy or skip if not available.
+    const res = await generateAiDraft("dummy-id"); 
+    if (res.ok) {
+      setCompose(res.data.draft);
+    }
+    setIsAiLoading(false);
   };
 
   return (
@@ -385,42 +365,52 @@ export default function TeacherMessagesPage() {
             activeThread ? "hidden md:flex" : "flex"
           )}
         >
-          {/* Search + filter */}
+          {/* Search + action */}
           <div className="border-b border-[#e2e8f0] p-4">
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search parent or student…"
-                className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-400"
-              />
-            </div>
-
-            {/* Class filter tabs */}
-            <div className="flex gap-2">
-              {(["all", "10-A", "11-B"] as ClassFilter[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setClassFilter(f)}
-                  className={clsx(
-                    "rounded-full px-3 py-1 text-[12px] font-bold transition-colors",
-                    classFilter === f
-                      ? "bg-[#4f46e5] text-white"
-                      : "bg-[#f1f5f9] text-[#475569] hover:bg-[#e2e8f0]"
-                  )}
-                >
-                  {f === "all" ? "All Classes" : f}
-                </button>
-              ))}
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={showContacts ? "Search contacts..." : "Search messages..."}
+                  className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-400"
+                />
+              </div>
+              <button 
+                onClick={() => setShowContacts(!showContacts)}
+                className={clsx(
+                  "px-3 py-2 rounded-lg text-[13px] font-bold transition-colors",
+                  showContacts ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600"
+                )}
+              >
+                {showContacts ? "Back" : "New"}
+              </button>
             </div>
           </div>
 
-          {/* Thread list */}
+          {/* List area */}
           <div className="flex-1 overflow-y-auto">
-            {filteredThreads.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+              </div>
+            ) : showContacts ? (
+              filteredContacts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-[#94a3b8]">
+                  <p className="text-[13px]">No contacts found.</p>
+                </div>
+              ) : (
+                filteredContacts.map((contact) => (
+                  <ContactListItem
+                    key={contact.id}
+                    contact={contact}
+                    onClick={() => openThread(contact.id)}
+                  />
+                ))
+              )
+            ) : filteredThreads.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-[#94a3b8]">
                 <MessageSquare className="h-8 w-8 opacity-40" />
                 <p className="text-[13px]">No conversations found.</p>
@@ -428,10 +418,10 @@ export default function TeacherMessagesPage() {
             ) : (
               filteredThreads.map((thread) => (
                 <ThreadListItem
-                  key={thread.id}
+                  key={thread.user.id}
                   thread={thread}
-                  isActive={thread.id === activeThreadId}
-                  onClick={() => openThread(thread.id)}
+                  isActive={thread.user.id === activeThreadId}
+                  onClick={() => openThread(thread.user.id)}
                 />
               ))
             )}
@@ -460,25 +450,43 @@ export default function TeacherMessagesPage() {
                   Back
                 </button>
 
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5]">
-                  {activeThread.parentName.charAt(
-                    activeThread.parentName.lastIndexOf(" ") + 1
+                <div className="relative h-10 w-10 flex-shrink-0">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+                    {activeUser?.avatar_url ? (
+                      <Image 
+                        src={activeUser.avatar_url} 
+                        alt="" 
+                        width={40} 
+                        height={40} 
+                        className="h-full w-full object-cover" 
+                        unoptimized
+                      />
+                    ) : (
+                      activeUser?.full_name?.charAt(0) || "?"
+                    )}
+                  </div>
+                  {activeUser?.is_online && (
+                    <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 z-10" />
                   )}
                 </div>
 
                 <div>
                   <p className="text-[14px] font-bold text-[#0f172a]">
-                    {activeThread.parentName}
+                    {activeUser?.full_name}
                   </p>
-                  <p className="text-[11px] text-[#64748b]">
-                    Parent of {activeThread.studentName} · {activeThread.className} ·{" "}
-                    <span className="font-medium">ID {activeThread.studentId}</span>
-                  </p>
+                  <p className="text-[11px] font-medium text-[#64748b]">{capitalizeRole(activeUser?.role || "")}</p>
                 </div>
 
+                {/* Status indicator */}
+                <UserStatus 
+                  isOnline={!!activeUser?.is_online} 
+                  lastSeen={activeUser?.last_seen}
+                  className="ml-auto rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1"
+                />
+
                 {/* Oversight notice */}
-                <div className="ml-auto hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
-                  <Circle className="h-2 w-2 fill-amber-400 text-amber-400" />
+                <div className="hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
+                  <div className="h-2 w-2 rounded-full bg-amber-400" />
                   Visible to Principal
                 </div>
               </div>
@@ -486,8 +494,8 @@ export default function TeacherMessagesPage() {
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto bg-[#f8fafc] px-5 py-4">
                 <div className="flex flex-col gap-3">
-                  {activeThread.messages.map((msg) => (
-                    <ChatBubble key={msg.id} message={msg} />
+                  {activeMessages.map((msg) => (
+                    <ChatBubble key={msg.id} message={msg} currentUserId={user?.userId || ""} onDelete={handleDeleteMessage} />
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
@@ -520,10 +528,10 @@ export default function TeacherMessagesPage() {
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!compose.trim()}
+                    disabled={!compose.trim() || isSending}
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#4f46e5] text-white hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
-                    <Send className="h-4 w-4" />
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
 
