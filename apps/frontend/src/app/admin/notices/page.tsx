@@ -1,196 +1,140 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { TextInput } from '@/shared/components/ui/forms/TextInput';
-import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
-import { Trash2, ArrowUpCircle, Plus } from 'lucide-react';
+import { NoticeCard, Notice } from '@/shared/components/ui/NoticeCard';
+import { NoticeForm } from '@/shared/components/ui/NoticeForm';
+import { NoticeFilters } from '@/shared/components/ui/NoticeFilters';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { getAnnouncements, createAnnouncement, deleteAnnouncement } from '@/features/notices/lib/notices-api';
+import { AnimatePresence } from 'framer-motion';
+import { Megaphone } from 'lucide-react';
 
-interface Notice {
-  id: string;
-  caption: string;
-  details: string;
-  time: string;
-  date: string;
-  status: string;
-}
+export default function AdminNoticesPage() {
+  const { user } = useAuth();
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [scope, setScope] = useState<'all' | 'school_wide' | 'class'>('all');
 
-const INITIAL_NOTICES: Notice[] = [
-  { id: '1', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '2', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Teachers' },
-  { id: '3', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '4', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '5', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '6', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Teachers' },
-];
+  const fetchNotices = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = scope === 'all' ? {} : { scope };
+      const data = await getAnnouncements(params);
+      setNotices(Array.isArray(data) ? data : data.announcements || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch announcements');
+      setNotices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [scope]);
 
-export default function NoticesPage() {
-  const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchNotices();
+  }, [fetchNotices]);
 
-  const [formData, setFormData] = useState({
-    caption: '',
-    details: '',
-    audience: 'ALL'
+  const filteredNotices = notices.filter((n) => {
+    const matchesSearch =
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.content.toLowerCase().includes(search.toLowerCase());
+    return matchesSearch;
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handlePublish = async (data: {
+    title: string;
+    content: string;
+    scope: string;
+    target: string;
+    image_url: string | null;
+    class_id?: string | null;
+  }) => {
+    try {
+      setError(null);
+      const newNotice = await createAnnouncement(data);
+      setNotices(prev => [newNotice.data || newNotice, ...prev]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to publish announcement');
+    }
   };
 
-  const handlePublish = () => {
-    if (!formData.caption || !formData.details) return;
-
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-    const newNotice: Notice = {
-      id: Date.now().toString(),
-      caption: formData.caption,
-      details: formData.details,
-      status: formData.audience,
-      time: timeString,
-      date: dateString
-    };
-
-    setNotices(prev => [newNotice, ...prev]);
-    setFormData({ caption: '', details: '', audience: 'ALL' });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch(status.toUpperCase()) {
-      case 'ADMIN': return 'bg-purple-50 text-purple-600 border-purple-200';
-      case 'TEACHERS': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-      case 'STUDENTS': return 'bg-amber-50 text-amber-600 border-amber-200';
-      case 'ALL': return 'bg-blue-50 text-blue-600 border-blue-200';
-      default: return 'bg-gray-50 text-gray-600 border-gray-200';
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this announcement?')) {
+      try {
+        setError(null);
+        await deleteAnnouncement(id);
+        setNotices(prev => prev.filter(n => n.id !== id));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete announcement');
+      }
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 pb-12 w-full pr-2">
-      <PageHeader 
+    <div className="flex flex-col gap-8 pb-20 max-w-6xl mx-auto w-full px-4">
+      <PageHeader
         title="Notice Board"
-        subtitle=""
+        subtitle="Create and manage official announcements for the UniVerse community"
       />
 
-      {/* New Announcement Form Card */}
-      <div className="bg-white border border-gray-200 rounded-[20px] p-6 w-full shadow-sm">
-        {/* Header Row */}
-        <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
-          <h3 className="text-[#334155] font-bold">New Announement</h3>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              type="button"
-              onClick={() => setFormData({ caption: '', details: '', audience: 'ALL' })}
-              className="w-10 h-10 rounded-lg flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={handlePublish}
-              disabled={!formData.caption || !formData.details}
-              className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-[13px] font-semibold transition-colors shadow-sm cursor-pointer whitespace-nowrap ${
-                (!formData.caption || !formData.details) 
-                  ? 'bg-blue-300 cursor-not-allowed text-white' 
-                  : 'bg-[#3b82f6] hover:bg-blue-600 text-white'
-              }`}
-            >
-              <ArrowUpCircle className="w-[18px] h-[18px]" />
-              Publish
-            </button>
-          </div>
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+          {error}
         </div>
+      )}
 
-        {/* Inputs */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-4">
-            <TextInput 
-              label="Caption"
-              name="caption"
-              placeholder="Barbell Bench Press"
-              value={formData.caption}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="lg:col-span-5">
-            <TextInput 
-              label="Details"
-              name="details"
-              placeholder="4"
-              value={formData.details}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="lg:col-span-3">
-            <SelectInput 
-              label="Audience"
-              name="audience"
-              options={[
-                { label: 'ALL', value: 'ALL' },
-                { label: 'Teachers', value: 'Teachers' },
-                { label: 'Students', value: 'Students' }
-              ]}
-              value={formData.audience}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
+      {/* Form */}
+      <NoticeForm onPublish={handlePublish} />
 
-        {/* Create another button */}
-        <button 
-          onClick={() => setFormData({ caption: '', details: '', audience: 'ALL' })}
-          className="w-full mt-8 py-3 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-[#64748b] text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create another Announement
-        </button>
-      </div>
+      {/* Filters */}
+      <NoticeFilters
+        tabs={[
+          { key: 'all', label: 'All Announcements' },
+          { key: 'school_wide', label: 'School Wide' },
+          { key: 'class', label: 'Class Specific' }
+        ]}
+        activeTab={scope}
+        onTabChange={(tab) => setScope(tab as 'all' | 'school_wide' | 'class')}
+        search={search}
+        onSearchChange={setSearch}
+        itemCount={filteredNotices.length}
+      />
 
-      {/* Notices Table */}
-      <div className="bg-white border border-gray-200 rounded-[20px] overflow-hidden w-full shadow-sm mt-4">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
-            <thead className="bg-white border-b border-gray-100 text-gray-400 font-semibold text-[13px] tracking-wider">
-              <tr>
-                <th className="py-4 px-6">Caption</th>
-                <th className="py-4 px-6">Details</th>
-                <th className="py-4 px-6">Time</th>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6 w-[80px]"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
-              {notices.map((notice) => (
-                <tr key={notice.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-6 text-[#334155]">{notice.caption}</td>
-                  <td className="py-4 px-6">{notice.details}</td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="text-[#0f172a] font-semibold">{notice.time}</span>
-                      <span className="text-gray-400 text-xs mt-0.5">{notice.date}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide border ${getStatusColor(notice.status)}`}>
-                      {notice.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button 
-                      onClick={() => setNotices(prev => prev.filter(n => n.id !== notice.id))}
-                      className="w-8 h-8 rounded-full inline-flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
+      {/* Feed */}
+      <div className="grid grid-cols-1 gap-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-slate-500">Loading announcements...</div>
+          </div>
+        ) : (
+          <>
+            <AnimatePresence mode="popLayout">
+              {filteredNotices.map((notice) => (
+                <NoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  onDelete={handleDelete}
+                  canDelete={user?.role === 'admin' || notice.author.full_name === user?.full_name}
+                />
               ))}
-            </tbody>
-          </table>
-        </div>
+            </AnimatePresence>
+
+            {filteredNotices.length === 0 && (
+              <EmptyState
+                icon={Megaphone}
+                title="No announcements found"
+                description={search ? 'Try adjusting your search or filters.' : 'Start by publishing your first announcement to the community.'}
+                action={!search ? { label: 'Create Announcement', onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) } : undefined}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );

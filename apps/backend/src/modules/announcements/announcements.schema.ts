@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const createAnnouncementSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(255),
   content: z.string().min(5, "Content must be at least 5 characters"),
+  image_url: z.string().url("Invalid image URL").optional().nullable(),
   scope: z.enum(['school_wide', 'class']).default('school_wide'),
   target: z.string().default('all'),
   class_id: z.string().uuid("Invalid class ID").optional().nullable()
@@ -23,5 +24,14 @@ export const getAnnouncementsSchema = z.object({
   page: z.coerce.number().min(1).default(1)
 });
 
+export const getAnnouncementsWithTargetSchema = z.object({
+  scope: z.enum(['school_wide', 'class']).optional(),
+  class_id: z.string().uuid("Invalid class ID").optional(),
+  target: z.string().optional(),
+  limit: z.coerce.number().min(1).max(50).default(10),
+  page: z.coerce.number().min(1).default(1)
+});
+
 export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;
 export type GetAnnouncementsInput = z.infer<typeof getAnnouncementsSchema>;
+export type GetAnnouncementsWithTargetInput = z.infer<typeof getAnnouncementsWithTargetSchema>;
