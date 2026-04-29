@@ -3,22 +3,21 @@
 import React, { useState, useMemo } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { NoticeCard, Notice } from '@/shared/components/ui/NoticeCard';
-import { NoticeForm } from '@/shared/components/ui/NoticeForm';
-import { useAuth } from '@/features/auth/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Megaphone, Search, Filter } from 'lucide-react';
+import { Megaphone, Search } from 'lucide-react';
 
 const DUMMY_NOTICES: Notice[] = [
   {
     id: '1',
-    title: 'Grade 10-A Science Project Deadline',
-    content: 'All students are reminded that the Ecosystems project is due this Friday. Please upload your final reports to the portal. Late submissions will incur a 10% penalty per day.',
-    scope: 'class',
-    target: 'Grade 10-A',
+    title: 'Parent-Teacher Conference',
+    content: 'Dear Parents, we will be hosting a general assembly followed by individual conferences this Saturday. This is a great opportunity to discuss your child\'s progress and upcoming school initiatives.',
+    image_url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=2070&auto=format&fit=crop',
+    scope: 'school_wide',
+    target: 'parents_only',
     created_at: new Date().toISOString(),
     author: {
-      full_name: 'Ms. T. Kumari',
-      role: 'teacher',
+      full_name: 'Admin Team',
+      role: 'admin',
       avatar_url: null
     }
   },
@@ -38,78 +37,34 @@ const DUMMY_NOTICES: Notice[] = [
   }
 ];
 
-export default function TeacherNoticesPage() {
-  const { user } = useAuth();
-  const [notices, setNotices] = useState<Notice[]>(DUMMY_NOTICES);
-  const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'school'>('all');
+export default function ParentNoticesPage() {
+  const [notices] = useState<Notice[]>(DUMMY_NOTICES);
   const [search, setSearch] = useState('');
-
-  const handlePublish = (data: {
-    title: string;
-    content: string;
-    scope: string;
-    target: string;
-    imageFile: File | null;
-  }) => {
-    const newNotice: Notice = {
-      id: Date.now().toString(),
-      title: data.title,
-      content: data.content,
-      scope: data.scope,
-      target: data.target,
-      image_url: data.imageFile ? URL.createObjectURL(data.imageFile) : null,
-      created_at: new Date().toISOString(),
-      author: {
-        full_name: user?.full_name || 'Teacher User',
-        role: user?.role || 'teacher',
-        avatar_url: user?.avatar_url
-      }
-    };
-
-    setNotices(prev => [newNotice, ...prev]);
-  };
 
   const filteredNotices = useMemo(() => {
     return notices.filter(n => {
       const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) || 
                            n.content.toLowerCase().includes(search.toLowerCase());
-      
-      if (activeTab === 'mine') return matchesSearch && n.author.full_name === user?.full_name;
-      if (activeTab === 'school') return matchesSearch && n.scope === 'school_wide';
       return matchesSearch;
     });
-  }, [notices, search, activeTab, user]);
+  }, [notices, search]);
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-5xl mx-auto w-full px-4">
       <PageHeader 
-        title="Notices"
-        subtitle="Post class updates and keep track of school-wide announcements"
+        title="Notice Board"
+        subtitle="Stay updated with official school announcements and events"
       />
 
-      {/* Creation Area */}
-      <div className="w-full">
-        <NoticeForm onPublish={handlePublish} />
-      </div>
-
-      {/* Feed & Filter Area */}
+      {/* Filter Area */}
       <div className="flex flex-col gap-6">
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
-            {(['all', 'mine', 'school'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${
-                  activeTab === tab 
-                    ? 'bg-white text-indigo-600 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-[15px] font-bold text-slate-800 ml-2 flex items-center gap-2">
+            Recent Announcements
+            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[11px] rounded-md font-bold uppercase">
+              {filteredNotices.length}
+            </span>
+          </h2>
 
           <div className="flex items-center gap-3 flex-1 md:flex-none md:min-w-[300px]">
             <div className="relative flex-1">
@@ -122,9 +77,6 @@ export default function TeacherNoticesPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="p-2.5 bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl transition-all">
-              <Filter className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -134,12 +86,7 @@ export default function TeacherNoticesPage() {
               <NoticeCard 
                 key={notice.id} 
                 notice={notice} 
-                canDelete={notice.author.full_name === user?.full_name}
-                onDelete={(id) => {
-                  if (window.confirm('Delete this announcement?')) {
-                    setNotices(prev => prev.filter(n => n.id !== id));
-                  }
-                }}
+                canDelete={false}
               />
             ))}
           </AnimatePresence>
@@ -153,9 +100,9 @@ export default function TeacherNoticesPage() {
               <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
                 <Megaphone className="w-10 h-10" />
               </div>
-              <h3 className="text-lg font-bold text-slate-800">No notices found</h3>
+              <h3 className="text-lg font-bold text-slate-800">No announcements found</h3>
               <p className="text-slate-500 text-sm mt-1 max-w-xs">
-                Try adjusting your filters or search keywords.
+                Important notices will appear here once published by school authorities.
               </p>
             </motion.div>
           )}

@@ -2,196 +2,153 @@
 
 import React, { useState } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { TextInput } from '@/shared/components/ui/forms/TextInput';
-import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
-import { Trash2, ArrowUpCircle, Plus } from 'lucide-react';
+import { NoticeCard, Notice } from '@/shared/components/ui/NoticeCard';
+import { NoticeForm } from '@/shared/components/ui/NoticeForm';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
-interface Notice {
-  id: string;
-  caption: string;
-  details: string;
-  time: string;
-  date: string;
-  status: string;
-}
-
-const INITIAL_NOTICES: Notice[] = [
-  { id: '1', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '2', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Teachers' },
-  { id: '3', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '4', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '5', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Admin' },
-  { id: '6', caption: 'Lorem Lipsum doller sit amet', details: 'Lorem Lipsum dLorem Lipsum doller sit ametoller sit amet', time: 'Today', date: 'Oct 25, 2024', status: 'Teachers' },
+const DUMMY_NOTICES: Notice[] = [
+  {
+    id: '1',
+    title: 'UniVerse Annual Sports Meet 2024',
+    content: 'Get ready for the biggest event of the year! The UniVerse Sports Meet is scheduled for next month. All students are encouraged to participate in at least one event. Registration forms are available at the front desk.',
+    image_url: 'https://images.unsplash.com/photo-1502904550040-7534597429ae?q=80&w=2069&auto=format&fit=crop',
+    scope: 'school_wide',
+    target: 'all',
+    created_at: new Date().toISOString(),
+    author: {
+      full_name: 'Dr. Sarah Wilson',
+      role: 'admin',
+      avatar_url: 'https://i.pravatar.cc/150?u=sarah'
+    }
+  },
+  {
+    id: '2',
+    title: 'Mid-term Assessment Schedule',
+    content: 'The mid-term assessments for the second semester will commence on November 15th. Detailed timetables have been sent to individual student portals. Please ensure all project submissions are completed by the end of this week.',
+    scope: 'school_wide',
+    target: 'all',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    author: {
+      full_name: 'Prof. Michael Chen',
+      role: 'teacher',
+      avatar_url: 'https://i.pravatar.cc/150?u=michael'
+    }
+  },
+  {
+    id: '3',
+    title: 'Parent-Teacher Conference',
+    content: 'Dear Parents, we will be hosting a general assembly followed by individual conferences this Saturday. This is a great opportunity to discuss your child\'s progress and upcoming school initiatives.',
+    image_url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=2070&auto=format&fit=crop',
+    scope: 'school_wide',
+    target: 'parents_only',
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+    author: {
+      full_name: 'Admin Team',
+      role: 'admin',
+      avatar_url: null
+    }
+  }
 ];
 
 export default function NoticesPage() {
-  const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
+  const { user } = useAuth();
+  const [notices, setNotices] = useState<Notice[]>(DUMMY_NOTICES);
 
-  const [formData, setFormData] = useState({
-    caption: '',
-    details: '',
-    audience: 'ALL'
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePublish = () => {
-    if (!formData.caption || !formData.details) return;
-
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
+  const handlePublish = (data: {
+    title: string;
+    content: string;
+    scope: string;
+    target: string;
+    imageFile: File | null;
+  }) => {
     const newNotice: Notice = {
       id: Date.now().toString(),
-      caption: formData.caption,
-      details: formData.details,
-      status: formData.audience,
-      time: timeString,
-      date: dateString
+      title: data.title,
+      content: data.content,
+      scope: data.scope,
+      target: data.target,
+      image_url: data.imageFile ? URL.createObjectURL(data.imageFile) : null,
+      created_at: new Date().toISOString(),
+      author: {
+        full_name: user?.full_name || 'Admin User',
+        role: user?.role || 'admin',
+        avatar_url: user?.avatar_url
+      }
     };
 
     setNotices(prev => [newNotice, ...prev]);
-    setFormData({ caption: '', details: '', audience: 'ALL' });
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status.toUpperCase()) {
-      case 'ADMIN': return 'bg-purple-50 text-purple-600 border-purple-200';
-      case 'TEACHERS': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-      case 'STUDENTS': return 'bg-amber-50 text-amber-600 border-amber-200';
-      case 'ALL': return 'bg-blue-50 text-blue-600 border-blue-200';
-      default: return 'bg-gray-50 text-gray-600 border-gray-200';
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this announcement?')) {
+      setNotices(prev => prev.filter(n => n.id !== id));
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 pb-12 w-full pr-2">
+    <div className="flex flex-col gap-8 pb-20 max-w-5xl mx-auto w-full px-4">
       <PageHeader 
         title="Notice Board"
-        subtitle=""
+        subtitle="Manage and view official announcements for the UniVerse community"
       />
 
-      {/* New Announcement Form Card */}
-      <div className="bg-white border border-gray-200 rounded-[20px] p-6 w-full shadow-sm">
-        {/* Header Row */}
-        <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
-          <h3 className="text-[#334155] font-bold">New Announement</h3>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              type="button"
-              onClick={() => setFormData({ caption: '', details: '', audience: 'ALL' })}
-              className="w-10 h-10 rounded-lg flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={handlePublish}
-              disabled={!formData.caption || !formData.details}
-              className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-[13px] font-semibold transition-colors shadow-sm cursor-pointer whitespace-nowrap ${
-                (!formData.caption || !formData.details) 
-                  ? 'bg-blue-300 cursor-not-allowed text-white' 
-                  : 'bg-[#3b82f6] hover:bg-blue-600 text-white'
-              }`}
-            >
-              <ArrowUpCircle className="w-[18px] h-[18px]" />
-              Publish
-            </button>
-          </div>
-        </div>
-
-        {/* Inputs */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-4">
-            <TextInput 
-              label="Caption"
-              name="caption"
-              placeholder="Barbell Bench Press"
-              value={formData.caption}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="lg:col-span-5">
-            <TextInput 
-              label="Details"
-              name="details"
-              placeholder="4"
-              value={formData.details}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="lg:col-span-3">
-            <SelectInput 
-              label="Audience"
-              name="audience"
-              options={[
-                { label: 'ALL', value: 'ALL' },
-                { label: 'Teachers', value: 'Teachers' },
-                { label: 'Students', value: 'Students' }
-              ]}
-              value={formData.audience}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        {/* Create another button */}
-        <button 
-          onClick={() => setFormData({ caption: '', details: '', audience: 'ALL' })}
-          className="w-full mt-8 py-3 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-[#64748b] text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create another Announement
-        </button>
+      {/* Creation Area */}
+      <div className="w-full">
+        <NoticeForm onPublish={handlePublish} />
       </div>
 
-      {/* Notices Table */}
-      <div className="bg-white border border-gray-200 rounded-[20px] overflow-hidden w-full shadow-sm mt-4">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
-            <thead className="bg-white border-b border-gray-100 text-gray-400 font-semibold text-[13px] tracking-wider">
-              <tr>
-                <th className="py-4 px-6">Caption</th>
-                <th className="py-4 px-6">Details</th>
-                <th className="py-4 px-6">Time</th>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6 w-[80px]"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
-              {notices.map((notice) => (
-                <tr key={notice.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-6 text-[#334155]">{notice.caption}</td>
-                  <td className="py-4 px-6">{notice.details}</td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="text-[#0f172a] font-semibold">{notice.time}</span>
-                      <span className="text-gray-400 text-xs mt-0.5">{notice.date}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide border ${getStatusColor(notice.status)}`}>
-                      {notice.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button 
-                      onClick={() => setNotices(prev => prev.filter(n => n.id !== notice.id))}
-                      className="w-8 h-8 rounded-full inline-flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Feed Area */}
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            Recent Announcements
+            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[11px] rounded-md font-bold uppercase">
+              {notices.length}
+            </span>
+          </h2>
+          
+          <div className="flex items-center gap-2">
+            <select className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[12px] font-bold text-slate-600 outline-none focus:border-indigo-300 transition-colors">
+              <option>All Announcements</option>
+              <option>School Wide</option>
+              <option>Class Specific</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
+          <AnimatePresence mode="popLayout">
+            {notices.map((notice) => (
+              <NoticeCard 
+                key={notice.id} 
+                notice={notice} 
+                onDelete={handleDelete}
+                canDelete={user?.role === 'admin' || notice.author.full_name === user?.full_name}
+              />
+            ))}
+          </AnimatePresence>
+
+          {notices.length === 0 && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                <Megaphone className="w-10 h-10" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">No announcements yet</h3>
+              <p className="text-slate-500 text-sm mt-1 max-w-xs">
+                Important notices will appear here. Start by publishing your first announcement.
+              </p>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+// Helper to avoid build error if icon used in empty state is not imported
+import { Megaphone } from 'lucide-react';
