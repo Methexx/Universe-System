@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
-import { MoreVertical, X, Check, Loader2 } from 'lucide-react';
+import { MoreVertical, X, Check, Loader2, FileText, UserCheck, Truck, AlertTriangle, Search, Clock, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
 import {
   getPendingUsers,
@@ -19,7 +19,81 @@ import {
 } from "@/features/auth/lib/auth-api";
 import { getStudents } from '@/features/school/lib/school-api';
 
-type TabType = 'Gate' | 'Pending requests' | 'All users';
+type TabType = 'Gate' | 'Pending requests' | 'All users' | 'Security';
+
+type LogType = "visitor" | "delivery" | "incident" | "general";
+
+interface SecurityLog {
+  id: string;
+  type: LogType;
+  title: string;
+  description: string;
+  author: string;
+  timestamp: string;
+  status?: "pending" | "resolved" | "active";
+  tags?: string[];
+}
+
+const SECURITY_LOGS: SecurityLog[] = [
+  {
+    id: "l1",
+    type: "visitor",
+    title: "Visitor Check-in: Amara Nkwonta (Parent)",
+    description: "Verified ID. Visiting Principal's office regarding student Amara. Issued visitor badge #042.",
+    author: "John Security",
+    timestamp: "Today, 10:45 AM",
+    status: "active",
+    tags: ["Badge #042", "ID Verified"],
+  },
+  {
+    id: "l2",
+    type: "delivery",
+    title: "Stationery Delivery (Office Max)",
+    description: "Received 5 boxes of whiteboard markers and printer paper at Gate 2. Directed to Admin Block.",
+    author: "Mike Guard",
+    timestamp: "Today, 09:15 AM",
+    status: "resolved",
+    tags: ["Gate 2", "Admin Block"],
+  },
+  {
+    id: "l3",
+    type: "incident",
+    title: "Unauthorized Vehicle at Drop-off",
+    description: "Blue Toyota Camry (XYZ-123) parked in the bus only zone. Driver was asked to relocate to visitor parking. Driver complied.",
+    author: "John Security",
+    timestamp: "Yesterday, 02:30 PM",
+    status: "resolved",
+    tags: ["Parking", "Resolved"],
+  },
+  {
+    id: "l4",
+    type: "visitor",
+    title: "Maintenance Crew (AC Repair)",
+    description: "Two technicians arrived for scheduled library AC maintenance. Escorted by staff.",
+    author: "Sarah Watch",
+    timestamp: "Yesterday, 11:00 AM",
+    status: "resolved",
+    tags: ["Badge #031", "Badge #032"],
+  }
+];
+
+function getLogIcon(type: LogType) {
+  switch (type) {
+    case "visitor": return <UserCheck className="h-5 w-5 text-blue-600" />;
+    case "delivery": return <Truck className="h-5 w-5 text-emerald-600" />;
+    case "incident": return <AlertTriangle className="h-5 w-5 text-rose-600" />;
+    default: return <FileText className="h-5 w-5 text-gray-600" />;
+  }
+}
+
+function getLogBg(type: LogType) {
+  switch (type) {
+    case "visitor": return "bg-blue-50 border-blue-100";
+    case "delivery": return "bg-emerald-50 border-emerald-100";
+    case "incident": return "bg-rose-50 border-rose-100";
+    default: return "bg-gray-50 border-gray-100";
+  }
+}
 
 type StudentEntry = {
   entryType: 'student';
@@ -150,6 +224,9 @@ export default function LogsPage() {
 
   const [searchUsers, setSearchUsers] = useState('');
   const [filterRoleUsers, setFilterRoleUsers] = useState('');
+
+  const [searchSecurity, setSearchSecurity] = useState('');
+  const [filterTypeSecurity, setFilterTypeSecurity] = useState<LogType | 'all'>('all');
 
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -526,6 +603,112 @@ export default function LogsPage() {
     </div>
   );
 
+  const filteredSecurityLogs = SECURITY_LOGS.filter((log) => {
+    const matchesFilter = filterTypeSecurity === 'all' || log.type === filterTypeSecurity;
+    const q = searchSecurity.toLowerCase();
+    const matchesSearch = !q || log.title.toLowerCase().includes(q) || log.description.toLowerCase().includes(q);
+    return matchesFilter && matchesSearch;
+  });
+
+  const renderSecurityTab = () => (
+    <div className="bg-white border border-[var(--line)] rounded-[20px] w-full shadow-sm mt-6 flex flex-col md:flex-row min-h-[500px]">
+      {/* Sidebar for filtering Security events */}
+      <div className="w-full md:w-[280px] md:border-r border-[var(--line)] p-5 flex flex-col gap-4">
+        <div>
+          <h3 className="mb-2 text-[12px] font-bold text-[#94a3b8] uppercase tracking-wider">Search</h3>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+            <input
+              type="text"
+              placeholder="Search logs..."
+              value={searchSecurity}
+              onChange={(e) => setSearchSecurity(e.target.value)}
+              className="w-full rounded-lg bg-[#f8fafc] py-2 pl-9 pr-3 text-[13px] border border-gray-200 focus:border-[#1e293b] outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-2 text-[12px] font-bold text-[#94a3b8] uppercase tracking-wider">Filter by Type</h3>
+          <div className="flex flex-col gap-1.5">
+            {(["all", "visitor", "delivery", "incident", "general"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilterTypeSecurity(t)}
+                className={clsx(
+                  "flex justify-between items-center px-3 py-2 text-[13px] rounded-lg capitalize transition-colors text-left",
+                  filterTypeSecurity === t ? "bg-[#1e293b] font-bold text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"
+                )}
+              >
+                {t === "all" ? "All Entries" : t}
+                {filterTypeSecurity === t && <CheckCircle2 className="h-4 w-4 opacity-70" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Feed */}
+      <div className="flex-1 p-5 md:p-8 bg-[#fafafa] rounded-b-[20px] md:rounded-r-[20px] md:rounded-bl-none overflow-y-auto">
+        <div className="max-w-3xl mx-auto">
+          {filteredSecurityLogs.length === 0 ? (
+             <div className="flex flex-col items-center justify-center py-16 text-center text-[#94a3b8]">
+               <FileText className="h-10 w-10 mb-3 opacity-20" />
+               <p className="text-[14px]">No security logs matched your criteria.</p>
+             </div>
+          ) : (
+            <div className="relative border-l-2 border-[#e2e8f0] ml-3 sm:ml-4 space-y-8 pb-4">
+              {filteredSecurityLogs.map((log) => (
+                <div key={log.id} className="relative pl-6 sm:pl-8">
+                  {/* Timeline Badge */}
+                  <div className={clsx(
+                    "absolute -left-[17px] top-0 flex h-8 w-8 items-center justify-center rounded-full border-4 border-[#fafafa]",
+                    getLogBg(log.type)
+                  )}>
+                    {getLogIcon(log.type)}
+                  </div>
+                  
+                  {/* Content Card */}
+                  <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="mb-2 flex flex-col sm:flex-row sm:items-start justify-between gap-1 sm:gap-4">
+                      <h3 className="text-[14px] font-bold text-[#0f172a] leading-snug">
+                        {log.title}
+                      </h3>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold text-[#94a3b8]">
+                        <Clock className="h-3 w-3" />
+                        {log.timestamp}
+                      </div>
+                    </div>
+
+                    <p className="mb-3 text-[13px] leading-relaxed text-[#475569]">{log.description}</p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                       <div className="flex gap-2">
+                         {log.tags?.map(tag => (
+                           <span key={tag} className="rounded-md bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-bold text-[#475569]">{tag}</span>
+                         ))}
+                       </div>
+                       
+                       <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748b]">
+                         <span>Logged by: <span className="font-bold text-[#0f172a]">{log.author}</span></span>
+                         {log.status === "active" && (
+                           <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                              Active
+                           </span>
+                         )}
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-2 pb-12 w-full pr-2">
       <PageHeader
@@ -540,7 +723,8 @@ export default function LogsPage() {
           options={[
             { id: 'Gate', label: 'Gate' },
             { id: 'Pending requests', label: 'Pending requests', badge: pendingUsers.length > 0 && !loadingPending ? pendingUsers.length : undefined },
-            { id: 'All users', label: 'All users' }
+            { id: 'All users', label: 'All users' },
+            { id: 'Security', label: 'Security' }
           ]}
         />
       </div>
@@ -548,6 +732,7 @@ export default function LogsPage() {
       {activeTab === 'Gate' && renderGateTab()}
       {activeTab === 'Pending requests' && renderPendingRequestsTab()}
       {activeTab === 'All users' && renderAllUsersTab()}
+      {activeTab === 'Security' && renderSecurityTab()}
 
     </div>
   );

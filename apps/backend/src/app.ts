@@ -15,10 +15,14 @@ import complaintsRoutes from './modules/complaints/complaints.routes';
 import { errorHandler } from './common/middleware/errorHandler';
 import { env } from './config/env';
 
+import { prisma } from './config/prisma';
+
 const app = Fastify({
   logger: true,
   bodyLimit: 10485760, // 10MB
 });
+
+// Update last_seen for authenticated users is now handled in authenticate.ts middleware
 
 app.register(cookie);
 app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });

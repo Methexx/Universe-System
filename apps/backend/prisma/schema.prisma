@@ -30,6 +30,7 @@ model User {
   is_suspended  Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamptz()
   updated_at    DateTime @default(now()) @db.Timestamptz()
+  last_seen     DateTime @default(now()) @db.Timestamptz()
 
   classes_taught      Class[]
   parent_links        ParentStudent[]

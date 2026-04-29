@@ -31,6 +31,7 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
     { title: "Students", icon: Users, path: "/admin/students" },
     { title: "Teachers", icon: GraduationCap, path: "/admin/teachers" },
     { title: "Enrollments", icon: UserPlus, path: "/admin/enrollments" },
+    { title: "Messages", icon: MessageSquare, path: "/admin/messages" },
     { title: "Notice Board", icon: ClipboardList, path: "/admin/notices" },
     { title: "Calendar", icon: Calendar, path: "/admin/calendar" },
     { title: "Complain Management", icon: AlertOctagon, path: "/admin/complaints" },
@@ -51,6 +52,9 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
   ],
   security: [
     { title: "Dashboard", icon: LayoutDashboard, path: "/security/dashboard" },
+    { title: "Messages", icon: MessageSquare, path: "/security/messages" },
+    { title: "Logs", icon: FileText, path: "/security/logs" },
+    { title: "Profile", icon: User, path: "/security/profile" },
   ],
   pending: [
     { title: "Account Status", icon: LayoutDashboard, path: "/pending" },

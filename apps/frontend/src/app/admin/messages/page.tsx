@@ -5,14 +5,15 @@ import clsx from "clsx";
 import {
   Search,
   Send,
-  Sparkles,
   ChevronLeft,
   MessageSquare,
+  Shield,
+  GraduationCap,
   Trash2,
 } from "lucide-react";
 import Image from "next/image";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { getInbox, getContacts, getThread, sendMessage, markAsRead, generateAiDraft, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
+import { getInbox, getContacts, getThread, sendMessage, markAsRead, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import { UserStatus } from "@/shared/components/ui/UserStatus";
@@ -32,16 +33,10 @@ function formatTimestamp(isoString: string) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-// generateAiDraft helper is imported from messages-api.ts
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 function UnreadBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#4f46e5] px-1.5 text-[11px] font-bold text-white">
+    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#1e293b] px-1.5 text-[11px] font-bold text-white">
       {count}
     </span>
   );
@@ -56,18 +51,20 @@ function ThreadListItem({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const Icon = thread.user.role === "security" ? Shield : GraduationCap;
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={clsx(
         "flex w-full items-start gap-3 border-b border-[#e2e8f0] px-4 py-3.5 text-left transition-colors",
-        isActive ? "bg-[#eef2ff]" : "hover:bg-[#f8fafc]"
+        isActive ? "bg-[#f1f5f9]" : "hover:bg-[#f8fafc]"
       )}
     >
       {/* Avatar */}
       <div className="relative h-9 w-9 flex-shrink-0">
-        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
           {thread.user.avatar_url ? (
             <Image 
               src={thread.user.avatar_url} 
@@ -78,7 +75,7 @@ function ThreadListItem({
               unoptimized
             />
           ) : (
-            thread.user.full_name?.charAt(0) || "?"
+            <Icon className="h-4 w-4" />
           )}
         </div>
         {thread.user.is_online && (
@@ -92,7 +89,7 @@ function ThreadListItem({
           <p className="truncate text-[13px] font-bold text-[#0f172a]">{thread.user.full_name}</p>
           <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{formatTimestamp(thread.lastMessage.created_at)}</span>
         </div>
-        <p className="text-[11px] text-[#64748b] flex items-center gap-2">
+        <p className="text-[11px] text-[#64748b] font-medium flex items-center gap-2">
           {capitalizeRole(thread.user.role)}
         </p>
         <div className="mt-0.5 flex items-center gap-1">
@@ -118,6 +115,7 @@ function ContactListItem({
   contact: MessageContact;
   onClick: () => void;
 }) {
+  const Icon = contact.role === "security" ? Shield : GraduationCap;
   return (
     <button
       type="button"
@@ -125,7 +123,7 @@ function ContactListItem({
       className="flex w-full items-start gap-3 border-b border-[#e2e8f0] px-4 py-3.5 text-left transition-colors hover:bg-[#f8fafc]"
     >
       <div className="relative h-9 w-9 flex-shrink-0">
-        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
           {contact.avatar_url ? (
             <Image 
               src={contact.avatar_url} 
@@ -136,7 +134,7 @@ function ContactListItem({
               unoptimized
             />
           ) : (
-            contact.full_name?.charAt(0) || "?"
+            <Icon className="h-4 w-4" />
           )}
         </div>
         {contact.is_online && (
@@ -145,8 +143,8 @@ function ContactListItem({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold text-[#0f172a]">{contact.full_name}</p>
-        <p className="text-[11px] text-[#64748b] flex items-center gap-2">
-          {contact.role === 'parent' ? `Parent of ${contact.student_name}` : capitalizeRole(contact.role)}
+        <p className="text-[11px] text-[#64748b] font-medium flex items-center gap-2">
+          {capitalizeRole(contact.role)}
         </p>
       </div>
     </button>
@@ -161,7 +159,7 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
         className={clsx(
           "max-w-[72%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm relative",
           isMe
-            ? "rounded-br-sm bg-[#4f46e5] text-white"
+            ? "rounded-br-sm bg-[#1e293b] text-white"
             : "rounded-bl-sm bg-white text-[#0f172a] border border-[#e2e8f0]"
         )}
       >
@@ -169,7 +167,7 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
         <p
           className={clsx(
             "mt-1 text-[10px]",
-            isMe ? "text-indigo-200" : "text-[#94a3b8]"
+            isMe ? "text-gray-300" : "text-[#94a3b8]"
           )}
         >
           {formatTimestamp(message.created_at)}
@@ -194,7 +192,7 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function TeacherMessagesPage() {
+export default function AdminMessagesPage() {
   const { user } = useAuth();
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [contacts, setContacts] = useState<MessageContact[]>([]);
@@ -202,7 +200,6 @@ export default function TeacherMessagesPage() {
   const [activeMessages, setActiveMessages] = useState<ApiMessage[]>([]);
   const [search, setSearch] = useState("");
   const [compose, setCompose] = useState("");
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
@@ -236,6 +233,7 @@ export default function TeacherMessagesPage() {
       if (activeThreadId) {
         const threadRes = await getThread(activeThreadId);
         if (threadRes.ok) {
+          // Only update if message count changed or unread state changed
           setActiveMessages(threadRes.data);
         }
       }
@@ -332,21 +330,10 @@ export default function TeacherMessagesPage() {
     }
   };
 
-  const handleAiDraft = async () => {
-    if (!activeThreadId) return;
-    setIsAiLoading(true);
-    // In a real app, you might need a student_id. For now we use a dummy or skip if not available.
-    const res = await generateAiDraft("dummy-id"); 
-    if (res.ok) {
-      setCompose(res.data.draft);
-    }
-    setIsAiLoading(false);
-  };
-
   return (
     <div className="flex w-full flex-col gap-[20px] pb-12 pr-2">
       <PageHeader
-        title="Messages"
+        title="Internal Messages"
         subtitle={
           totalUnread > 0
             ? `${totalUnread} unread message${totalUnread > 1 ? "s" : ""}`
@@ -375,14 +362,14 @@ export default function TeacherMessagesPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={showContacts ? "Search contacts..." : "Search messages..."}
-                  className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-400"
+                  className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-[#1e293b]"
                 />
               </div>
               <button 
                 onClick={() => setShowContacts(!showContacts)}
                 className={clsx(
                   "px-3 py-2 rounded-lg text-[13px] font-bold transition-colors",
-                  showContacts ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600"
+                  showContacts ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
                 )}
               >
                 {showContacts ? "Back" : "New"}
@@ -394,7 +381,7 @@ export default function TeacherMessagesPage() {
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                <Loader2 className="h-6 w-6 animate-spin text-slate-900" />
               </div>
             ) : showContacts ? (
               filteredContacts.length === 0 ? (
@@ -444,14 +431,14 @@ export default function TeacherMessagesPage() {
                 <button
                   type="button"
                   onClick={() => setActiveThreadId(null)}
-                  className="mr-1 flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-bold text-[#4f46e5] hover:bg-[#eef2ff] md:hidden"
+                  className="mr-1 flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-bold text-[#1e293b] hover:bg-[#f1f5f9] md:hidden"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Back
                 </button>
 
                 <div className="relative h-10 w-10 flex-shrink-0">
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e2e8f0] text-[#0f172a] overflow-hidden">
                     {activeUser?.avatar_url ? (
                       <Image 
                         src={activeUser.avatar_url} 
@@ -462,7 +449,7 @@ export default function TeacherMessagesPage() {
                         unoptimized
                       />
                     ) : (
-                      activeUser?.full_name?.charAt(0) || "?"
+                      <Shield className="h-5 w-5" />
                     )}
                   </div>
                   {activeUser?.is_online && (
@@ -483,12 +470,6 @@ export default function TeacherMessagesPage() {
                   lastSeen={activeUser?.last_seen}
                   className="ml-auto rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1"
                 />
-
-                {/* Oversight notice */}
-                <div className="hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
-                  <div className="h-2 w-2 rounded-full bg-amber-400" />
-                  Visible to Principal
-                </div>
               </div>
 
               {/* Messages area */}
@@ -503,19 +484,6 @@ export default function TeacherMessagesPage() {
 
               {/* Compose bar */}
               <div className="border-t border-[#e2e8f0] bg-white px-5 py-4">
-                {/* AI Draft button */}
-                <div className="mb-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAiDraft}
-                    disabled={isAiLoading}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e0e7ff] bg-[#eef2ff] px-3 py-1.5 text-[12px] font-bold text-[#4f46e5] hover:bg-[#e0e7ff] disabled:opacity-60"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {isAiLoading ? "Generating…" : "Draft with AI"}
-                  </button>
-                </div>
-
                 <div className="flex items-end gap-3">
                   <textarea
                     value={compose}
@@ -523,20 +491,19 @@ export default function TeacherMessagesPage() {
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
                     rows={2}
-                    className="flex-1 resize-none rounded-xl border border-[#e2e8f0] px-4 py-2.5 text-[13px] leading-relaxed outline-none focus:border-indigo-400"
+                    className="flex-1 resize-none rounded-xl border border-[#e2e8f0] px-4 py-2.5 text-[13px] leading-relaxed outline-none focus:border-[#1e293b]"
                   />
                   <button
                     type="button"
                     onClick={handleSend}
                     disabled={!compose.trim() || isSending}
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#4f46e5] text-white hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:bg-gray-300"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1e293b] text-white hover:bg-[#0f172a] disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
-
                 <p className="mt-1.5 text-[11px] text-[#94a3b8]">
-                  Parent receives an FCM push notification when you send a message.
+                  Messages are sent via internal secure channels.
                 </p>
               </div>
             </>
@@ -546,7 +513,7 @@ export default function TeacherMessagesPage() {
               <MessageSquare className="h-12 w-12 opacity-30" />
               <p className="text-[15px] font-semibold text-[#475569]">Select a conversation</p>
               <p className="text-[13px]">
-                Choose a parent thread from the list to view and reply.
+                Choose a contact from the list to start messaging.
               </p>
             </div>
           )}

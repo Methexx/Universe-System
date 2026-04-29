@@ -21,6 +21,16 @@ export default async function gateRoutes(fastify: FastifyInstance) {
     ]
   }, GateController.scanStudentCode);
 
+  // Look up a student by their student_id_no (for manual entry)
+  fastify.get<{ Querystring: { id: string } }>('/student', {
+    preHandler: [authorize(['admin', 'security', 'teacher'])]
+  }, GateController.getStudentByIdNo);
+
+  // Gate stats for dashboard cards
+  fastify.get('/stats', {
+    preHandler: [authorize(['admin', 'security', 'teacher'])]
+  }, GateController.getStats);
+
   // Retrieve recent scan events
   fastify.get('/events', {
     preHandler: [authorize(['admin', 'security', 'teacher'])]

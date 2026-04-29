@@ -152,9 +152,10 @@ export class AuthController {
     }
   }
 
-  static async logout(_request: FastifyRequest, reply: FastifyReply) {
+  static async logout(request: FastifyRequest, reply: FastifyReply) {
+    const userClaims = (request as any).user;
     reply.clearCookie('auth_token', { path: '/' });
-    const result = await AuthService.logout();
+    const result = await AuthService.logout(userClaims?.userId);
     return reply.send(successResponse(result.message));
   }
 

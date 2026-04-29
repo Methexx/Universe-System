@@ -436,6 +436,7 @@ class _ActionGrid extends StatelessWidget {
               child: _ActionTile(
                 icon: Icons.person_outline_rounded,
                 title: 'Ask Questions',
+                onTap: () => context.push(AppRoutes.messages),
               ),
             ),
             SizedBox(width: 16),
@@ -476,47 +477,52 @@ class _ActionTile extends StatelessWidget {
     required this.icon,
     required this.title,
     this.hideLabel = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final bool hideLabel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 124,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2D5D8),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: hideLabel
-          ? const SizedBox.expand()
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(icon, size: 36, color: const Color(0xFF253047)),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF141C29),
-                    height: 1.05,
-                  ),
-                ),
-              ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 124,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2D5D8),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
+          ],
+        ),
+        child: hideLabel
+            ? const SizedBox.expand()
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(icon, size: 36, color: const Color(0xFF253047)),
+                  const SizedBox(height: 10),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF141C29),
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
