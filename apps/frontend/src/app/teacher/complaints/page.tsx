@@ -1,271 +1,280 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { Search, AlertTriangle, Clock, CheckCircle2, ChevronDown, ChevronUp, RotateCcw, AlertCircle } from "lucide-react";
-import clsx from "clsx";
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, ChevronDown, FileText, Clock, User } from 'lucide-react';
+import { PageHeader } from '@/shared/components/layout/PageHeader';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { getMyComplaints, updateComplaintStatus, Complaint } from '@/features/complaints/lib/complaints-api';
 
-type ComplaintStatus = "open" | "in_progress" | "resolved";
-type ComplaintPriority = "low" | "medium" | "high";
-type TabFilter = "all" | ComplaintStatus;
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 border border-amber-200',
+  assigned: 'bg-blue-50 text-blue-700 border border-blue-200',
+  in_progress: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  resolved: 'bg-green-50 text-green-700 border border-green-200',
+  rejected: 'bg-red-50 text-red-700 border border-red-200',
+};
 
-interface Complaint {
-  id: string;
-  title: string;
-  description: string;
-  studentName: string;
-  parentName: string;
-  className: string;
-  status: ComplaintStatus;
-  priority: ComplaintPriority;
-  assignedAt: string;
-  resolvedAt?: string;
-  notes?: string;
+const CATEGORY_COLORS: Record<string, string> = {
+  academic: 'bg-blue-50 text-blue-700 border border-blue-200',
+  teacher_conduct: 'bg-orange-50 text-orange-700 border border-orange-200',
+  facility: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  administrative: 'bg-purple-50 text-purple-700 border border-purple-200',
+  suggestion: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  other: 'bg-slate-50 text-slate-700 border border-slate-200',
+};
+
+function getCategoryLabel(category: string): string {
+  return category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-const INITIAL_COMPLAINTS: Complaint[] = [
-  {
-    id: "1", title: "Bullying incident in classroom", description: "Parent reports that their child is being repeatedly teased and excluded by classmates during group work. Behaviour observed over the past two weeks.", studentName: "Kamal Jayawardena", parentName: "Mrs. Jayawardena", className: "Grade 10-A", status: "open", priority: "high", assignedAt: "2026-04-23",
-  },
-  {
-    id: "2", title: "Missing homework marks", description: "Parent claims three homework assignments were submitted on time but not marked by the teacher. Student is concerned about final grades.", studentName: "Dilani Fernando", parentName: "Mr. Fernando", className: "Grade 10-A", status: "open", priority: "medium", assignedAt: "2026-04-22",
-  },
-  {
-    id: "3", title: "Unequal treatment during sports selection", description: "Parent believes their child was unfairly excluded from the school cricket team despite qualifying scores in the trials.", studentName: "Ravindu Perera", parentName: "Mr. Perera", className: "Grade 10-B", status: "in_progress", priority: "medium", assignedAt: "2026-04-20", notes: "Spoke with PE teacher — reviewing trial records and selection criteria.",
-  },
-  {
-    id: "4", title: "Classroom noise affecting studies", description: "Parent says the classroom is too noisy during lessons and their child is struggling to concentrate. Requests seating arrangement review.", studentName: "Nimesha Silva", parentName: "Mrs. Silva", className: "Grade 10-A", status: "in_progress", priority: "low", assignedAt: "2026-04-18", notes: "Adjusted seating plan on 22 Apr. Monitoring for the next week.",
-  },
-  {
-    id: "5", title: "Incorrect grade on mid-term exam", description: "Parent contests a grade given on question 4 of the mid-term maths paper, claiming the marking was inconsistent.", studentName: "Hasitha Bandara", parentName: "Mr. Bandara", className: "Grade 10-A", status: "resolved", priority: "medium", assignedAt: "2026-04-14", resolvedAt: "2026-04-17", notes: "Re-marked the paper. Grade corrected from 12 to 14. Parent notified.",
-  },
-  {
-    id: "6", title: "Late return of test papers", description: "Parent concerned that graded test papers are returned too late to be useful for revision before the next assessment.", studentName: "Sanduni Rathnayake", parentName: "Mrs. Rathnayake", className: "Grade 10-A", status: "resolved", priority: "low", assignedAt: "2026-04-10", resolvedAt: "2026-04-13", notes: "Acknowledged delay. Committed to returning graded work within 5 school days going forward.",
-  },
-];
-
-const PRIORITY_CONFIG: Record<ComplaintPriority, { label: string; bg: string; text: string }> = {
-  high: { label: "High", bg: "bg-red-100", text: "text-red-600" },
-  medium: { label: "Medium", bg: "bg-amber-100", text: "text-amber-600" },
-  low: { label: "Low", bg: "bg-gray-100", text: "text-gray-500" },
-};
-
-const STATUS_CONFIG: Record<ComplaintStatus, { label: string; bg: string; text: string; Icon: React.ElementType }> = {
-  open: { label: "Open", bg: "bg-blue-50", text: "text-blue-600", Icon: AlertCircle },
-  in_progress: { label: "In Progress", bg: "bg-amber-50", text: "text-amber-600", Icon: Clock },
-  resolved: { label: "Resolved", bg: "bg-emerald-50", text: "text-emerald-600", Icon: CheckCircle2 },
-};
-
 export default function TeacherComplaintsPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>(INITIAL_COMPLAINTS);
-  const [tab, setTab] = useState<TabFilter>("all");
-  const [search, setSearch] = useState("");
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
 
-  const filtered = useMemo(() => {
-    return complaints.filter((c) => {
-      const matchTab = tab === "all" || c.status === tab;
-      const matchSearch = search === "" || c.title.toLowerCase().includes(search.toLowerCase()) || c.studentName.toLowerCase().includes(search.toLowerCase());
-      return matchTab && matchSearch;
-    });
-  }, [complaints, tab, search]);
+  const fetchComplaints = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getMyComplaints();
+      setComplaints(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch complaints');
+      setComplaints([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await fetchComplaints();
+    })();
+  }, [fetchComplaints]);
+
+  const filteredComplaints = complaints.filter((c) => {
+    if (activeTab === 'all') return true;
+    return c.status === activeTab;
+  });
 
   const stats = {
-    assigned: complaints.length,
-    inProgress: complaints.filter((c) => c.status === "in_progress").length,
-    resolved: complaints.filter((c) => c.status === "resolved").length,
+    total: complaints.length,
+    in_progress: complaints.filter((c) => c.status === 'in_progress').length,
+    resolved: complaints.filter((c) => c.status === 'resolved').length,
   };
 
-  const updateStatus = (id: string, status: ComplaintStatus) => {
-    setComplaints((prev) => prev.map((c) => {
-      if (c.id !== id) return c;
-      return {
-        ...c,
-        status,
-        notes: notesDraft[id] ?? c.notes,
-        resolvedAt: status === "resolved" ? new Date().toISOString().split("T")[0] : c.resolvedAt,
-      };
-    }));
+  const handleStatusChange = async (complaintId: string, newStatus: string) => {
+    const notes = editingNotes[complaintId] || '';
+    try {
+      setError(null);
+      await updateComplaintStatus(complaintId, { status: newStatus, reply_note: notes });
+      setEditingNotes({ ...editingNotes, [complaintId]: '' });
+      await fetchComplaints();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
   };
-
-  const TABS: { key: TabFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "open", label: "Open" },
-    { key: "in_progress", label: "In Progress" },
-    { key: "resolved", label: "Resolved" },
-  ];
 
   return (
-    <div className="flex flex-col gap-6 pb-12 w-full pr-2">
-      <PageHeader title="Complaints" subtitle="Manage parent complaints assigned to you and track resolutions." />
+    <div className="flex flex-col gap-8 pb-20 max-w-6xl mx-auto w-full px-4">
+      <PageHeader
+        title="My Complaints"
+        subtitle="Manage assigned parent complaints and provide resolutions"
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm flex gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
-          { label: "Total Assigned", value: stats.assigned, Icon: AlertTriangle, color: "text-[#4f46e5]", bg: "bg-indigo-50" },
-          { label: "In Progress", value: stats.inProgress, Icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Resolved", value: stats.resolved, Icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-        ].map(({ label, value, Icon, color, bg }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-[16px] p-5 shadow-sm flex items-center gap-4">
-            <div className={clsx("w-10 h-10 rounded-full flex items-center justify-center", bg)}>
-              <Icon className={clsx("w-5 h-5", color)} />
-            </div>
-            <div>
-              <p className="text-[22px] font-bold text-[#0f172a]">{value}</p>
-              <p className="text-[12px] font-medium text-[#64748b]">{label}</p>
-            </div>
+          { label: 'Total Assigned', value: stats.total, color: 'slate' },
+          { label: 'In Progress', value: stats.in_progress, color: 'indigo' },
+          { label: 'Resolved', value: stats.resolved, color: 'green' },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className={`bg-${stat.color}-50 border border-${stat.color}-200 rounded-xl p-4 text-center`}
+          >
+            <div className={`text-3xl font-bold text-${stat.color}-700`}>{stat.value}</div>
+            <div className={`text-sm font-semibold text-${stat.color}-600 mt-1`}>{stat.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-[20px] p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-          {TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={clsx(
-                "px-4 py-2 rounded-lg text-[13px] font-bold transition-all",
-                tab === key ? "bg-white text-[#0f172a] shadow-sm" : "text-gray-500 hover:text-gray-700"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search complaints..."
-            className="pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-[#0f172a] outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100 w-[220px]"
-          />
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {['all', 'in_progress', 'resolved'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-all ${
+              activeTab === tab
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {tab === 'all' ? 'All' : getCategoryLabel(tab)}
+          </button>
+        ))}
       </div>
 
-      {/* Complaint List */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center bg-white border border-gray-200 rounded-[20px]">
-          <CheckCircle2 className="w-10 h-10 mb-3 text-gray-300" />
-          <p className="font-semibold text-[#334155]">No complaints here</p>
-          <p className="text-sm text-gray-400 mt-1">All clear in this category.</p>
+      {/* Complaints List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-slate-500">Loading complaints...</div>
         </div>
+      ) : filteredComplaints.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No complaints assigned"
+          description="You don't have any assigned complaints yet."
+        />
       ) : (
-        <div className="flex flex-col gap-3">
-          {filtered.map((c) => {
-            const isExpanded = expandedId === c.id;
-            const statusCfg = STATUS_CONFIG[c.status];
-            const priorityCfg = PRIORITY_CONFIG[c.priority];
-            const StatusIcon = statusCfg.Icon;
-
-            return (
-              <div
-                key={c.id}
-                className={clsx(
-                  "bg-white border rounded-[20px] shadow-sm overflow-hidden transition-all",
-                  c.priority === "high" && c.status !== "resolved" ? "border-red-200" : "border-gray-200"
-                )}
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {filteredComplaints.map((complaint) => (
+              <motion.div
+                key={complaint.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
-                {/* Card Header — always visible */}
-                <div
-                  className="p-5 cursor-pointer hover:bg-gray-50/50 transition-colors"
-                  onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                {/* Card Header */}
+                <button
+                  onClick={() => setExpandedId(expandedId === complaint.id ? null : complaint.id)}
+                  className="w-full p-4 text-left hover:bg-slate-50 transition-colors flex items-start justify-between gap-4"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={clsx("px-2.5 py-0.5 rounded-full text-[11px] font-bold", priorityCfg.bg, priorityCfg.text)}>
-                          {priorityCfg.label}
-                        </span>
-                        <span className={clsx("flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold", statusCfg.bg, statusCfg.text)}>
-                          <StatusIcon className="w-3 h-3" />{statusCfg.label}
-                        </span>
-                      </div>
-                      <h3 className="text-[15px] font-bold text-[#0f172a] leading-snug">{c.title}</h3>
-                      <div className="flex items-center gap-4 text-[12px] text-[#64748b] font-medium flex-wrap">
-                        <span>Student: <span className="text-[#334155] font-bold">{c.studentName}</span></span>
-                        <span>Class: <span className="text-[#334155] font-bold">{c.className}</span></span>
-                        <span>Parent: {c.parentName}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-[12px] text-gray-400 font-medium hidden sm:block">
-                        {new Date(c.assignedAt + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                          CATEGORY_COLORS[complaint.category] || CATEGORY_COLORS.other
+                        }`}
+                      >
+                        {getCategoryLabel(complaint.category)}
                       </span>
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                      <span
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                          STATUS_COLORS[complaint.status] || STATUS_COLORS.pending
+                        }`}
+                      >
+                        {complaint.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <p className="text-[14px] font-semibold text-slate-900 line-clamp-2 mb-1">
+                      {complaint.description}
+                    </p>
+                    <div className="flex items-center gap-4 text-[12px] text-slate-500">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" />
+                        {complaint.parent?.full_name || 'Unknown'}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {new Date(complaint.assigned_at || complaint.created_at).toLocaleDateString(
+                          'en-US',
+                          { month: 'short', day: 'numeric' }
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  <ChevronDown
+                    className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform ${
+                      expandedId === complaint.id ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
 
                 {/* Expanded Detail */}
-                {isExpanded && (
-                  <div className="px-5 pb-6 border-t border-gray-100 pt-5 flex flex-col gap-5">
-                    <div>
-                      <p className="text-[12px] font-bold text-[#64748b] mb-1">Description</p>
-                      <p className="text-[14px] text-[#334155] leading-relaxed">{c.description}</p>
-                    </div>
+                <AnimatePresence>
+                  {expandedId === complaint.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="border-t border-slate-100 bg-slate-50 p-6 space-y-6"
+                    >
+                      {/* Description */}
+                      <div>
+                        <h4 className="text-[12px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+                          Description
+                        </h4>
+                        <p className="text-[14px] text-slate-700 leading-relaxed">
+                          {complaint.description}
+                        </p>
+                      </div>
 
-                    {/* Notes */}
-                    <div className="flex flex-col gap-[6px]">
-                      <label className="text-[12px] font-bold text-[#64748b]">Resolution Notes</label>
-                      {c.status === "resolved" ? (
-                        <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100 text-[13px] text-emerald-800 font-medium">
-                          {c.notes || "No notes added."}
+                      {/* Student Info */}
+                      {complaint.student && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <p className="text-[13px] text-slate-700">
+                            <span className="font-semibold">Student:</span> {complaint.student.full_name}
+                          </p>
                         </div>
-                      ) : (
-                        <textarea
-                          rows={3}
-                          value={notesDraft[c.id] ?? c.notes ?? ""}
-                          onChange={(e) => setNotesDraft((p) => ({ ...p, [c.id]: e.target.value }))}
-                          placeholder="Add your resolution notes here..."
-                          className="px-4 py-3 rounded-xl border border-gray-200 text-[13px] font-medium text-[#0f172a] outline-none focus:border-[#4f46e5] focus:ring-[3px] focus:ring-indigo-100/50 bg-gray-50/30 resize-none"
-                        />
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {c.status === "open" && (
-                        <button
-                          onClick={() => updateStatus(c.id, "in_progress")}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-[13px] font-bold transition-colors"
-                        >
-                          <Clock className="w-4 h-4" /> Mark In Progress
-                        </button>
-                      )}
-                      {(c.status === "open" || c.status === "in_progress") && (
-                        <button
-                          onClick={() => updateStatus(c.id, "resolved")}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[13px] font-bold transition-colors"
-                        >
-                          <CheckCircle2 className="w-4 h-4" /> Mark Resolved
-                        </button>
-                      )}
-                      {c.status === "resolved" && (
-                        <button
-                          onClick={() => updateStatus(c.id, "open")}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 rounded-xl text-[13px] font-bold transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4" /> Reopen
-                        </button>
                       )}
 
-                      {c.resolvedAt && (
-                        <span className="text-[12px] text-gray-400 font-medium ml-auto">
-                          Resolved {new Date(c.resolvedAt + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
-                        </span>
+                      {/* Resolution Notes */}
+                      {complaint.status !== 'resolved' && complaint.status !== 'rejected' && (
+                        <div>
+                          <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wide block mb-2">
+                            Resolution Notes
+                          </label>
+                          <textarea
+                            placeholder="Add your resolution notes here..."
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none text-[13px] resize-none"
+                            rows={3}
+                            value={editingNotes[complaint.id] || complaint.reply_note || ''}
+                            onChange={(e) =>
+                              setEditingNotes({ ...editingNotes, [complaint.id]: e.target.value })
+                            }
+                          />
+                        </div>
                       )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+
+                      {/* Existing Reply Note */}
+                      {complaint.reply_note && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                          <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-wide mb-1">
+                            Previously Added Note
+                          </h4>
+                          <p className="text-[13px] text-indigo-700">{complaint.reply_note}</p>
+                        </div>
+                      )}
+
+                      {/* Status Actions */}
+                      {complaint.status !== 'resolved' && complaint.status !== 'rejected' && (
+                        <div className="flex gap-2">
+                          {complaint.status !== 'in_progress' && (
+                            <button
+                              onClick={() => handleStatusChange(complaint.id, 'in_progress')}
+                              className="flex-1 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-[12px] hover:bg-indigo-200 transition-colors"
+                            >
+                              Mark In Progress
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleStatusChange(complaint.id, 'resolved')}
+                            className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg font-semibold text-[12px] hover:bg-green-200 transition-colors"
+                          >
+                            Mark Resolved
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>
