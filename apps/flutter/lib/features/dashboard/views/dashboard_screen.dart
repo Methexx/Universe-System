@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/shared/widgets/action_card.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -584,225 +585,88 @@ class _ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_TileData> tiles = <_TileData>[
-      _TileData(
-        label: 'Gate In/Out',
-        icon: Icons.sensor_door_rounded,
-        gradient: const [Color(0xFF1A3A44), Color(0xFF2E6B7F)],
-        accentColor: const Color(0xFF64D4EE),
-        badge: _GateBadge(),
-        onTap: onGateTap != null ? (_) => onGateTap!() : null,
-      ),
-      _TileData(
-        label: 'Attendance',
-        icon: Icons.qr_code_scanner_rounded,
-        gradient: const [Color(0xFF2D5A8E), Color(0xFF4A90D9)],
-        accentColor: const Color(0xFF90CAFF),
-        badge: _AttendanceBadge(),
-        onTap: onAttendanceTap != null ? (_) => onAttendanceTap!() : null,
-      ),
-      _TileData(
-        label: 'Complain &\nSuggestions',
-        icon: Icons.forum_rounded,
-        gradient: const [Color(0xFF5C3D8F), Color(0xFF9067C6)],
-        accentColor: const Color(0xFFD4AAFF),
-      ),
-      _TileData(
-        label: 'Contact\nTeacher',
-        icon: Icons.support_agent_rounded,
-        gradient: const [Color(0xFF1A6B4A), Color(0xFF2EAA75)],
-        accentColor: const Color(0xFF80E8B8),
-        onTap: (BuildContext ctx) => ctx.push(AppRoutes.messages),
-      ),
-      _TileData(
-        label: 'Lost &\nFound',
-        icon: Icons.find_in_page_rounded,
-        gradient: const [Color(0xFF7A3D1A), Color(0xFFD47A2E)],
-        accentColor: const Color(0xFFFFCC80),
-      ),
-      _TileData(
-        label: 'More',
-        icon: Icons.apps_rounded,
-        gradient: const [Color(0xFF2E3A4A), Color(0xFF4A5D72)],
-        accentColor: const Color(0xFFB0C4D8),
-        isMore: true,
-      ),
-    ];
-
-    return GridView.builder(
+    return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: tiles.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 1.05,
-      ),
-      itemBuilder: (BuildContext context, int index) =>
-          _ActionTile(data: tiles[index]),
-    );
-  }
-}
-
-class _TileData {
-  const _TileData({
-    required this.label,
-    required this.icon,
-    required this.gradient,
-    required this.accentColor,
-    this.badge,
-    this.onTap,
-    this.isMore = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final List<Color> gradient;
-  final Color accentColor;
-  final Widget? badge;
-  final void Function(BuildContext)? onTap;
-  final bool isMore;
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.data});
-
-  final _TileData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: data.onTap != null ? () => data.onTap!(context) : null,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: data.gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: data.gradient.last.withValues(alpha: 0.35),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: <Widget>[
-            // Decorative circle
-            Positioned(
-              right: -18,
-              top: -18,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 10,
-              bottom: -10,
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.05),
-                ),
-              ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: data.isMore
-                  ? _MoreContent(accentColor: data.accentColor)
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: data.accentColor.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                data.icon,
-                                size: 22,
-                                color: data.accentColor,
-                              ),
-                            ),
-                            if (data.badge != null) ...<Widget>[
-                              const Spacer(),
-                              data.badge!,
-                            ],
-                          ],
-                        ),
-                        const Spacer(),
-                        Text(
-                          data.label,
-                          maxLines: 2,
-                          style: const TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MoreContent extends StatelessWidget {
-  const _MoreContent({required this.accentColor});
-
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisCount: 2,
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
+      childAspectRatio: 1.05,
       children: <Widget>[
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: List<Widget>.generate(9, (int i) {
-            return Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: i < 3 ? 0.9 : i < 6 ? 0.5 : 0.25),
-                shape: BoxShape.circle,
-              ),
-            );
-          }),
+        ActionCard(
+          cardIndex: 0,
+          label: 'Gate In/Out',
+          icon: Icons.sensor_door_rounded,
+          gradient: const [Color(0xFF1A3A44), Color(0xFF2E6B7F)],
+          accentColor: const Color(0xFF64D4EE),
+          badge: _GateBadge(),
+          onTap: onGateTap,
         ),
-        const Spacer(),
-        const Text(
-          'More',
-          style: TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        ActionCard(
+          cardIndex: 1,
+          label: 'Attendance',
+          icon: Icons.qr_code_scanner_rounded,
+          gradient: const [Color(0xFF2D5A8E), Color(0xFF4A90D9)],
+          accentColor: const Color(0xFF90CAFF),
+          badge: _AttendanceBadge(),
+          onTap: onAttendanceTap,
+        ),
+        ActionCard(
+          cardIndex: 2,
+          label: 'Complain &\nSuggestions',
+          icon: Icons.forum_rounded,
+          gradient: const [Color(0xFF5C3D8F), Color(0xFF9067C6)],
+          accentColor: const Color(0xFFD4AAFF),
+          onTap: () => context.push(AppRoutes.support),
+        ),
+        ActionCard(
+          cardIndex: 3,
+          label: 'Contact\nTeacher',
+          icon: Icons.support_agent_rounded,
+          gradient: const [Color(0xFF1A6B4A), Color(0xFF2EAA75)],
+          accentColor: const Color(0xFF80E8B8),
+          onTap: () => context.push(AppRoutes.teacherChat),
+        ),
+        ActionCard(
+          cardIndex: 4,
+          label: 'Lost &\nFound',
+          icon: Icons.find_in_page_rounded,
+          gradient: const [Color(0xFF7A3D1A), Color(0xFFD47A2E)],
+          accentColor: const Color(0xFFFFCC80),
+          onTap: () => context.push(AppRoutes.lostAndFound),
+        ),
+        ActionCard(
+          cardIndex: 5,
+          label: 'Results',
+          icon: Icons.bar_chart_rounded,
+          gradient: const [Color(0xFF1A4A35), Color(0xFF2E7A58)],
+          accentColor: const Color(0xFF80E8B8),
+          badge: const _ResultsBadge(),
+          onTap: () => context.push(AppRoutes.results),
         ),
       ],
+    );
+  }
+}
+
+class _ResultsBadge extends StatelessWidget {
+  const _ResultsBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List<Widget>.generate(3, (int i) {
+        return Container(
+          margin: const EdgeInsets.only(left: 3),
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: i == 0 ? 0.9 : i == 1 ? 0.55 : 0.25),
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
     );
   }
 }
