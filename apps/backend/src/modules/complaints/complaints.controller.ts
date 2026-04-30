@@ -32,9 +32,14 @@ export const getMyComplaints = async (request: FastifyRequest, reply: FastifyRep
   const user = (request as any).user;
 
   try {
+    const where: any = user.role === 'teacher'
+      ? { assigned_to_id: user.userId }
+      : { parent_id: user.userId };
+
     const complaints = await prisma.complaint.findMany({
-      where: { parent_id: user.userId },
+      where,
       include: {
+        parent: { select: { full_name: true, avatar_url: true } },
         student: { select: { full_name: true } },
         assigned_to: { select: { full_name: true } },
       },
