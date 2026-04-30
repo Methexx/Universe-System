@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/core/constants/app_colors.dart';
+import 'package:universe_app/shared/widgets/app_button.dart';
 
 class OnboardingData {
   final String imagePath;
@@ -89,7 +91,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0FBFF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -110,6 +112,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(height: 50),
               ],
+            ),
+            Positioned(
+              top: 20,
+              right: 20,
+              child: TextButton(
+                onPressed: () => context.go(AppRoutes.profileSetup),
+                child: const Text(
+                  'Skip (Dev)',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
             ),
             Listener(
               onPointerDown: (_) => _stopAutoPlay(),
@@ -217,8 +234,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: _currentPage == index
-                            ? const Color(0xFF6ACFEF)
-                            : const Color(0xFFE3F7FD),
+                            ? AppColors.primary
+                            : AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -228,36 +245,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
             Positioned(
               bottom: 110,
-              child: Container(
-                width: 302,
-                height: 56,
-                decoration: ShapeDecoration(
-                  shape: ContinuousRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  shadows: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.11),
-                      blurRadius: 4,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: () => context.go(AppRoutes.login),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6ACFEF),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: ContinuousRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+              child: AppButton(
+                text: 'Login',
+                onPressed: () => context.go(AppRoutes.login),
               ),
             ),
             Positioned(
@@ -280,7 +270,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           text: 'Create one',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
