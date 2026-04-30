@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/shared/widgets/live_clock_widget.dart';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -59,8 +59,55 @@ const List<_Announcement> _kAnnouncements = <_Announcement>[
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entryController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    ));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _entryController.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+  }
+
+  // Re-run the slide-up whenever we come back to this route
+  void _playEntryAnimation() {
+    _entryController.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,50 +117,72 @@ class DashboardScreen extends StatelessWidget {
     final String displayName = _displayNameFromEmail(userEmail);
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
-
     const double navBarHeight = 72;
 
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: Stack(
         children: <Widget>[
-          // Scrollable content — bottom padding reserves space for the nav bar
+          // Scrollable content
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: <Widget>[
                 _TopHeader(displayName: displayName, topInset: topInset),
-                Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4FAFB),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
+                // Slide-up + fade for white card section
+                SlideTransition(
+                  position: _slideAnim,
+                  child: FadeTransition(
+                    opacity: _fadeAnim,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF4FAFB),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(32),
+                          topRight: Radius.circular(32),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const _SectionLabel('Quick Actions'),
+                          const SizedBox(height: 14),
+                          _ActionGrid(
+                            onGateTap: () async {
+                              await context.push(AppRoutes.gateStatus);
+                              _playEntryAnimation();
+                            },
+                            onAttendanceTap: () async {
+                              await context.push(AppRoutes.attendance);
+                              _playEntryAnimation();
+                            },
+                          ),
+                          SizedBox(height: bottomInset + navBarHeight + 16),
+                        ],
+                      ),
                     ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const _NoticesSection(),
-                      const SizedBox(height: 28),
-                      const _SectionLabel('Quick Actions'),
-                      const SizedBox(height: 14),
-                      const _ActionGrid(),
-                      SizedBox(height: bottomInset + navBarHeight + 16),
-                    ],
                   ),
                 ),
               ],
             ),
           ),
-          // Nav bar pinned at the bottom, overlapping the light content
+          // Bottom nav — also slides up
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: _BottomNavBar(bottomInset: bottomInset),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: _entryController,
+                curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+              )),
+              child: _BottomNavBar(bottomInset: bottomInset),
+            ),
           ),
         ],
       ),
@@ -146,13 +215,12 @@ class _TopHeader extends StatefulWidget {
 }
 
 class _TopHeaderState extends State<_TopHeader> {
+  DateTime _now = DateTime.now();
   late Timer _timer;
-  late DateTime _now;
 
   @override
   void initState() {
     super.initState();
-    _now = DateTime.now();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -170,22 +238,6 @@ class _TopHeaderState extends State<_TopHeader> {
     if (h < 17) return 'Good Afternoon !';
     return 'Good Evening !';
   }
-
-  String get _dateLabel {
-    const List<String> months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[_now.month - 1]} ${_now.day}';
-  }
-
-  String get _timeHHMM {
-    final int h = _now.hour % 12 == 0 ? 12 : _now.hour % 12;
-    final String m = _now.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  String get _amPm => _now.hour < 12 ? 'AM' : 'PM';
 
   @override
   Widget build(BuildContext context) {
@@ -296,51 +348,8 @@ class _TopHeaderState extends State<_TopHeader> {
                   ],
                 ),
               ),
-              // Date-time pill
-              Container(
-                width: 88,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: ShapeDecoration(
-                  color: Colors.white,
-                  shape: ContinuousRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
-                child: Column(
-                  children: <Widget>[
-                    Text(
-                      _dateLabel,
-                      style: const TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      _timeHHMM,
-                      style: const TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                        height: 1,
-                      ),
-                    ),
-                    Text(
-                      _amPm,
-                      style: const TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF6B7280),
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Live clock — shared component with blinking colon
+              const LiveClockWidget(),
             ],
           ),
         ],
@@ -566,7 +575,10 @@ class _SectionLabel extends StatelessWidget {
 // ─── Action grid ──────────────────────────────────────────────────────────────
 
 class _ActionGrid extends StatelessWidget {
-  const _ActionGrid();
+  const _ActionGrid({this.onGateTap, this.onAttendanceTap});
+
+  final VoidCallback? onGateTap;
+  final VoidCallback? onAttendanceTap;
 
   @override
   Widget build(BuildContext context) {
@@ -577,6 +589,7 @@ class _ActionGrid extends StatelessWidget {
         gradient: const [Color(0xFF1A3A44), Color(0xFF2E6B7F)],
         accentColor: const Color(0xFF64D4EE),
         badge: _GateBadge(),
+        onTap: onGateTap != null ? (_) => onGateTap!() : null,
       ),
       _TileData(
         label: 'Attendance',
@@ -584,6 +597,7 @@ class _ActionGrid extends StatelessWidget {
         gradient: const [Color(0xFF2D5A8E), Color(0xFF4A90D9)],
         accentColor: const Color(0xFF90CAFF),
         badge: _AttendanceBadge(),
+        onTap: onAttendanceTap != null ? (_) => onAttendanceTap!() : null,
       ),
       _TileData(
         label: 'Complain &\nSuggestions',

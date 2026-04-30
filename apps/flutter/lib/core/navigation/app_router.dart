@@ -1,14 +1,16 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/features/auth/views/forgot_password_screen.dart';
 import 'package:universe_app/features/auth/views/login_screen.dart';
 import 'package:universe_app/features/auth/views/registration_otp_screen.dart';
 import 'package:universe_app/features/dashboard/views/dashboard_screen.dart';
+import 'package:universe_app/features/attendance/views/attendance_screen.dart';
+import 'package:universe_app/features/gate/views/gate_status_screen.dart';
 import 'package:universe_app/features/splash/views/splash_screen.dart';
 import 'package:universe_app/features/splash/views/welcome_screen.dart';
 import 'package:universe_app/features/auth/views/register_screen.dart';
 import 'package:universe_app/features/messages/views/messages_screen.dart';
-
 import 'package:universe_app/features/profile/views/profile_setup_screen.dart';
 
 class AppRouter {
@@ -50,6 +52,58 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.profileSetup,
         builder: (context, state) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.attendance,
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const AttendanceScreen(),
+          transitionDuration: const Duration(milliseconds: 420),
+          reverseTransitionDuration: const Duration(milliseconds: 320),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1.0, 0),
+                end: Offset.zero,
+              ).animate(curved),
+              child: FadeTransition(
+                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+                child: child,
+              ),
+            );
+          },
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.gateStatus,
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const GateStatusScreen(),
+          transitionDuration: const Duration(milliseconds: 420),
+          reverseTransitionDuration: const Duration(milliseconds: 320),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1.0, 0),
+                end: Offset.zero,
+              ).animate(curved),
+              child: FadeTransition(
+                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+                child: child,
+              ),
+            );
+          },
+        ),
       ),
     ],
   );
