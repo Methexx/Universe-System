@@ -147,8 +147,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
+                          const _NoticesSection(),
+                          const SizedBox(height: 28),
                           const _SectionLabel('Quick Actions'),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 6),
                           _ActionGrid(
                             onGateTap: () async {
                               await context.push(AppRoutes.gateStatus);
