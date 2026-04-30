@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { getTeachersAdmin, AdminTeacherRecord } from '@/features/school/lib/school-api';
 
 function mapApiTeacherToTeacher(t: AdminTeacherRecord): Teacher {
-  const assignedClass = t.classes_taught[0];
+  const assignedClass = t.classes_taught?.[0];
   const classDisplay = assignedClass
     ? `${assignedClass.school_grade.name}-${assignedClass.name}`
     : '';
