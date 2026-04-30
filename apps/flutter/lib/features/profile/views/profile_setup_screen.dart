@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
+import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/shared/widgets/app_button.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -21,74 +23,127 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Fill Your Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: const AssetImage('Assets/welcome2.png'), // Placeholder
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+          child: Column(
+            children: [
+              // Logo section
+              Container(
+                width: 100,
+                height: 100,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A3A44),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.edit,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                padding: const EdgeInsets.all(20),
+                child: Image.asset(
+                  'Assets/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Set up your parent\nprofile',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'This information is used to determine your enrolled\nmodules, assigned lecturers, and relevant content',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+              // White container
+              Container(
+                width: double.infinity,
+                decoration: ShapeDecoration(
+                  color: Colors.white,
+                  shape: ContinuousRectangleBorder(
+                    borderRadius: BorderRadius.circular(42), // Large radius for 100% smoothing feel
                   ),
+                  shadows: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            _buildDropdown(
-              label: 'Gender',
-              value: _selectedGender,
-              items: _genders,
-              onChanged: (val) => setState(() => _selectedGender = val),
-              hint: 'Select Gender',
-            ),
-            const SizedBox(height: 20),
-            _buildDropdown(
-              label: 'Role',
-              value: _selectedRole,
-              items: _roles,
-              onChanged: (val) => setState(() => _selectedRole = val),
-              hint: 'Select Role',
-            ),
-            const SizedBox(height: 20),
-            _buildDropdown(
-              label: 'Primary Interest',
-              value: _selectedInterest,
-              items: _interests,
-              onChanged: (val) => setState(() => _selectedInterest = val),
-              hint: 'Select Interest',
-            ),
-            const SizedBox(height: 40),
-            AppButton(
-              text: 'Continue',
-              onPressed: () {
-                // Navigate to dashboard or next step
-              },
-            ),
-          ],
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    _buildDropdown(
+                      label: 'Grade',
+                      value: _selectedGender, // Placeholder mapping
+                      items: ['Grade 1', 'Grade 2', 'Grade 3'],
+                      onChanged: (val) => setState(() => _selectedGender = val),
+                      hint: 'Select your Grade',
+                    ),
+                    const SizedBox(height: 20),
+                    _buildDropdown(
+                      label: 'Class',
+                      value: _selectedRole,
+                      items: ['Class A', 'Class B', 'Class C'],
+                      onChanged: (val) => setState(() => _selectedRole = val),
+                      hint: 'Select your Class',
+                    ),
+                    const SizedBox(height: 20),
+                    _buildDropdown(
+                      label: 'Admission Year',
+                      value: _selectedInterest,
+                      items: ['2023', '2024', '2025'],
+                      onChanged: (val) => setState(() => _selectedInterest = val),
+                      hint: 'Select your Admission Year',
+                    ),
+                    const SizedBox(height: 20),
+                    _buildDropdown(
+                      label: 'Current Academic Year',
+                      value: null,
+                      items: ['2023/24', '2024/25'],
+                      onChanged: (val) {},
+                      hint: 'Select academic year',
+                    ),
+                    const SizedBox(height: 32),
+                    AppButton(
+                      text: 'Continue',
+                      onPressed: () => context.go(AppRoutes.dashboard),
+                      width: double.infinity,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              const Text(
+                'Your academic profile verification act like your data\nwith two factor authentication',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -107,15 +162,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           label,
           style: const TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             fontSize: 14,
-            color: AppColors.textPrimary,
+            color: Colors.black,
           ),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: value,
-          hint: Text(hint),
+          hint: Text(
+            hint,
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.55),
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
           items: items.map((String item) {
             return DropdownMenuItem(
               value: item,
@@ -123,8 +185,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             );
           }).toList(),
           onChanged: onChanged,
-          decoration: const InputDecoration(),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+            ),
+          ),
+          icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black.withValues(alpha: 0.55)),
           dropdownColor: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
