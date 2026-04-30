@@ -9,6 +9,8 @@ import 'package:universe_app/features/splash/views/welcome_screen.dart';
 import 'package:universe_app/features/auth/views/register_screen.dart';
 import 'package:universe_app/features/messages/views/messages_screen.dart';
 
+import 'package:universe_app/features/profile/views/profile_setup_screen.dart';
+
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.splash,
@@ -44,6 +46,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.messages,
         builder: (context, state) => const MessagesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileSetup,
+        builder: (context, state) => const ProfileSetupScreen(),
       ),
     ],
   );
