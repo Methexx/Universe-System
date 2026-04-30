@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/core/constants/app_colors.dart';
+import 'package:universe_app/shared/widgets/app_button.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -36,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (success) {
-      context.go(AppRoutes.dashboard);
+      context.go(AppRoutes.profileSetup);
       return;
     }
 
@@ -47,9 +49,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: CustomScrollView(
+        child: Stack(
+          children: [
+            CustomScrollView(
           slivers: [
             SliverFillRemaining(
               hasScrollBody: false,
@@ -222,35 +226,11 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
               Consumer<AuthViewModel>(
                 builder: (context, viewModel, child) {
-                  return ElevatedButton(
-                    onPressed: viewModel.isLoading ? null : () => _submit(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B5BDB),
-                      disabledBackgroundColor: const Color(0xFF9CA3AF),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: viewModel.isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Plus Jakarta Sans',
-                            ),
-                          ),
+                  return AppButton(
+                    text: 'Login',
+                    onPressed: () => _submit(context),
+                    isLoading: viewModel.isLoading,
+                    width: double.infinity,
                   );
                 },
               ),
@@ -272,8 +252,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      Positioned(
+        top: 10,
+        right: 10,
+        child: TextButton(
+          onPressed: () => context.go(AppRoutes.profileSetup),
+          child: const Text(
+            'Skip (Dev)',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
