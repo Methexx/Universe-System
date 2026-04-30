@@ -42,6 +42,8 @@ model User {
   complaints_filed    Complaint[]        @relation("ComplaintsFiled")
   complaints_assigned Complaint[]        @relation("ComplaintsAssigned")
   complaints_resolved Complaint[]        @relation("ComplaintsResolved")
+  lost_found_items    LostFoundItem[]    @relation("LostFoundItems")
+  lost_found_reports  LostFoundReport[]  @relation("LostFoundReports")
 
   @@index([email])
   @@map("users")
@@ -106,6 +108,7 @@ model Student {
   parent_email     String?
   parent_mobile    String?
   parent_name      String?
+  fcm_token        String?
   is_parent_linked Boolean  @default(false)
   is_active        Boolean  @default(true)
   created_at       DateTime @default(now()) @db.Timestamptz()
@@ -116,6 +119,7 @@ model Student {
   attendance_records AttendanceRecord[]
   messages           Message[]
   complaints         Complaint[]
+  lost_reports       LostFoundReport[]
 
   @@map("students")
 }
@@ -184,6 +188,7 @@ model Announcement {
   author     User     @relation(fields: [author_id], references: [id], onDelete: Cascade)
   title      String
   content    String   @db.Text
+  image_url  String?
   scope      String   @default("school_wide") // 'school_wide' | 'class'
   target     String   @default("all") // 'all' | 'parents_only' | 'staff_only' | class_id
   class_id   String?  @db.Uuid
@@ -241,4 +246,44 @@ model Complaint {
   @@index([status])
   @@index([assigned_to_id])
   @@map("complaints")
+}
+
+// ==========================================
+// PHASE 5: LOST & FOUND
+// ==========================================
+
+model LostFoundItem {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  posted_by    String   @db.Uuid
+  poster       User     @relation("LostFoundItems", fields: [posted_by], references: [id], onDelete: Cascade)
+  item_name    String
+  description  String?  @db.Text
+  photo_url    String?
+  found_at     String?
+  found_date   DateTime @default(now()) @db.Date
+  status       String   @default("unclaimed") // 'unclaimed' | 'collected'
+  collected_at DateTime? @db.Timestamptz()
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@index([posted_by])
+  @@index([status])
+  @@map("lost_found_items")
+}
+
+model LostFoundReport {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id   String   @db.Uuid
+  parent      User     @relation("LostFoundReports", fields: [parent_id], references: [id], onDelete: Cascade)
+  student_id  String   @db.Uuid
+  student     Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  item_name   String
+  description String?  @db.Text
+  photo_url   String?
+  date_lost   DateTime? @db.Date
+  status      String   @default("open") // 'open' | 'recovered'
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([parent_id])
+  @@index([status])
+  @@map("lost_found_reports")
 }
