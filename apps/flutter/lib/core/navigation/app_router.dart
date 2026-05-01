@@ -18,6 +18,9 @@ import 'package:universe_app/features/lost_and_found/views/lost_and_found_screen
 import 'package:universe_app/features/results/views/results_screen.dart';
 import 'package:universe_app/features/chatbot/views/chatbot_screen.dart';
 import 'package:universe_app/features/profile/views/profile_screen.dart';
+import 'package:universe_app/features/settings/views/settings_screen.dart';
+import 'package:universe_app/features/notices/views/notices_screen.dart';
+import 'package:universe_app/features/notifications/views/notifications_screen.dart';
 
 CustomTransitionPage<void> _slideTransition({
   required LocalKey key,
@@ -142,6 +145,27 @@ class AppRouter {
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
           child: const ProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.notices,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const NoticesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
         ),
       ),
     ],

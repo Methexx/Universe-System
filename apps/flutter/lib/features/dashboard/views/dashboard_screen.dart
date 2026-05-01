@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/notifications/views/notifications_screen.dart';
 import 'package:universe_app/shared/widgets/action_card.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
 
@@ -73,6 +75,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   late final Animation<Offset> _slideAnim;
   late final Animation<double> _fadeAnim;
 
+  OverlayEntry? _bellOverlay;
+
   @override
   void initState() {
     super.initState();
@@ -99,13 +103,43 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.didChangeDependencies();
   }
 
-  // Re-run the slide-up whenever we come back to this route
   void _playEntryAnimation() {
     _entryController.forward(from: 0);
   }
 
+  void _showBellPopup() {
+    final unread = kNotifications.where((n) => !n.isRead).toList();
+    if (unread.isEmpty) {
+      context.push(AppRoutes.notifications);
+      return;
+    }
+    if (_bellOverlay != null) {
+      _dismissBellPopup();
+      return;
+    }
+    final topInset = MediaQuery.paddingOf(context).top;
+    _bellOverlay = OverlayEntry(
+      builder: (_) => _BellOverlay(
+        topInset: topInset,
+        onViewAll: () {
+          _dismissBellPopup();
+          context.push(AppRoutes.notifications);
+        },
+        onDismiss: _dismissBellPopup,
+        onBarrierTap: _dismissBellPopup,
+      ),
+    );
+    Overlay.of(context).insert(_bellOverlay!);
+  }
+
+  void _dismissBellPopup() {
+    _bellOverlay?.remove();
+    _bellOverlay = null;
+  }
+
   @override
   void dispose() {
+    _dismissBellPopup();
     _entryController.dispose();
     super.dispose();
   }
@@ -129,7 +163,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: <Widget>[
-                _TopHeader(displayName: displayName, topInset: topInset),
+                _TopHeader(
+                  displayName: displayName,
+                  topInset: topInset,
+                  onBellTap: _showBellPopup,
+                ),
                 // Slide-up + fade for white card section
                 SlideTransition(
                   position: _slideAnim,
@@ -137,6 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     opacity: _fadeAnim,
                     child: Container(
                       width: double.infinity,
+                      clipBehavior: Clip.none,
                       decoration: const BoxDecoration(
                         color: Color(0xFFF4FAFB),
                         borderRadius: BorderRadius.only(
@@ -144,25 +183,34 @@ class _DashboardScreenState extends State<DashboardScreen>
                           topRight: Radius.circular(32),
                         ),
                       ),
-                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          const _NoticesSection(),
-                          const SizedBox(height: 28),
-                          const _SectionLabel('Quick Actions'),
-                          const SizedBox(height: 6),
-                          _ActionGrid(
-                            onGateTap: () async {
-                              await context.push(AppRoutes.gateStatus);
-                              _playEntryAnimation();
-                            },
-                            onAttendanceTap: () async {
-                              await context.push(AppRoutes.attendance);
-                              _playEntryAnimation();
-                            },
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                            child: const _NoticesSection(),
                           ),
-                          SizedBox(height: bottomInset + navBarHeight + 16),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 28, 18, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                const _SectionLabel('Quick Actions'),
+                                const SizedBox(height: 6),
+                                _ActionGrid(
+                                  onGateTap: () async {
+                                    await context.push(AppRoutes.gateStatus);
+                                    _playEntryAnimation();
+                                  },
+                                  onAttendanceTap: () async {
+                                    await context.push(AppRoutes.attendance);
+                                    _playEntryAnimation();
+                                  },
+                                ),
+                                SizedBox(height: bottomInset + navBarHeight + 16),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -208,10 +256,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 // ─── Header ───────────────────────────────────────────────────────────────────
 
 class _TopHeader extends StatefulWidget {
-  const _TopHeader({required this.displayName, required this.topInset});
+  const _TopHeader({
+    required this.displayName,
+    required this.topInset,
+    required this.onBellTap,
+  });
 
   final String displayName;
   final double topInset;
+  final VoidCallback onBellTap;
 
   @override
   State<_TopHeader> createState() => _TopHeaderState();
@@ -293,35 +346,38 @@ class _TopHeaderState extends State<_TopHeader> {
               ),
               const Spacer(),
               // Notification bell
-              Stack(
-                children: <Widget>[
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.notifications_none_rounded,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDF5B6D),
+              GestureDetector(
+                onTap: widget.onBellTap,
+                child: Stack(
+                  children: <Widget>[
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: Icon(
+                        Icons.notifications_rounded,
+                        color: AppColors.primary,
+                        size: 24,
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDF5B6D),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -377,18 +433,24 @@ class _NoticesSectionState extends State<_NoticesSection> {
   late final PageController _pageController;
   Timer? _timer;
   int _active = 0;
+  static const int _kLargeItemCount = 10000;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.92);
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // Start at a page that is a multiple of the actual items count
+    final int initialPage = (_kLargeItemCount ~/ 2) - ((_kLargeItemCount ~/ 2) % _kAnnouncements.length);
+    _pageController = PageController(
+      viewportFraction: 0.92,
+      initialPage: initialPage,
+    );
+    _active = initialPage % _kAnnouncements.length;
+
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!_pageController.hasClients) return;
-      final int next = (_active + 1) % _kAnnouncements.length;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.easeInOut,
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
       );
     });
   }
@@ -417,28 +479,36 @@ class _NoticesSectionState extends State<_NoticesSection> {
               ),
             ),
             const Spacer(),
-            Text(
-              'View All',
-              style: TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary.withValues(alpha: 0.55),
+            GestureDetector(
+              onTap: () => context.push(AppRoutes.notices),
+              child: Text(
+                'View All',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary.withValues(alpha: 0.55),
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 150,
+          height: 162,
           child: PageView.builder(
             controller: _pageController,
-            itemCount: _kAnnouncements.length,
-            onPageChanged: (int v) => setState(() => _active = v),
-            itemBuilder: (BuildContext ctx, int i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _NoticeCard(announcement: _kAnnouncements[i]),
-            ),
+            clipBehavior: Clip.none,
+            itemCount: _kLargeItemCount,
+            onPageChanged: (int v) =>
+                setState(() => _active = v % _kAnnouncements.length),
+            itemBuilder: (BuildContext ctx, int i) {
+              final int index = i % _kAnnouncements.length;
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
+                child: _NoticeCard(announcement: _kAnnouncements[index]),
+              );
+            },
           ),
         ),
         const SizedBox(height: 10),
@@ -787,9 +857,9 @@ class _BottomNavBar extends StatelessWidget {
               onTap: () {},
             ),
             _NavItem(
-              icon: Icons.notifications_none_rounded,
+              icon: Icons.notifications_rounded,
               label: 'Notifications',
-              onTap: () => context.push(AppRoutes.messages),
+              onTap: () => context.push(AppRoutes.notifications),
             ),
             _NavItem(
               icon: Icons.smart_toy_outlined,
@@ -799,7 +869,7 @@ class _BottomNavBar extends StatelessWidget {
             _NavItem(
               icon: Icons.settings_outlined,
               label: 'Settings',
-              onTap: () {},
+              onTap: () => context.push(AppRoutes.settings),
             ),
           ],
         ),
@@ -807,6 +877,51 @@ class _BottomNavBar extends StatelessWidget {
     );
   }
 }
+
+// ─── Bell overlay (blurred backdrop + popup) ──────────────────────────────────
+
+class _BellOverlay extends StatelessWidget {
+  const _BellOverlay({
+    required this.topInset,
+    required this.onViewAll,
+    required this.onDismiss,
+    required this.onBarrierTap,
+  });
+
+  final double topInset;
+  final VoidCallback onViewAll;
+  final VoidCallback onDismiss;
+  final VoidCallback onBarrierTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Blurred barrier
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: onBarrierTap,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Container(color: Colors.black.withValues(alpha: 0.18)),
+            ),
+          ),
+        ),
+        // Popup anchored to top-right
+        Positioned(
+          top: topInset + 66,
+          right: 18,
+          child: UnreadNotificationPopup(
+            onViewAll: onViewAll,
+            onDismiss: onDismiss,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Nav item ─────────────────────────────────────────────────────────────────
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
