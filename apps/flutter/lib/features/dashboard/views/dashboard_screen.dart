@@ -253,15 +253,18 @@ class _TopHeaderState extends State<_TopHeader> {
           // Row: avatar + greeting | notification bell
           Row(
             children: <Widget>[
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white24, width: 2),
-                ),
-                child: const CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Color(0xFFE3C091),
-                  child: Icon(Icons.person, color: Color(0xFF374151), size: 24),
+              GestureDetector(
+                onTap: () => context.push(AppRoutes.profile),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 2),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFE3C091),
+                    child: Icon(Icons.person, color: Color(0xFF374151), size: 24),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -774,13 +777,30 @@ class _BottomNavBar extends StatelessWidget {
         height: 72 + bottomInset,
         padding: EdgeInsets.only(bottom: bottomInset),
         color: const Color(0xFF1A3A44),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            _NavItem(icon: Icons.home_filled, label: 'Home', isActive: true),
-            _NavItem(icon: Icons.notifications_none_rounded, label: 'Notifications'),
-            _NavItem(icon: Icons.smart_toy_outlined, label: 'Chat Bot'),
-            _NavItem(icon: Icons.settings_outlined, label: 'Settings'),
+            _NavItem(
+              icon: Icons.home_filled,
+              label: 'Home',
+              isActive: true,
+              onTap: () {},
+            ),
+            _NavItem(
+              icon: Icons.notifications_none_rounded,
+              label: 'Notifications',
+              onTap: () => context.push(AppRoutes.messages),
+            ),
+            _NavItem(
+              icon: Icons.smart_toy_outlined,
+              label: 'Chat Bot',
+              onTap: () => context.push(AppRoutes.chatbot),
+            ),
+            _NavItem(
+              icon: Icons.settings_outlined,
+              label: 'Settings',
+              onTap: () {},
+            ),
           ],
         ),
       ),
@@ -793,40 +813,49 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     this.isActive = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool isActive;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        if (isActive)
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            if (isActive)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 22, color: Colors.white),
+              )
+            else
+              Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.55)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                color: Colors.white.withValues(alpha: isActive ? 1.0 : 0.55),
+              ),
             ),
-            child: Icon(icon, size: 22, color: Colors.white),
-          )
-        else
-          Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.55)),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-            color: Colors.white.withValues(alpha: isActive ? 1.0 : 0.55),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
