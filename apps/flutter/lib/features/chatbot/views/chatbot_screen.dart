@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/core/di/service_locator.dart';
 
 // ─── Bot Constants ───────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   late List<_ChatMessage> _messages;
   late final AnimationController _entryCtrl;
   late final Animation<double> _fadeAnim;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -82,35 +84,57 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     super.dispose();
   }
 
-  void _send() {
-    final String text = _inputController.text.trim();
-    if (text.isEmpty) return;
+  String _formatTime() {
     final now = TimeOfDay.now();
-    final String time =
-        '${now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod}:${now.minute.toString().padLeft(2, '0')} ${now.period == DayPeriod.am ? 'AM' : 'PM'}';
-    
+    final h = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
+    final m = now.minute.toString().padLeft(2, '0');
+    final period = now.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$h:$m $period';
+  }
+
+  Future<void> _send() async {
+    final String text = _inputController.text.trim();
+    if (text.isEmpty || _isLoading) return;
+    final String time = _formatTime();
+
     setState(() {
+      _isLoading = true;
       _messages = List<_ChatMessage>.from(_messages)
         ..add(_ChatMessage(text: text, isMine: true, time: time));
     });
     _inputController.clear();
+    _scrollToBottom();
 
-    // Simulate bot response
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      final result = await ServiceLocator.instance.chatbotService.query(text);
+      if (!mounted) return;
+
+      // Build reply text — append source snippets if available
+      String replyText = result.answer;
+      if (result.sources.isNotEmpty && result.confidence > 0.3) {
+        final preview = result.sources.first;
+        replyText += '\n\n_Source: "$preview"_';
+      }
+
+      setState(() {
+        _messages = List<_ChatMessage>.from(_messages)
+          ..add(_ChatMessage(text: replyText, isMine: false, time: _formatTime(), isBot: true));
+      });
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _messages = List<_ChatMessage>.from(_messages)
           ..add(_ChatMessage(
-            text: 'I am processing your request about "$text". Please wait a moment...',
+            text: 'Sorry, I couldn\'t reach the server. Please check your connection and try again.',
             isMine: false,
-            time: time,
+            time: _formatTime(),
             isBot: true,
           ));
       });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
       _scrollToBottom();
-    });
-
-    _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -153,6 +177,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
             controller: _inputController,
             bottomInset: bottomInset,
             onSend: _send,
+            isLoading: _isLoading,
           ),
         ],
       ),
@@ -419,10 +444,12 @@ class _InputBar extends StatelessWidget {
     required this.controller,
     required this.bottomInset,
     required this.onSend,
+    this.isLoading = false,
   });
   final TextEditingController controller;
   final double bottomInset;
   final VoidCallback onSend;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -510,7 +537,9 @@ class _InputBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+              child: isLoading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
             ),
           ),
         ],

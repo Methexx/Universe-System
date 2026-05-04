@@ -2,11 +2,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CheckCircle,
   ChevronDown,
   ChevronUp,
-  Download,
+  Clock,
   Edit2,
-  Eye,
   Loader2,
   Plus,
   Search,
@@ -25,6 +25,12 @@ import {
   type GradeWithClasses,
   type TeacherInfo,
 } from "@/features/school/lib/school-api";
+import {
+  listDocuments,
+  uploadDocument,
+  deleteDocument,
+  type PolicyDocument,
+} from "@/features/rag/lib/rag-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -420,12 +426,56 @@ function GradeCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PoliciesPage() {
-  const documents = Array(5).fill({
-    name: "Student Handbook 2024.pdf",
-    size: "37.4MB",
-    date: "Oct 24, 2028",
-    status: "Active",
-  });
+  // Document library state
+  const [documents, setDocuments] = useState<PolicyDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [docsError, setDocsError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadDocuments = useCallback(async () => {
+    setDocsLoading(true);
+    setDocsError("");
+    const res = await listDocuments();
+    setDocsLoading(false);
+    if (!res.ok) { setDocsError(res.error); return; }
+    setDocuments(res.data);
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadDocuments(); }, [loadDocuments]);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploading(true);
+    const res = await uploadDocument(file);
+    setUploading(false);
+    if (!res.ok) { alert(res.error); return; }
+    // Add optimistic row — will show as processing until page refresh
+    setDocuments((prev) => [
+      { id: res.data.id, file_name: file.name, display_name: res.data.display_name, is_processed: false, chunk_count: 0, created_at: new Date().toISOString() },
+      ...prev,
+    ]);
+    // Poll once after 5s to update processed status
+    setTimeout(() => loadDocuments(), 5000);
+  }
+
+  async function handleDeleteDoc(id: string, displayName: string) {
+    if (!window.confirm(`Delete "${displayName}"? This will remove all associated chunks.`)) return;
+    setDeletingDocId(id);
+    const res = await deleteDocument(id);
+    setDeletingDocId(null);
+    if (!res.ok) { alert(res.error); return; }
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  }
+
+  const filteredDocs = documents.filter((d) =>
+    d.display_name.toLowerCase().includes(docSearch.toLowerCase())
+  );
 
   // Grades & classes state
   const [grades, setGrades] = useState<GradeWithClasses[]>([]);
@@ -539,64 +589,95 @@ export default function PoliciesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h2 className="text-[20px] font-bold text-[#0f172a]">Document Library</h2>
-          <button className="flex items-center gap-2 rounded-lg bg-[#3b82f6] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 shadow-sm">
-            <Plus className="h-4 w-4" strokeWidth={3} />
-            Upload Documents
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 rounded-lg bg-[#3b82f6] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 shadow-sm disabled:opacity-60"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={3} />}
+            {uploading ? "Uploading…" : "Upload Documents"}
           </button>
+          <input ref={fileInputRef} type="file" accept=".pdf,.txt" className="hidden" onChange={handleUpload} />
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative w-full max-w-[320px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search Documents by name"
-              className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-[13px] font-semibold text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <select className="rounded-lg border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-[#64748b] bg-white outline-none w-32 cursor-pointer focus:border-blue-500">
-              <option>All Statuses</option>
-            </select>
-            <select className="rounded-lg border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-[#64748b] bg-white outline-none w-32 cursor-pointer focus:border-blue-500">
-              <option>All Plans</option>
-            </select>
-          </div>
+        <div className="relative w-full max-w-[320px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search Documents by name"
+            value={docSearch}
+            onChange={(e) => setDocSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-[13px] font-semibold text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-          <table className="w-full text-left">
-            <thead className="bg-white border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Documents</th>
-                <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Size</th>
-                <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Uploaded Date</th>
-                <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Status</th>
-                <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {documents.map((doc, idx) => (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-[18px] text-[13px] font-bold text-[#0f172a]">{doc.name}</td>
-                  <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">{doc.size}</td>
-                  <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">{doc.date}</td>
-                  <td className="px-6 py-[18px]">
-                    <span className="rounded-md bg-[#dcfce7] px-2.5 py-1 text-[11px] font-bold text-[#16a34a]">{doc.status}</span>
-                  </td>
-                  <td className="px-6 py-[18px]">
-                    <div className="flex items-center gap-2">
-                      {[Download, Eye, Edit2, Trash2].map((Icon, i) => (
-                        <button key={i} className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-[#64748b] hover:bg-gray-100 transition-colors">
-                          <Icon className="h-4 w-4" />
-                        </button>
-                      ))}
-                    </div>
-                  </td>
+          {docsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-[13px] font-semibold text-[#64748b]">
+              <Loader2 className="h-5 w-5 animate-spin text-[#3b82f6]" />
+              Loading documents…
+            </div>
+          ) : docsError ? (
+            <div className="px-6 py-4 text-[13px] font-semibold text-red-500">
+              Failed to load: {docsError}
+              <button onClick={loadDocuments} className="ml-3 underline">Retry</button>
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-14 text-[13px] font-semibold text-[#64748b]">
+              <p className="font-bold text-[#0f172a]">{documents.length === 0 ? "No documents uploaded yet" : "No results"}</p>
+              {documents.length === 0 && <p>Click &ldquo;Upload Documents&rdquo; to add a policy PDF</p>}
+            </div>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-white border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Document</th>
+                  <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Chunks</th>
+                  <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Uploaded</th>
+                  <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Status</th>
+                  <th className="px-6 py-4 text-[13px] font-bold text-[#64748b]">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredDocs.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-[18px]">
+                      <p className="text-[13px] font-bold text-[#0f172a]">{doc.display_name}</p>
+                      <p className="text-[11px] font-semibold text-[#94a3b8]">{doc.file_name}</p>
+                    </td>
+                    <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
+                      {doc.is_processed ? doc.chunk_count : "—"}
+                    </td>
+                    <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
+                      {new Date(doc.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-[18px]">
+                      {doc.is_processed ? (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-[#16a34a]">
+                          <CheckCircle className="h-3.5 w-3.5" /> Ready
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-[#d97706]">
+                          <Clock className="h-3.5 w-3.5" /> Processing
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-[18px]">
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id, doc.display_name)}
+                        disabled={deletingDocId === doc.id}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fef2f2] text-[#ef4444] hover:bg-red-100 transition-colors disabled:opacity-50"
+                      >
+                        {deletingDocId === doc.id
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

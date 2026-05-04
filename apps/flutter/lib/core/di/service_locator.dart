@@ -4,6 +4,7 @@ import 'package:universe_app/core/api/api_config.dart';
 import 'package:universe_app/core/services/firebase_service.dart';
 import 'package:universe_app/core/storage/secure_storage.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
+import 'package:universe_app/features/chatbot/services/chatbot_service.dart';
 import 'package:universe_app/features/messages/repositories/messages_repository.dart';
 
 class ServiceLocator {
@@ -15,6 +16,7 @@ class ServiceLocator {
   late final SecureStorageService secureStorageService;
   late final AuthRepository authRepository;
   late final MessagesRepository messagesRepository;
+  late final ChatbotService chatbotService;
   late final FirebaseService firebaseService;
 
   void setup() {
@@ -25,6 +27,7 @@ class ServiceLocator {
       secureStorage: secureStorageService,
     );
     messagesRepository = MessagesRepository(apiClient);
+    chatbotService = ChatbotService(dio: apiClient.dio, storage: secureStorageService);
     firebaseService = FirebaseService();
     firebaseService.initialize();
   }
