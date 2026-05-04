@@ -14,6 +14,8 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
   OPENAI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: z.string().min(1),
   FIREBASE_PROJECT_ID: z.string().optional(),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   FLUTTER_ORIGIN: z.string().url().default('http://localhost:3001'),

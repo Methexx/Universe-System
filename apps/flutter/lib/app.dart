@@ -25,6 +25,7 @@ class UniverseApp extends StatelessWidget {
         title: AppStrings.appName,
         theme: AppTheme.light,
         routerConfig: AppRouter.router,
+        debugShowCheckedModeBanner: false,
       ),
     );
   }

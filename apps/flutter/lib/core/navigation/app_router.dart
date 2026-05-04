@@ -1,13 +1,55 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/features/auth/views/forgot_password_screen.dart';
 import 'package:universe_app/features/auth/views/login_screen.dart';
 import 'package:universe_app/features/auth/views/registration_otp_screen.dart';
 import 'package:universe_app/features/dashboard/views/dashboard_screen.dart';
+import 'package:universe_app/features/attendance/views/attendance_screen.dart';
+import 'package:universe_app/features/support/views/support_screen.dart';
+import 'package:universe_app/features/gate/views/gate_status_screen.dart';
 import 'package:universe_app/features/splash/views/splash_screen.dart';
 import 'package:universe_app/features/splash/views/welcome_screen.dart';
 import 'package:universe_app/features/auth/views/register_screen.dart';
 import 'package:universe_app/features/messages/views/messages_screen.dart';
+import 'package:universe_app/features/profile/views/profile_setup_screen.dart';
+import 'package:universe_app/features/contact_teacher/views/teacher_chat_screen.dart';
+import 'package:universe_app/features/lost_and_found/views/lost_and_found_screen.dart';
+import 'package:universe_app/features/results/views/results_screen.dart';
+import 'package:universe_app/features/chatbot/views/chatbot_screen.dart';
+import 'package:universe_app/features/profile/views/profile_screen.dart';
+import 'package:universe_app/features/settings/views/settings_screen.dart';
+import 'package:universe_app/features/notices/views/notices_screen.dart';
+import 'package:universe_app/features/notifications/views/notifications_screen.dart';
+
+CustomTransitionPage<void> _slideTransition({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 420),
+    reverseTransitionDuration: const Duration(milliseconds: 320),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1.0, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -44,6 +86,87 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.messages,
         builder: (context, state) => const MessagesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileSetup,
+        builder: (context, state) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.support,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const SupportScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.attendance,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const AttendanceScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.gateStatus,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const GateStatusScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.teacherChat,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const TeacherChatScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.lostAndFound,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const LostAndFoundScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.results,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const ResultsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.chatbot,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const ChatBotScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const ProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.notices,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const NoticesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+        ),
       ),
     ],
   );
