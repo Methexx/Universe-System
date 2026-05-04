@@ -130,7 +130,7 @@ class ApiAuthRepository implements AuthRepository {
       ApiEndpoints.verifyOtp,
       data: {
         'email': email.trim(),
-        'otp': otp.trim(),
+        'otp_code': otp.trim(),
       },
     );
 
@@ -165,7 +165,7 @@ class ApiAuthRepository implements AuthRepository {
       ApiEndpoints.resetPassword,
       data: {
         'email': email.trim(),
-        'otp': otp.trim(),
+        'otp_code': otp.trim(),
         'new_password': newPassword,
       },
     );
