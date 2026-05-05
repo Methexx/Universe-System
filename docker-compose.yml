@@ -9,9 +9,8 @@ services:
 
   backend:
     build:
-      context: ./apps/backend
-      # TODO: create apps/backend/Dockerfile for production (multi-stage, no devDependencies)
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/backend/Dockerfile.dev
     restart: unless-stopped
     ports:
       - "5000:5000"
@@ -25,9 +24,8 @@ services:
 
   frontend:
     build:
-      context: ./apps/frontend
-      # TODO: create apps/frontend/Dockerfile for production (multi-stage next build)
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/frontend/Dockerfile.dev
     restart: unless-stopped
     ports:
       - "3000:3000"

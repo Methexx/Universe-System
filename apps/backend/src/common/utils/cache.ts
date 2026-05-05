@@ -29,7 +29,7 @@ export const delCache = async (key: string): Promise<void> => {
 export const delCacheByPattern = async (pattern: string): Promise<void> => {
   if (!redis?.isOpen) return;
 
-  let cursor = '0';
+  let cursor = 0;
   do {
     const result = await redis.scan(cursor, {
       MATCH: pattern,
@@ -41,7 +41,7 @@ export const delCacheByPattern = async (pattern: string): Promise<void> => {
     if (result.keys.length > 0) {
       await redis.del(result.keys);
     }
-  } while (cursor !== '0');
+  } while (cursor !== 0);
 };
 
 export const getOrSetCache = async <T>(
