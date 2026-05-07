@@ -26,6 +26,11 @@ export default async function gateRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin', 'security', 'teacher'])]
   }, GateController.getStudentByIdNo);
 
+  // Search students by name or ID for autocomplete
+  fastify.get<{ Querystring: { q: string } }>('/search', {
+    preHandler: [authorize(['admin', 'security', 'teacher'])]
+  }, GateController.searchStudents);
+
   // Gate stats for dashboard cards
   fastify.get('/stats', {
     preHandler: [authorize(['admin', 'security', 'teacher'])]

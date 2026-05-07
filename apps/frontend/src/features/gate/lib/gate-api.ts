@@ -47,6 +47,10 @@ export function getStudentByIdNo(student_id_no: string) {
   return request<GateStudentResult>(`/api/gate/student?id=${encodeURIComponent(student_id_no)}`);
 }
 
+export function searchStudents(query: string) {
+  return request<GateStudentResult[]>(`/api/gate/search?q=${encodeURIComponent(query)}`);
+}
+
 export type ManualScanBody = {
   qr_code: string;
   direction: 'IN' | 'OUT';

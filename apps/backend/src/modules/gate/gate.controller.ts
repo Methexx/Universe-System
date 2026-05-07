@@ -111,6 +111,42 @@ export class GateController {
     }
   }
 
+  // GET /api/gate/search?q=000
+  static async searchStudents(
+    request: FastifyRequest<{ Querystring: { q: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const query = request.query.q || '';
+      if (!query.trim()) {
+        return reply.status(200).send({ success: true, data: [] });
+      }
+
+      const students = await prisma.student.findMany({
+        where: {
+          OR: [
+            { full_name: { contains: query, mode: 'insensitive' } },
+            { student_id_no: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        take: 10,
+        include: {
+          class: {
+            include: {
+              school_grade: true,
+              teacher: { select: { id: true, full_name: true, email: true } }
+            }
+          }
+        }
+      });
+
+      return reply.status(200).send({ success: true, data: students });
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, message: 'Internal server error' });
+    }
+  }
+
   // GET /api/gate/stats
   static async getStats(_request: FastifyRequest, reply: FastifyReply) {
     try {
