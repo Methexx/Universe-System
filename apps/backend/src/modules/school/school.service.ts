@@ -252,35 +252,38 @@ export class SchoolService {
   }
 
   static async getOverviewStats() {
-    const [activeStudents, suspendedStudents, suspendedUsers] = await Promise.all([
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const [activeStudents, suspendedStudents, suspendedUsers, attendanceCount, yesterdayCount] = await Promise.all([
       prisma.student.count({ where: { is_active: true } }),
       prisma.student.count({ where: { is_active: false } }),
-      prisma.user.count({ 
-        where: { 
+      prisma.user.count({
+        where: {
           OR: [
             { is_suspended: true },
             { is_active: false }
           ],
-          role: { not: 'pending' } // Don't count pending approvals as suspended
-        } 
+          role: { not: 'pending' }
+        }
+      }),
+      prisma.attendanceRecord.count({
+        where: { date: today, status: 'present' }
+      }),
+      prisma.attendanceRecord.count({
+        where: { date: yesterday, status: 'present' }
       }),
     ]);
-
-    // Mock attendance data for now as we don't have a robust way to calculate it yet
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const attendanceCount = await prisma.attendanceRecord.count({
-      where: {
-        date: today,
-        status: 'present'
-      }
-    });
 
     return {
       activeStudents,
       suspendedStudents,
       lockedAccounts: suspendedStudents + suspendedUsers,
-      todayAttendance: attendanceCount || 13245,
+      todayAttendance: attendanceCount,
+      yesterdayAttendance: yesterdayCount,
     };
   }
 }

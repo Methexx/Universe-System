@@ -160,6 +160,7 @@ export type OverviewStats = {
   suspendedStudents: number;
   lockedAccounts: number;
   todayAttendance: number;
+  yesterdayAttendance: number;
 };
 
 export function getOverviewStats() {

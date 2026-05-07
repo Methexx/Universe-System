@@ -134,6 +134,8 @@ export default function TeachersPage() {
                 idColumnHeader="Teacher ID"
                 emptyMessage="No teachers found matching your criteria."
                 showEdit={true}
+                hideClass={true}
+                hideGender={true}
                 onEdit={handleEditClick}
               />
             </div>

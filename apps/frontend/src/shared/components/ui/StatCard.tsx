@@ -8,8 +8,8 @@ interface StatCardProps {
   icon: LucideIcon;
   trendValue?: number | string; // e.g. "+12.5%" or 12.5
   trendDirection?: "up" | "down" | "neutral";
-  variant?: "default" | "danger" | "success" | "warning";
-  action?: React.ReactNode; 
+  variant?: "default" | "danger" | "success" | "warning" | "active" | "suspended";
+  action?: React.ReactNode;
 }
 
 export function StatCard({ 
@@ -47,7 +47,19 @@ export function StatCard({
       iconBox: "bg-[#fef9c3] text-[#ca8a04] border-[#fef08a]",
       titleText: "text-[#ca8a04]",
       valueText: "text-[#0f172a]",
-    }
+    },
+    active: {
+      wrapper: "border border-[#e0e7ff] bg-white",
+      iconBox: "bg-[#f8fafc] text-[#64748b] border-[#f1f5f9]",
+      titleText: "text-[#64748b]",
+      valueText: "text-[#cbd5e1]",
+    },
+    suspended: {
+      wrapper: "border border-[#ffcfca] bg-[#ffeae6]",
+      iconBox: "bg-[#fff2ef] text-[#475569] border-[#ffddd7]",
+      titleText: "text-[#475569]",
+      valueText: "text-[#f97316]",
+    },
   };
 
   const selectedStyles = variantStyles[variant];
@@ -57,7 +69,7 @@ export function StatCard({
 
   return (
     <div className={clsx(
-      "col-span-1 rounded-2xl p-[22px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[180px] transition-colors",
+      "col-span-1 rounded-2xl p-[22px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[180px] transition-all duration-200 hover:-translate-y-1 hover:scale-[1.03] hover:shadow-lg",
       selectedStyles.wrapper
     )}>
       <div className="flex items-center justify-between">
