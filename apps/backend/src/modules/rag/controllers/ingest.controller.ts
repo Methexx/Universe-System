@@ -47,6 +47,7 @@ export async function ingestDocument(request: FastifyRequest, reply: FastifyRepl
   }
 
   const user = (request as any).user;
+  const userId = user.userId ?? user.id;
   const displayName = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
   const storagePath = `policy-documents/${Date.now()}-${filename}`;
 
@@ -62,7 +63,7 @@ export async function ingestDocument(request: FastifyRequest, reply: FastifyRepl
   // Create DB record as unprocessed first so admin sees it immediately
   const doc = await prisma.policyDocument.create({
     data: {
-      uploaded_by: user.id,
+      uploader: { connect: { id: userId } },
       file_name: filename,
       display_name: displayName,
       storage_path: storagePath,
