@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 const ROLE_DASHBOARD: Record<string, string> = {
   admin: '/admin/overview',
   teacher: '/teacher/overview',
-  security: '/security/overview',
+  security: '/security/dashboard',
   pending: '/pending',
 };
 
