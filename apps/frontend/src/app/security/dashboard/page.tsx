@@ -62,8 +62,9 @@ export default function SecurityDashboardPage() {
           variant="default"
           action={
             <PrimaryButton
+              variant="blue"
               onClick={() => setActiveTab('Manual Entry')}
-              className="!py-1.5 !px-4 !text-xs !w-auto !rounded-full !h-auto flex items-center justify-center m-0"
+              className="px-4 py-1.5 text-xs font-bold rounded-full flex items-center justify-center m-0"
             >
               View
             </PrimaryButton>
@@ -76,8 +77,9 @@ export default function SecurityDashboardPage() {
           variant="default"
           action={
             <PrimaryButton
+              variant="blue"
               onClick={() => setActiveTab('Scan QR')}
-              className="!py-1.5 !px-4 !text-xs !w-auto !rounded-full !h-auto flex items-center justify-center m-0"
+              className="px-4 py-1.5 text-xs font-bold rounded-full flex items-center justify-center m-0"
             >
               Scan
             </PrimaryButton>

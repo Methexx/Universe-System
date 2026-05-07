@@ -197,9 +197,10 @@ export function ManualEntry() {
           )}
         </div>
         <PrimaryButton
+          variant="blue"
           onClick={handleSearch}
           disabled={searching || !searchInput.trim()}
-          className="!py-2 !px-4 !w-auto !text-[13px] flex items-center justify-center gap-1.5 !rounded-xl"
+          className="!py-2 !px-4 !w-auto !text-[13px] font-bold flex items-center justify-center gap-1.5 !rounded-xl"
         >
           {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           Search

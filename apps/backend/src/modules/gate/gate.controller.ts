@@ -187,9 +187,18 @@ export class GateController {
       const yesterdayStart = new Date(todayStart);
       yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-      let timestampFilter: any = { gte: yesterdayStart }; // default: today + yesterday
+      const weekAgoStart = new Date(todayStart);
+      weekAgoStart.setDate(weekAgoStart.getDate() - 6);
+      let timestampFilter: any = { gte: weekAgoStart }; // default: last 7 days
       if (date === 'today')     timestampFilter = { gte: todayStart };
       if (date === 'yesterday') timestampFilter = { gte: yesterdayStart, lt: todayStart };
+      if (date && date !== 'today' && date !== 'yesterday') {
+        const specificDate = new Date(date);
+        specificDate.setHours(0, 0, 0, 0);
+        const specificDateEnd = new Date(specificDate);
+        specificDateEnd.setDate(specificDateEnd.getDate() + 1);
+        timestampFilter = { gte: specificDate, lt: specificDateEnd };
+      }
 
       const whereClause: any = { timestamp: timestampFilter };
       if (method) whereClause.method = method;
