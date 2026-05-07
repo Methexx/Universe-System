@@ -53,20 +53,22 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
-    setGateLoading(true);
     const dateParam =
-      gateTime === 'today'     ? 'today'
+      gateTime === 'today'      ? 'today'
       : gateTime === 'yesterday' ? 'yesterday'
       : gateTime === 'pick'      ? (gatePickedDate || undefined)
       : undefined;
 
+    let cancelled = false;
     getGateEvents({
       method: gateStatus || undefined,
       date:   dateParam,
     }).then(res => {
+      if (cancelled) return;
       if (res.ok) setGateLogs(res.data);
       setGateLoading(false);
     });
+    return () => { cancelled = true; };
   }, [gateStatus, gateTime, gatePickedDate]);
 
   const filteredGateLogs = gateLogs.filter(log =>
