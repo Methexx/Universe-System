@@ -8,7 +8,6 @@ import { Search, Loader2, CheckCircle, AlertCircle,
 import { getStudentByIdNo, searchStudents, submitManualEntry, GateStudentResult } from "@/features/gate/lib/gate-api";
 import clsx from "clsx";
 import { FilterBar } from "@/shared/components/ui/FilterBar";
-import { PrimaryButton } from "@/shared/components/ui/primary-button";
 
 const AVATAR_COLORS = [
   "bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500",
@@ -196,15 +195,14 @@ export function ManualEntry() {
             </div>
           )}
         </div>
-        <PrimaryButton
-          variant="blue"
+        <button
           onClick={handleSearch}
           disabled={searching || !searchInput.trim()}
-          className="!py-2 !px-4 !w-auto !text-[13px] font-bold flex items-center justify-center gap-1.5 !rounded-xl"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#3b82f6] hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer ml-auto xl:ml-0"
         >
-          {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          {searching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
           Search
-        </PrimaryButton>
+        </button>
         {searchError && (
           <div className="flex items-center gap-1.5 text-red-500 text-[12px] font-medium">
             <AlertCircle className="w-4 h-4 shrink-0" />
