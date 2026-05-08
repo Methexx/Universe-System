@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { TabSelector } from "@/shared/components/ui/TabSelector";
+import { TabSelectorV2 } from "@/shared/components/ui/TabSelectorV2";
 import { FilterBar } from "@/shared/components/ui/FilterBar";
 import {
   Calendar as CalendarIcon,
@@ -338,32 +339,14 @@ export default function TeacherAttendancePage() {
         Updated Attendance Module
       </div>
 
-      <div className="inline-flex max-w-fit rounded-xl border border-gray-200 bg-white p-2 text-[14px] shadow-sm">
-        <button
-          type="button"
-          onClick={() => setSelectedClass("10-A")}
-          className={clsx(
-            "rounded-lg px-6 py-2 font-bold transition-all",
-            selectedClass === "10-A"
-              ? "bg-[#4f46e5] text-white"
-              : "text-gray-500 hover:bg-gray-50"
-          )}
-        >
-          10-A
-        </button>
-        <button
-          type="button"
-          onClick={() => setSelectedClass("11-B")}
-          className={clsx(
-            "rounded-lg px-6 py-2 font-bold transition-all",
-            selectedClass === "11-B"
-              ? "bg-[#4f46e5] text-white"
-              : "text-gray-500 hover:bg-gray-50"
-          )}
-        >
-          11-B
-        </button>
-      </div>
+      <TabSelectorV2
+        activeTab={selectedClass}
+        onTabChange={(id) => setSelectedClass(id as "10-A" | "11-B")}
+        options={[
+          { id: "10-A", label: "10-A" },
+          { id: "11-B", label: "11-B" },
+        ]}
+      />
 
       <div className="mt-4 flex min-h-[500px] flex-col">
         <div className="mb-6 border-b border-[#e2e8f0] pb-4">

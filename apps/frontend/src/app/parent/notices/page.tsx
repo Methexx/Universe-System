@@ -49,6 +49,7 @@ export default function ParentNoticesPage() {
       <PageHeader
         title="Notice Board"
         subtitle="Stay updated with official school announcements and important events"
+        onRefresh={fetchNotices}
       />
 
       {/* Error Alert */}

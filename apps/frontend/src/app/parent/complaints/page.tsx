@@ -102,6 +102,7 @@ export default function ParentComplaintsPage() {
       <PageHeader
         title="Complaints & Suggestions"
         subtitle="Submit concerns, suggestions, or complaints to school administration"
+        onRefresh={fetchComplaints}
       />
 
       {error && (

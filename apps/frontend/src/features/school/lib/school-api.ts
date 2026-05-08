@@ -34,6 +34,7 @@ export type ClassItem = {
   id: string;
   name: string;
   teacher: TeacherInfo | null;
+  school_grade?: { id: string; name: string };
 };
 
 export type GradeWithClasses = {
@@ -171,8 +172,9 @@ export type OverviewStats = {
   yesterdayAttendance: number;
 };
 
-export function getOverviewStats() {
-  return request<OverviewStats>('/api/school/overview/stats');
+export function getOverviewStats(classId?: string) {
+  const query = classId ? `?class_id=${encodeURIComponent(classId)}` : '';
+  return request<OverviewStats>(`/api/school/overview/stats${query}`);
 }
 
 export type RecentActivity = {

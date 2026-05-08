@@ -56,16 +56,6 @@ export class SchoolService {
     });
   }
 
-  static async getMyClasses(teacherId: string) {
-    return prisma.class.findMany({
-      where: { teacher_id: teacherId },
-      include: {
-        school_grade: true,
-        _count: { select: { students: true } }
-      }
-    });
-  }
-
   static async getClassStudents(classId: string) {
     return prisma.student.findMany({
       where: { class_id: classId },
@@ -251,7 +241,7 @@ export class SchoolService {
     });
   }
 
-  static async getOverviewStats() {
+  static async getOverviewStats(classId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -259,12 +249,12 @@ export class SchoolService {
     yesterday.setDate(yesterday.getDate() - 1);
 
     const [activeStudents, suspendedStudents, todayGateCheckIns, yesterdayGateCheckIns] = await Promise.all([
-      prisma.student.count({ where: { is_active: true } }),
+      prisma.student.count({ where: { is_active: true, ...(classId ? { class_id: classId } : {}) } }),
       // Suspended students = students with is_active: false
-      prisma.student.count({ where: { is_active: false } }),
+      prisma.student.count({ where: { is_active: false, ...(classId ? { class_id: classId } : {}) } }),
       // Gate check-ins as the attendance figure (matches attendance page stat card)
-      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: today } } }),
-      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: yesterday, lt: today } } }),
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: today }, ...(classId ? { student: { class_id: classId } } : {}) } }),
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: yesterday, lt: today }, ...(classId ? { student: { class_id: classId } } : {}) } }),
     ]);
 
     return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { StatCard } from "@/shared/components/ui/StatCard";
@@ -89,18 +89,17 @@ function OverviewContent() {
     }
   };
 
-  useEffect(() => {
-    const initialCheck = setTimeout(() => {
-      checkSystemStatus();
-      getOverviewStats().then(res => {
-        if (res.ok) setStats(res.data);
-      });
-      getRecentActivity().then(res => {
-        if (res.ok) setRecentActivities(res.data);
-      });
-    }, 0);
-    return () => clearTimeout(initialCheck);
+  const fetchData = useCallback(async () => {
+    checkSystemStatus();
+    const [statsRes, activityRes] = await Promise.all([getOverviewStats(), getRecentActivity()]);
+    if (statsRes.ok) setStats(statsRes.data);
+    if (activityRes.ok) setRecentActivities(activityRes.data);
   }, []);
+
+  useEffect(() => {
+    const initialCheck = setTimeout(() => { fetchData(); }, 0);
+    return () => clearTimeout(initialCheck);
+  }, [fetchData]);
 
   // Fetch real timeseries data when timeRange changes
   useEffect(() => {
@@ -132,6 +131,7 @@ function OverviewContent() {
       <PageHeader
         title="Overview"
         subtitle={`Welcome back ${displayName}!`}
+        onRefresh={fetchData}
       />
 
       <div className="relative mt-2">

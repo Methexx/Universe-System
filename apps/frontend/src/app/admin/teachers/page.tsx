@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
 import { DirectoryTable } from '@/shared/components/ui/DirectoryTable';
@@ -40,16 +40,19 @@ export default function TeachersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
 
-  useEffect(() => {
-    getTeachersAdmin().then(res => {
-      if (res.ok) {
-        const mapped = res.data.map(mapApiTeacherToTeacher);
-        setTeachers(mapped);
-        if (mapped.length > 0) setSelectedTeacherId(mapped[0].id);
-      }
-      setIsLoading(false);
-    });
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    const res = await getTeachersAdmin();
+    if (res.ok) {
+      const mapped = res.data.map(mapApiTeacherToTeacher);
+      setTeachers(mapped);
+      if (mapped.length > 0) setSelectedTeacherId(mapped[0].id);
+    }
+    setIsLoading(false);
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filteredTeachers = teachers.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.id.includes(searchQuery);
@@ -84,6 +87,7 @@ export default function TeachersPage() {
       <PageHeader
         title="Teachers Management"
         subtitle="Manage Teachers records, enrollment, and academic information"
+        onRefresh={fetchData}
       />
 
       <div className="flex flex-col xl:flex-row items-start lg:items-center justify-between gap-4 mt-2">

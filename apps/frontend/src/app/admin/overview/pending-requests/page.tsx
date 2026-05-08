@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, Check, X, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
@@ -31,19 +31,22 @@ export default function PendingRequestsPage() {
   const [processing, setProcessing] = useState<Record<string, "approving" | "rejecting" | null>>({});
   const [done, setDone] = useState<Record<string, "approved" | "rejected">>({});
 
-  useEffect(() => {
-    getPendingUsers().then((result) => {
-      if (result.ok) {
-        setUsers(result.data);
-        const defaults: Record<string, ApprovableRole> = {};
-        result.data.forEach((u) => { defaults[u.id] = (u.requested_role as ApprovableRole) || "teacher"; });
-        setSelectedRoles(defaults);
-      } else {
-        setError("Failed to load pending users.");
-      }
-      setLoading(false);
-    });
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const result = await getPendingUsers();
+    if (result.ok) {
+      setUsers(result.data);
+      const defaults: Record<string, ApprovableRole> = {};
+      result.data.forEach((u) => { defaults[u.id] = (u.requested_role as ApprovableRole) || "teacher"; });
+      setSelectedRoles(defaults);
+    } else {
+      setError("Failed to load pending users.");
+    }
+    setLoading(false);
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   async function handleApprove(id: string) {
     const role = selectedRoles[id] ?? "teacher";
@@ -81,6 +84,7 @@ export default function PendingRequestsPage() {
       <PageHeader
         title="Pending Requests"
         subtitle={`${pendingCount} account${pendingCount !== 1 ? "s" : ""} awaiting approval`}
+        onRefresh={fetchData}
       />
 
       {loading && (

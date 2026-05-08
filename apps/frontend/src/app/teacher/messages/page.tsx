@@ -351,6 +351,7 @@ export default function TeacherMessagesPage() {
     <div className="flex w-full flex-col gap-[20px] pb-12 pr-2">
       <PageHeader
         title="Messages"
+        onRefresh={fetchData}
         subtitle={
           totalUnread > 0
             ? `${totalUnread} unread message${totalUnread > 1 ? "s" : ""}`
