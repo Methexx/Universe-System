@@ -85,6 +85,10 @@ export function getStudents() {
   return request<StudentRecord[]>('/api/school/students');
 }
 
+export function getClassStudents(classId: string) {
+  return request<StudentRecord[]>(`/api/school/classes/${classId}/students`);
+}
+
 export function createStudent(body: CreateStudentBody) {
   return request<StudentRecord>('/api/school/students', {
     method: 'POST',

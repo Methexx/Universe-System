@@ -72,7 +72,7 @@ export default function TeacherOverviewPage() {
         <div className={isPending ? "pointer-events-none blur-[6px] opacity-60 transition-all duration-500 select-none" : ""}>
           {classes.length > 0 ? (
             <>
-              <div>
+              <div className="mb-6">
                 <TabSelectorV2
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
@@ -80,18 +80,19 @@ export default function TeacherOverviewPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4 mt-2">
-                <AttendanceDonutChart
-                  todayAttendance={stats?.todayAttendance ?? 0}
-                  activeStudents={stats?.activeStudents ?? 0}
-                  suspendedAccounts={stats?.suspendedStudents ?? 0}
-                />
-                <StatCard title="Today's Gate Attendance" value={stats?.todayAttendance?.toString() ?? "0"} icon={Eye} />
-                <StatCard title="Late Attendance" value="0" icon={Eye} variant="danger" />
-                <StatCard title="Today Absentees" value={Math.max(0, (stats?.activeStudents ?? 0) - (stats?.todayAttendance ?? 0)).toString()} icon={Eye} variant="danger" />
-              </div>
+              <div key={activeTab} className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4">
+                  <AttendanceDonutChart
+                    todayAttendance={stats?.todayAttendance ?? 0}
+                    activeStudents={stats?.activeStudents ?? 0}
+                    suspendedAccounts={stats?.suspendedStudents ?? 0}
+                  />
+                  <StatCard title="Today's Gate Attendance" value={stats?.todayAttendance?.toString() ?? "0"} icon={Eye} />
+                  <StatCard title="Late Attendance" value="0" icon={Eye} variant="danger" />
+                  <StatCard title="Today Absentees" value={Math.max(0, (stats?.activeStudents ?? 0) - (stats?.todayAttendance ?? 0)).toString()} icon={Eye} variant="danger" />
+                </div>
 
-              <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden mt-2">
+                <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
                 <div className="overflow-x-auto w-full">
                   <table className="w-full text-left text-[14px] whitespace-nowrap min-w-[700px]">
                     <thead className="bg-[#fafafa] border-b border-[#e2e8f0] text-[#64748b] font-bold text-[13px] tracking-wider">
@@ -137,6 +138,7 @@ export default function TeacherOverviewPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
                 </div>
               </div>
             </>

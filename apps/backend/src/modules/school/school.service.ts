@@ -59,6 +59,14 @@ export class SchoolService {
   static async getClassStudents(classId: string) {
     return prisma.student.findMany({
       where: { class_id: classId },
+      include: {
+        class: {
+          include: {
+            school_grade: { select: { id: true, name: true } },
+            teacher: { select: { id: true, full_name: true } }
+          }
+        }
+      },
       orderBy: { full_name: 'asc' }
     });
   }
