@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { TabSelector } from "@/shared/components/ui/TabSelector";
 import { TabSelectorV2 } from "@/shared/components/ui/TabSelectorV2";
@@ -12,48 +12,64 @@ import {
   FileText,
   ShieldAlert,
   X,
+  MessageSquare,
 } from "lucide-react";
 import clsx from "clsx";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { getClassStudents, StudentRecord } from "@/features/school/lib/school-api";
+import { getGateEvents, GateLogRow } from "@/features/gate/lib/gate-api";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 type AttendanceTab = "today" | "history" | "by-student";
 type MarkStatus = "present" | "absent" | "late";
 
-type StudentRow = {
-  id: string;
-  name: string;
-  className: "10-A" | "11-B";
-  gateScanned: boolean;
-  excuseNote?: string;
-};
 
-const STUDENTS: StudentRow[] = [
-  { id: "29854", name: "Amara Nkwonta", className: "10-A", gateScanned: true },
-  { id: "18392", name: "Ikenna Okoro", className: "10-A", gateScanned: true },
-  {
-    id: "29855",
-    name: "Ngozi Eze",
-    className: "10-A",
-    gateScanned: false,
-    excuseNote: "Doctor appointment at 10:00 AM",
-  },
-  { id: "40122", name: "Obinna Okafor", className: "11-B", gateScanned: true },
-  {
-    id: "10293",
-    name: "Adaobi Musa",
-    className: "11-B",
-    gateScanned: false,
-    excuseNote: "Family emergency; parent informed class teacher",
-  },
-];
 
 export default function TeacherAttendancePage() {
-  const [activeTab, setActiveTab] = useState<AttendanceTab>("today");
-  const [selectedClass, setSelectedClass] = useState<"10-A" | "11-B">("10-A");
+  const { user } = useAuth();
+  const classes = useMemo(() => user?.classes_taught ?? [], [user?.classes_taught]);
 
-  const [sessionCreated, setSessionCreated] = useState<Record<string, boolean>>({
-    "10-A": false,
-    "11-B": false,
-  });
+  const [activeTab, setActiveTab] = useState<AttendanceTab>("today");
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedClassId && classes.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
+
+  const [studentsData, setStudentsData] = useState<StudentRecord[]>([]);
+  const [gateLogs, setGateLogs] = useState<GateLogRow[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!selectedClassId) return;
+      
+      const [studentsRes, gateRes] = await Promise.all([
+        getClassStudents(selectedClassId),
+        getGateEvents({ date: todayISO(), class_id: selectedClassId })
+      ]);
+
+      if (studentsRes.ok) {
+        setStudentsData(studentsRes.data);
+      } else {
+        setStudentsData([]);
+      }
+      
+      if (gateRes.ok) {
+        setGateLogs(gateRes.data);
+      } else {
+        setGateLogs([]);
+      }
+    }
+    void fetchData();
+  }, [selectedClassId]);
+
+  const [sessionCreated, setSessionCreated] = useState<Record<string, boolean>>({});
 
   const [studentMarks, setStudentMarks] = useState<Record<string, MarkStatus>>({});
 
@@ -62,14 +78,21 @@ export default function TeacherAttendancePage() {
   const [dateRange, setDateRange] = useState("Last 7 Days");
 
   const visibleStudents = useMemo(() => {
-    return STUDENTS.filter((s) => {
-      const inClass = s.className === selectedClass;
+    return studentsData.map((s) => {
+      const gateLog = gateLogs.find(l => l.student_id_no === s.student_id_no);
+      return {
+        id: s.student_id_no,
+        name: s.full_name,
+        gateScanned: !!gateLog?.checkIn,
+        excuseNote: undefined // Can pull from actual data if available
+      };
+    }).filter((s) => {
       const inSearch =
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.id.toLowerCase().includes(search.toLowerCase());
-      return inClass && inSearch;
+      return inSearch;
     });
-  }, [selectedClass, search]);
+  }, [studentsData, gateLogs, search]);
 
   const getMark = (studentId: string): MarkStatus => {
     return studentMarks[studentId] || "present";
@@ -80,12 +103,12 @@ export default function TeacherAttendancePage() {
   };
 
   const handleCreateSession = () => {
-    setSessionCreated((prev) => ({ ...prev, [selectedClass]: true }));
+    setSessionCreated((prev) => ({ ...prev, [selectedClassId]: true }));
   };
 
   const handleSubmitSession = () => {
     window.alert(
-      `Session submitted for ${selectedClass}.\n\nMock: FCM sent to parents of marked absent students.`
+      `Session submitted.\n\nMock: FCM sent to parents of marked absent students.`
     );
   };
 
@@ -151,13 +174,13 @@ export default function TeacherAttendancePage() {
   };
 
   const renderTodaySession = () => {
-    if (!sessionCreated[selectedClass]) {
+    if (!sessionCreated[selectedClassId]) {
       return (
         <div className="mt-2 rounded-[24px] border border-[#e2e8f0] bg-white p-12 text-center shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
           <ShieldAlert className="mx-auto mb-4 h-14 w-14 text-[#94a3b8]" />
           <h3 className="mb-2 text-[18px] font-bold text-[#0f172a]">No Session Created Yet</h3>
           <p className="mx-auto mb-6 max-w-md text-[14px] text-[#64748b]">
-            Start today&apos;s attendance session for <strong>{selectedClass}</strong>. If already
+            Start today&apos;s attendance session. If already
             created, this action opens the existing session.
           </p>
           <button
@@ -196,7 +219,7 @@ export default function TeacherAttendancePage() {
                 <th className="px-6 py-5 font-bold">Student</th>
                 <th className="px-6 py-5 text-center font-bold">Gate Status</th>
                 <th className="px-6 py-5 text-center font-bold">Mark</th>
-                <th className="px-6 py-5 font-bold">Parent Excuse</th>
+                <th className="px-6 py-5 font-bold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white text-gray-700">
@@ -210,14 +233,14 @@ export default function TeacherAttendancePage() {
                     <td className="px-6 py-4 text-center">{renderGateBadge(student.gateScanned)}</td>
                     <td className="px-6 py-4">{renderStatusPicker(student.id)}</td>
                     <td className="px-6 py-4">
-                      {student.excuseNote ? (
-                        <div className="inline-flex max-w-[320px] items-start gap-2 rounded-lg border border-amber-100 bg-amber-50 p-2 text-[12px] text-amber-700">
-                          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                          <span>{student.excuseNote}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[12px] text-gray-400">No note</span>
-                      )}
+                      <button 
+                        type="button"
+                        onClick={() => window.alert(`Opening chat with parent of ${student.name}...`)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-bold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <MessageSquare className="h-4 w-4 text-[#64748b]" />
+                        Message Parent
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -315,12 +338,6 @@ export default function TeacherAttendancePage() {
                   Attendance Rate: <span className="font-bold text-green-600">92%</span>
                 </p>
               </div>
-              <button
-                type="button"
-                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
-              >
-                View Excuse Notes
-              </button>
             </div>
           ))}
         </div>
@@ -335,17 +352,13 @@ export default function TeacherAttendancePage() {
         subtitle="Gate-aware attendance marking for teacher classes."
       />
 
-      <div className="inline-flex w-fit rounded-full border border-[#c7d2fe] bg-[#eef2ff] px-4 py-1 text-[12px] font-bold text-[#4338ca]">
-        Updated Attendance Module
-      </div>
-
       <TabSelectorV2
-        activeTab={selectedClass}
-        onTabChange={(id) => setSelectedClass(id as "10-A" | "11-B")}
-        options={[
-          { id: "10-A", label: "10-A" },
-          { id: "11-B", label: "11-B" },
-        ]}
+        activeTab={selectedClassId}
+        onTabChange={(id) => setSelectedClassId(id)}
+        options={classes.map((c) => {
+          const label = c.school_grade ? `${c.school_grade.name}-${c.name}` : c.name;
+          return { id: c.id, label };
+        })}
       />
 
       <div className="mt-4 flex min-h-[500px] flex-col">
