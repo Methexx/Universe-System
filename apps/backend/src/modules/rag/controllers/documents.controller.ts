@@ -14,6 +14,8 @@ export async function listDocuments(_request: FastifyRequest, reply: FastifyRepl
       file_name: true,
       display_name: true,
       is_processed: true,
+      processing_status: true,
+      processing_error: true,
       chunk_count: true,
       created_at: true,
     },

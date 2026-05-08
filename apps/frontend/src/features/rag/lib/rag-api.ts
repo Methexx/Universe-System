@@ -15,11 +15,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<ApiR
   }
 }
 
+export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 export type PolicyDocument = {
   id: string;
   file_name: string;
   display_name: string;
   is_processed: boolean;
+  processing_status: ProcessingStatus;
+  processing_error: string | null;
   chunk_count: number;
   created_at: string;
 };
@@ -30,7 +34,9 @@ export async function listDocuments(): Promise<ApiResult<PolicyDocument[]>> {
   return { ok: true, data: res.data.documents };
 }
 
-export async function uploadDocument(file: File): Promise<ApiResult<{ id: string; display_name: string; is_processed: boolean }>> {
+export async function uploadDocument(
+  file: File
+): Promise<ApiResult<{ id: string; display_name: string; is_processed: boolean; processing_status: ProcessingStatus }>> {
   const form = new FormData();
   form.append('file', file);
   return request('/api/rag/documents', { method: 'POST', body: form });
@@ -38,4 +44,10 @@ export async function uploadDocument(file: File): Promise<ApiResult<{ id: string
 
 export async function deleteDocument(id: string): Promise<ApiResult<{ success: boolean }>> {
   return request(`/api/rag/documents/${id}`, { method: 'DELETE' });
+}
+
+export async function retryDocument(
+  id: string
+): Promise<ApiResult<{ id: string; processing_status: ProcessingStatus }>> {
+  return request(`/api/rag/documents/${id}/retry`, { method: 'POST' });
 }

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate } from '../../common/middleware/authenticate';
 import { authorize } from '../../common/middleware/rbac';
-import { ingestDocument } from './controllers/ingest.controller';
+import { ingestDocument, retryDocument } from './controllers/ingest.controller';
 import { queryRag } from './controllers/query.controller';
 import { listDocuments, deleteDocument } from './controllers/documents.controller';
 import { evalReport } from './controllers/eval.controller';
@@ -23,6 +23,10 @@ export default async function ragRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>('/documents/:id', {
     preHandler: [authorize(['admin'])],
   }, deleteDocument);
+
+  fastify.post<{ Params: { id: string } }>('/documents/:id/retry', {
+    preHandler: [authorize(['admin'])],
+  }, retryDocument);
 
   // ── RAG query (all authenticated users: parent, teacher, admin) ──────────────
   // Per-route rate limit: stricter than global 100/min to protect LLM API costs

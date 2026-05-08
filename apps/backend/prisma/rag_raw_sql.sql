@@ -77,3 +77,34 @@ CREATE POLICY "admins_full_access_eval_logs" ON evaluation_logs
   USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid()::uuid AND role = 'admin')
   );
+
+-- ── Processing status column (fix for stuck "Processing" badges) ─────────────
+-- Adds a status enum to distinguish: pending | processing | completed | failed
+-- Idempotent — safe to re-apply.
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'processing_status_enum') THEN
+    CREATE TYPE processing_status_enum AS ENUM ('pending', 'processing', 'completed', 'failed');
+  END IF;
+END
+$$;
+
+ALTER TABLE policy_documents
+  ADD COLUMN IF NOT EXISTS processing_status processing_status_enum NOT NULL DEFAULT 'pending';
+
+ALTER TABLE policy_documents
+  ADD COLUMN IF NOT EXISTS processing_error TEXT;
+
+-- Back-fill: completed rows
+UPDATE policy_documents
+  SET processing_status = 'completed'
+  WHERE is_processed = true AND processing_status = 'pending';
+
+-- Back-fill: stuck rows (is_processed=false AND older than 30 minutes → failed)
+UPDATE policy_documents
+  SET processing_status = 'failed'
+  WHERE is_processed = false
+    AND processing_status = 'pending'
+    AND created_at < NOW() - INTERVAL '30 minutes';
+

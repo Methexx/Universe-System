@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle,
   ChevronDown,
   ChevronUp,
@@ -9,6 +10,7 @@ import {
   Edit2,
   Loader2,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   X,
@@ -29,7 +31,9 @@ import {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  retryDocument,
   type PolicyDocument,
+  type ProcessingStatus,
 } from "@/features/rag/lib/rag-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -433,7 +437,9 @@ export default function PoliciesPage() {
   const [uploading, setUploading] = useState(false);
   const [docSearch, setDocSearch] = useState("");
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [retryingDocId, setRetryingDocId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setDocsLoading(true);
@@ -447,6 +453,33 @@ export default function PoliciesPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
 
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(async () => {
+      const res = await listDocuments();
+      if (!res.ok) return;
+      setDocuments(res.data);
+      const hasInProgress = res.data.some(
+        (d) => d.processing_status === 'pending' || d.processing_status === 'processing'
+      );
+      if (!hasInProgress) {
+        clearInterval(pollingRef.current!);
+        pollingRef.current = null;
+      }
+    }, 10_000);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
+
+  useEffect(() => {
+    const hasInProgress = documents.some(
+      (d) => d.processing_status === 'pending' || d.processing_status === 'processing'
+    );
+    if (hasInProgress) startPolling();
+  }, [documents, startPolling]);
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -455,13 +488,31 @@ export default function PoliciesPage() {
     const res = await uploadDocument(file);
     setUploading(false);
     if (!res.ok) { alert(res.error); return; }
-    // Add optimistic row — will show as processing until page refresh
     setDocuments((prev) => [
-      { id: res.data.id, file_name: file.name, display_name: res.data.display_name, is_processed: false, chunk_count: 0, created_at: new Date().toISOString() },
+      {
+        id: res.data.id,
+        file_name: file.name,
+        display_name: res.data.display_name,
+        is_processed: false,
+        processing_status: 'pending' as ProcessingStatus,
+        processing_error: null,
+        chunk_count: 0,
+        created_at: new Date().toISOString(),
+      },
       ...prev,
     ]);
-    // Poll once after 5s to update processed status
-    setTimeout(() => loadDocuments(), 5000);
+    startPolling();
+  }
+
+  async function handleRetryDoc(id: string) {
+    setRetryingDocId(id);
+    const res = await retryDocument(id);
+    setRetryingDocId(null);
+    if (!res.ok) { alert('Retry failed: ' + res.error); return; }
+    setDocuments((prev) =>
+      prev.map((d) => d.id === id ? { ...d, processing_status: 'processing' as ProcessingStatus } : d)
+    );
+    startPolling();
   }
 
   async function handleDeleteDoc(id: string, displayName: string) {
@@ -646,32 +697,53 @@ export default function PoliciesPage() {
                       <p className="text-[11px] font-semibold text-[#94a3b8]">{doc.file_name}</p>
                     </td>
                     <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
-                      {doc.is_processed ? doc.chunk_count : "—"}
+                      {doc.processing_status === 'completed' ? doc.chunk_count : "—"}
                     </td>
                     <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
                       {new Date(doc.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-[18px]">
-                      {doc.is_processed ? (
+                      {doc.processing_status === 'completed' ? (
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#16a34a]">
                           <CheckCircle className="h-3.5 w-3.5" /> Ready
                         </span>
+                      ) : doc.processing_status === 'failed' ? (
+                        <span
+                          className="flex items-center gap-1 text-[11px] font-bold text-[#dc2626]"
+                          title={doc.processing_error ?? undefined}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5" /> Failed
+                        </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#d97706]">
-                          <Clock className="h-3.5 w-3.5" /> Processing
+                          <Clock className="h-3.5 w-3.5 animate-pulse" /> Processing
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-[18px]">
-                      <button
-                        onClick={() => handleDeleteDoc(doc.id, doc.display_name)}
-                        disabled={deletingDocId === doc.id}
-                        className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fef2f2] text-[#ef4444] hover:bg-red-100 transition-colors disabled:opacity-50"
-                      >
-                        {deletingDocId === doc.id
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : <Trash2 className="h-4 w-4" />}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {doc.processing_status === 'failed' && (
+                          <button
+                            onClick={() => handleRetryDoc(doc.id)}
+                            disabled={retryingDocId === doc.id}
+                            title="Retry processing"
+                            className="flex h-8 w-8 items-center justify-center rounded-md bg-[#eff6ff] text-[#3b82f6] hover:bg-blue-100 transition-colors disabled:opacity-50"
+                          >
+                            {retryingDocId === doc.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <RefreshCw className="h-4 w-4" />}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteDoc(doc.id, doc.display_name)}
+                          disabled={deletingDocId === doc.id}
+                          className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fef2f2] text-[#ef4444] hover:bg-red-100 transition-colors disabled:opacity-50"
+                        >
+                          {deletingDocId === doc.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Trash2 className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

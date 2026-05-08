@@ -293,19 +293,30 @@ model LostFoundReport {
 // PHASE 6: RAG — POLICY DOCUMENTS + CHATBOT
 // ==========================================
 
+enum ProcessingStatus {
+  pending
+  processing
+  completed
+  failed
+
+  @@map("processing_status_enum")
+}
+
 model PolicyDocument {
-  id           String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  uploaded_by  String          @db.Uuid
-  uploader     User            @relation("PolicyDocuments", fields: [uploaded_by], references: [id])
-  file_name    String
-  display_name String
-  storage_path String
-  file_hash    String?         @unique
-  is_processed Boolean         @default(false)
-  chunk_count  Int             @default(0)
-  created_at   DateTime        @default(now()) @db.Timestamptz()
-  updated_at   DateTime        @default(now()) @db.Timestamptz()
-  chunks       DocumentChunk[]
+  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  uploaded_by       String          @db.Uuid
+  uploader          User            @relation("PolicyDocuments", fields: [uploaded_by], references: [id])
+  file_name         String
+  display_name      String
+  storage_path      String
+  file_hash         String?         @unique
+  is_processed      Boolean         @default(false)
+  processing_status ProcessingStatus @default(pending)
+  processing_error  String?         @db.Text
+  chunk_count       Int             @default(0)
+  created_at        DateTime        @default(now()) @db.Timestamptz()
+  updated_at        DateTime        @default(now()) @db.Timestamptz()
+  chunks            DocumentChunk[]
 
   @@map("policy_documents")
 }
