@@ -68,10 +68,11 @@ export type GateLogRow = {
   method: string;
 };
 
-export function getGateEvents(params?: { method?: string; date?: string }) {
+export function getGateEvents(params?: { method?: string; date?: string; class_id?: string }) {
   const qs = new URLSearchParams();
   if (params?.method) qs.set('method', params.method);
   if (params?.date)   qs.set('date',   params.date);
+  if (params?.class_id) qs.set('class_id', params.class_id);
   const query = qs.toString() ? `?${qs.toString()}` : '';
   return request<GateLogRow[]>(`/api/gate/events${query}`);
 }

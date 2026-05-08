@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
@@ -59,18 +59,19 @@ export default function StudentsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
-    getStudents().then(res => {
-      if (res.ok) {
-        const mapped = res.data.map(mapApiStudentToStudent);
-        setStudents(mapped);
-        if (mapped.length > 0) setSelectedStudentId(mapped[0].id);
-      }
-      setIsLoading(false);
-    });
+    const res = await getStudents();
+    if (res.ok) {
+      const mapped = res.data.map(mapApiStudentToStudent);
+      setStudents(mapped);
+      if (mapped.length > 0) setSelectedStudentId(mapped[0].id);
+    }
+    setIsLoading(false);
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const uniqueClasses = Array.from(new Set(students.map(s => s.class).filter(Boolean)));
 
@@ -129,6 +130,7 @@ export default function StudentsPage() {
       <PageHeader
         title="Students Management"
         subtitle="Manage student records, enrollment, and academic information"
+        onRefresh={fetchData}
       />
 
       <div className="flex flex-col xl:flex-row items-start lg:items-center justify-between gap-4 mt-2">

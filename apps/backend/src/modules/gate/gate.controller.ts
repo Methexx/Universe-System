@@ -180,7 +180,7 @@ export class GateController {
   // GET /api/gate/events
   static async getRecentEvents(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { limit = '100', method, date } = request.query as any;
+      const { limit = '100', method, date, class_id } = request.query as any;
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -202,13 +202,14 @@ export class GateController {
 
       const whereClause: any = { timestamp: timestampFilter };
       if (method) whereClause.method = method;
+      if (class_id) whereClause.student = { class_id };
 
       const events = await prisma.gateEvent.findMany({
         where: whereClause,
         orderBy: { timestamp: 'desc' },
         take: parseInt(limit),
         include: {
-          student: { select: { student_id_no: true } },
+          student: { select: { student_id_no: true, full_name: true } },
         },
       });
 
@@ -216,6 +217,7 @@ export class GateController {
       const grouped: Record<string, {
         id: string;
         student_id_no: string;
+        full_name: string;
         date: string;
         timeLabel: string;
         checkIn: string | null;
@@ -237,6 +239,7 @@ export class GateController {
           grouped[key] = {
             id: key,
             student_id_no: (e.student as any)?.student_id_no ?? '—',
+            full_name: (e.student as any)?.full_name ?? '—',
             date: dateStr,
             timeLabel,
             checkIn: null,

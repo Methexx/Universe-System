@@ -84,6 +84,7 @@ export default function TeacherComplaintsPage() {
       <PageHeader
         title="My Complaints"
         subtitle="Manage assigned parent complaints and provide resolutions"
+        onRefresh={fetchComplaints}
       />
 
       {error && (

@@ -34,6 +34,7 @@ export type ClassItem = {
   id: string;
   name: string;
   teacher: TeacherInfo | null;
+  school_grade?: { id: string; name: string };
 };
 
 export type GradeWithClasses = {
@@ -82,6 +83,10 @@ export function getGradesWithClasses() {
 
 export function getStudents() {
   return request<StudentRecord[]>('/api/school/students');
+}
+
+export function getClassStudents(classId: string) {
+  return request<StudentRecord[]>(`/api/school/classes/${classId}/students`);
 }
 
 export function createStudent(body: CreateStudentBody) {
@@ -171,8 +176,9 @@ export type OverviewStats = {
   yesterdayAttendance: number;
 };
 
-export function getOverviewStats() {
-  return request<OverviewStats>('/api/school/overview/stats');
+export function getOverviewStats(classId?: string) {
+  const query = classId ? `?class_id=${encodeURIComponent(classId)}` : '';
+  return request<OverviewStats>(`/api/school/overview/stats${query}`);
 }
 
 export type RecentActivity = {

@@ -87,14 +87,24 @@ export class AuthController {
     const user = await import('../../config/prisma').then(({ prisma }) =>
       prisma.user.findUnique({
         where: { id: userClaims.userId },
-        select: { id: true, email: true, role: true, full_name: true, phone_number: true, avatar_url: true, is_active: true, is_suspended: true },
+        select: { 
+          id: true, email: true, role: true, full_name: true, 
+          phone_number: true, avatar_url: true, is_active: true, is_suspended: true,
+          classes_taught: {
+            select: { id: true, name: true, school_grade: { select: { id: true, name: true } } }
+          }
+        },
       })
     );
     if (!user || !user.is_active || user.is_suspended) {
       return reply.status(401).send(errorResponse('Unauthorized'));
     }
     return reply.send(successResponse('OK', {
-      user: { userId: user.id, email: user.email, role: user.role, full_name: user.full_name, phone_number: user.phone_number, avatar_url: user.avatar_url },
+      user: { 
+        userId: user.id, email: user.email, role: user.role, 
+        full_name: user.full_name, phone_number: user.phone_number, avatar_url: user.avatar_url,
+        classes_taught: user.classes_taught
+      },
     }));
   }
 

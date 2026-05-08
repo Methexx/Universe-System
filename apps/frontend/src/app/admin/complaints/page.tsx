@@ -132,6 +132,7 @@ export default function AdminComplaintsPage() {
       <PageHeader
         title="Complaint Management"
         subtitle="Review, assign, and resolve parent complaints and suggestions"
+        onRefresh={fetchComplaints}
       />
 
       {error && (

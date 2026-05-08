@@ -1,30 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { Eye, Loader2 } from "lucide-react";
 import { StatCard } from "@/shared/components/ui/StatCard";
-import { TabSelector } from "@/shared/components/ui/TabSelector";
-import { DonutChart } from "@/shared/components/ui/DonutChart";
+import { TabSelectorV2 } from "@/shared/components/ui/TabSelectorV2";
+import { AttendanceDonutChart } from "@/app/admin/overview/components/AttendanceDonutChart";
 import clsx from "clsx";
-
-const pieData = [
-  { name: "Absent", value: 14, color: "#f97316" },
-  { name: "Present", value: 50, color: "#1e293b" },
-  { name: "Late", value: 10, color: "#cbd5e1" },
-];
+import { getOverviewStats, OverviewStats } from "@/features/school/lib/school-api";
+import { getGateEvents, GateLogRow } from "@/features/gate/lib/gate-api";
 
 export default function TeacherOverviewPage() {
-  const [activeTab, setActiveTab] = useState("10-a");
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [logs, setLogs] = useState<GateLogRow[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
   const { user } = useAuth();
   const isPending = user?.role === "pending";
+
+  const classes = useMemo(() => user?.classes_taught ?? [], [user?.classes_taught]);
+
+  const fetchData = useCallback(async () => {
+    if (classes.length > 0) {
+      const tabId = classes[0].id;
+      setActiveTab(tabId);
+      setLoadingData(true);
+      const [statsRes, logsRes] = await Promise.all([
+        getOverviewStats(tabId),
+        getGateEvents({ class_id: tabId, date: 'today' }),
+      ]);
+      if (statsRes.ok) setStats(statsRes.data);
+      if (logsRes.ok) setLogs(logsRes.data);
+    }
+    setLoadingData(false);
+  }, [classes]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!activeTab) return;
+    void Promise.all([
+      getOverviewStats(activeTab),
+      getGateEvents({ class_id: activeTab, date: 'today' })
+    ]).then(([statsRes, logsRes]) => {
+      if (statsRes.ok) setStats(statsRes.data);
+      if (logsRes.ok) setLogs(logsRes.data);
+      setLoadingData(false);
+    });
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col gap-[20px] pb-12 w-full pr-2">
       <PageHeader
         title="Overview"
         subtitle={`Welcome back ${user?.full_name ?? ""}!`}
+        onRefresh={fetchData}
       />
 
       <div className="relative mt-2">
@@ -37,62 +70,84 @@ export default function TeacherOverviewPage() {
         )}
 
         <div className={isPending ? "pointer-events-none blur-[6px] opacity-60 transition-all duration-500 select-none" : ""}>
-          <div>
-            <TabSelector
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              options={[
-                { id: "10-a", label: "10 - A" },
-                { id: "11-b", label: "11 - B" },
-              ]}
-            />
-          </div>
+          {classes.length > 0 ? (
+            <>
+              <div className="mb-6">
+                <TabSelectorV2
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  options={classes.map(c => ({ id: c.id, label: c.school_grade ? `${c.school_grade.name}-${c.name}` : c.name }))}
+                />
+              </div>
 
-          <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4 mt-2">
-            <DonutChart data={pieData} centerLabel="Attendance" />
-            <StatCard title="Today's Gate Attendance" value="41" icon={Eye} trendValue="+12.5%" trendDirection="up" />
-            <StatCard title="Late Attendance" value="10" icon={Eye} variant="danger" />
-            <StatCard title="Today Absentees" value="4" icon={Eye} variant="danger" />
-          </div>
+              <div key={activeTab} className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 gap-[18px] md:grid-cols-4">
+                  <AttendanceDonutChart
+                    todayAttendance={stats?.todayAttendance ?? 0}
+                    activeStudents={stats?.activeStudents ?? 0}
+                    suspendedAccounts={stats?.suspendedStudents ?? 0}
+                  />
+                  <StatCard title="Today's Gate Attendance" value={stats?.todayAttendance?.toString() ?? "0"} icon={Eye} />
+                  <StatCard title="Late Attendance" value="0" icon={Eye} variant="danger" />
+                  <StatCard title="Today Absentees" value={Math.max(0, (stats?.activeStudents ?? 0) - (stats?.todayAttendance ?? 0)).toString()} icon={Eye} variant="danger" />
+                </div>
 
-          <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden mt-2">
-            <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-[14px] whitespace-nowrap min-w-[700px]">
-                <thead className="bg-[#fafafa] border-b border-[#e2e8f0] text-[#64748b] font-bold text-[13px] tracking-wider">
-                  <tr>
-                    <th className="py-4 px-6 font-bold">Student ID</th>
-                    <th className="py-4 px-6 font-bold">Date</th>
-                    <th className="py-4 px-6 font-bold">Check In</th>
-                    <th className="py-4 px-6 font-bold">Check Out</th>
-                    <th className="py-4 px-6 font-bold">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="font-medium">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <tr key={i} className="cursor-pointer transition-colors border-b border-gray-50/50 bg-[#f8fafc] text-gray-700 hover:bg-gray-50">
-                      <td className="py-3 px-6 text-[13px] text-[#475569]">29854</td>
-                      <td className="py-3 px-6">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-[14px] text-[#0f172a]">Today</span>
-                          <span className="text-[12px] text-[#64748b]">Oct 25, 2024</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-6 text-[13px] text-[#475569]">09:12 AM</td>
-                      <td className="py-3 px-6 text-[13px] text-[#94a3b8]">-- : --</td>
-                      <td className="py-3 px-6">
-                        <span className={clsx(
-                          "inline-flex items-center justify-center px-3 py-1 rounded-full text-[12px] font-bold min-w-[70px]",
-                          i <= 3 ? "bg-[#dcfce7] text-[#16a34a]" : "bg-[#bbf7d0] text-[#16a34a] bg-opacity-40"
-                        )}>
-                          {i <= 3 ? "QR" : "Manual"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left text-[14px] whitespace-nowrap min-w-[700px]">
+                    <thead className="bg-[#fafafa] border-b border-[#e2e8f0] text-[#64748b] font-bold text-[13px] tracking-wider">
+                      <tr>
+                        <th className="py-4 px-6 font-bold text-center">Student ID</th>
+                        <th className="py-4 px-6 font-bold text-center">Date</th>
+                        <th className="py-4 px-6 font-bold text-center">Check In</th>
+                        <th className="py-4 px-6 font-bold text-center">Check Out</th>
+                        <th className="py-4 px-6 font-bold text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-medium text-[#334155]">
+                      {loadingData ? (
+                        <tr><td colSpan={5} className="py-10 text-center text-gray-400">Loading...</td></tr>
+                      ) : logs.length > 0 ? (
+                        logs.map((log) => (
+                          <tr key={log.id} className="cursor-pointer transition-colors border-b border-gray-50/50 bg-[#f8fafc] text-gray-700 hover:bg-gray-50">
+                            <td className="py-4 px-6 text-center text-[#475569]">{log.student_id_no}</td>
+                            <td className="py-4 px-6 text-center">
+                              <span className="block font-bold text-[#0f172a]">{log.timeLabel}</span>
+                              <span className="block text-[12px] text-[#64748b] mt-0.5">{log.date}</span>
+                            </td>
+                            <td className="py-4 px-6 text-center text-[#475569]">{log.checkIn ?? '— : —'}</td>
+                            <td className="py-4 px-6 text-center text-[#94a3b8]">{log.checkOut ?? '— : —'}</td>
+                            <td className="py-4 px-6 text-center">
+                              <span
+                                className={clsx(
+                                  'inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[11px] font-bold min-w-[70px]',
+                                  log.method === 'qr'
+                                    ? 'bg-[#dcfce7] text-[#16a34a] border border-green-200'
+                                    : log.method === 'auto'
+                                    ? 'bg-[#f3e8ff] text-[#7c3aed] border border-purple-200'
+                                    : 'bg-[#dbeafe] text-[#1d4ed8] border border-blue-200'
+                                )}
+                              >
+                                {log.method === 'qr' ? 'QR' : log.method === 'auto' ? 'Auto' : 'Manual'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={5} className="py-10 text-center text-gray-400">No students in this classroom have arrived yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-[#e2e8f0] shadow-sm py-20 mt-2">
+              <h3 className="text-[20px] font-bold text-gray-800 mb-2">No Classes Assigned</h3>
+              <p className="text-gray-500 text-[14px]">You do not have any classes assigned to you currently.</p>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -43,13 +43,6 @@ export class SchoolController {
     return reply.send(successResponse('Grades with classes fetched', results));
   }
 
-  static async getMyClasses(request: FastifyRequest, reply: FastifyReply) {
-    const user = (request as any).user;
-    const cacheKey = `school:my-classes:${user.userId}`;
-    const results = await getOrSetCache(cacheKey, () => SchoolService.getMyClasses(user.userId));
-    return reply.send(successResponse('My classes fetched', results));
-  }
-
   static async getClassStudents(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const cacheKey = `school:class-students:${request.params.id}`;
     const results = await getOrSetCache(cacheKey, () => SchoolService.getClassStudents(request.params.id));
@@ -143,7 +136,9 @@ export class SchoolController {
 
   static async getOverviewStats(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const results = await getOrSetCache('school:overview-stats', () => SchoolService.getOverviewStats(), 300); // 5 min cache
+      const { class_id } = request.query as any;
+      const cacheKey = class_id ? `school:overview-stats:${class_id}` : 'school:overview-stats';
+      const results = await getOrSetCache(cacheKey, () => SchoolService.getOverviewStats(class_id), 300); // 5 min cache
       return reply.send(successResponse('Overview stats fetched', results));
     } catch (error: any) {
       return reply.status(500).send(errorResponse(error.message));

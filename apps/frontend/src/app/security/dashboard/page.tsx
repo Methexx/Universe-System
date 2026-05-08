@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LogIn, ClipboardList, QrCode, Eye } from 'lucide-react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { StatCard } from '@/shared/components/ui/StatCard';
@@ -23,21 +23,19 @@ export default function SecurityDashboardPage() {
   const [logs, setLogs] = useState<GateLogRow[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
 
-  useEffect(() => {
-    getGateStats().then(res => { if (res.ok) setStats(res.data); });
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const fetchData = useCallback(async () => {
     setLogsLoading(true);
-    getGateEvents({
-      method: statusFilter || undefined,
-      date:   timeFilter   || undefined,
-    }).then(res => {
-      if (res.ok) setLogs(res.data);
-      setLogsLoading(false);
-    });
+    const [statsRes, logsRes] = await Promise.all([
+      getGateStats(),
+      getGateEvents({ method: statusFilter || undefined, date: timeFilter || undefined }),
+    ]);
+    if (statsRes.ok) setStats(statsRes.data);
+    if (logsRes.ok) setLogs(logsRes.data);
+    setLogsLoading(false);
   }, [statusFilter, timeFilter]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filteredLogs = logs.filter(log =>
     search ? log.student_id_no.toLowerCase().includes(search.toLowerCase()) : true
@@ -45,7 +43,7 @@ export default function SecurityDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 w-full pr-2 pb-12">
-      <PageHeader title="Gate Log" subtitle="Security Dashboard" />
+      <PageHeader title="Gate Log" subtitle="Security Dashboard" onRefresh={fetchData} />
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

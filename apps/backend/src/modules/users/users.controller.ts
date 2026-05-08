@@ -61,11 +61,8 @@ export const UsersController = {
 
   async promote(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
-    const { new_role } = request.body as { new_role: string };
-    const promoted = await prisma.user.update({
-      where: { id },
-      data: { role: new_role, requested_role: null },
-    });
+    const { role } = request.body as { role: string };
+    const promoted = await UsersService.promoteUser(id, role);
     return reply.status(200).send({ success: true, data: promoted });
   },
 

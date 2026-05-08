@@ -80,6 +80,7 @@ export default function AdminNoticesPage() {
       <PageHeader
         title="Notice Board"
         subtitle="Create and manage official announcements for the UniVerse community"
+        onRefresh={fetchNotices}
       />
 
       {/* Error Alert */}
