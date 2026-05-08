@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { LogOut } from "lucide-react";
 import { SIDEBAR_MENU, Role } from "./sidebarConfig";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { useUnreadMessages } from "@/features/messages/context/UnreadMessagesContext";
 
 interface SidebarProps {
   role: Role;
@@ -20,6 +21,7 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const { logout } = useAuth();
   const menuItems = SIDEBAR_MENU[role] || SIDEBAR_MENU["admin"];
   const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
+  const { unreadCount } = useUnreadMessages();
 
   const confirmLogout = () => {
     setIsLogoutModalOpen(false);
@@ -115,10 +117,16 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
                     {item.title}
                   </div>
                   
-                  {item.badge && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                      {item.badge}
-                    </span>
+                  {item.title === 'Messages' && unreadCount > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                      </span>
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    </div>
                   )}
                 </Link>
               );

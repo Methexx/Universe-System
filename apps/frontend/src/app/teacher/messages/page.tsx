@@ -14,6 +14,7 @@ import Image from "next/image";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { getInbox, getContacts, getThread, sendMessage, markAsRead, generateAiDraft, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { useUnreadMessages } from "@/features/messages/context/UnreadMessagesContext";
 import { Loader2 } from "lucide-react";
 import { UserStatus } from "@/shared/components/ui/UserStatus";
 
@@ -196,6 +197,7 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
 
 export default function TeacherMessagesPage() {
   const { user } = useAuth();
+  const { clearUnread, refresh: refreshUnread } = useUnreadMessages();
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [contacts, setContacts] = useState<MessageContact[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -281,10 +283,12 @@ export default function TeacherMessagesPage() {
       setActiveMessages(res.data);
       // Mark as read
       const unreadMsgs = res.data.filter(m => !m.is_read && m.receiver_id === user?.userId);
-      for (const m of unreadMsgs) {
-        markAsRead(m.id);
+      if (unreadMsgs.length > 0) {
+        clearUnread();
+        setThreads(prev => prev.map(t => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
+        await Promise.all(unreadMsgs.map(m => markAsRead(m.id)));
+        refreshUnread();
       }
-      setThreads(prev => prev.map(t => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
     }
     setCompose("");
     setTimeout(() => {

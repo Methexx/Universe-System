@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 const ROLE_DASHBOARD: Record<string, string> = {
   admin: '/admin/overview',
   teacher: '/teacher/overview',
-  security: '/security/overview',
+  security: '/security/dashboard',
 };
 
 interface StepTwoOtpProps {

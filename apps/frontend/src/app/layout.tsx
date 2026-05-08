@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Kumbh_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
+import { UnreadMessagesProvider } from "@/features/messages/context/UnreadMessagesContext";
 
 const kumbhSans = Kumbh_Sans({
   variable: "--font-kumbh-sans",
@@ -25,7 +26,9 @@ export default function RootLayout({
         style={{ fontFamily: "var(--font-kumbh-sans), sans-serif" }}
         suppressHydrationWarning
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <UnreadMessagesProvider>{children}</UnreadMessagesProvider>
+        </AuthProvider>
       </body>
     </html>
   );

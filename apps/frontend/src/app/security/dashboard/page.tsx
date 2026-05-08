@@ -6,6 +6,7 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { StatCard } from '@/shared/components/ui/StatCard';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
+import { PrimaryButton } from '@/shared/components/ui/primary-button';
 import { QrScanner } from './QrScanner';
 import { ManualEntry } from './ManualEntry';
 import { getGateStats, getGateEvents, GateStats, GateLogRow } from '@/features/gate/lib/gate-api';
@@ -60,12 +61,13 @@ export default function SecurityDashboardPage() {
           icon={ClipboardList}
           variant="default"
           action={
-            <button
+            <PrimaryButton
+              variant="blue"
               onClick={() => setActiveTab('Manual Entry')}
-              className="px-4 py-1.5 bg-[#3b82f6] text-white text-xs font-bold rounded-full hover:bg-blue-600 transition-colors"
+              className="px-4 py-1.5 text-xs font-bold rounded-full flex items-center justify-center m-0"
             >
               View
-            </button>
+            </PrimaryButton>
           }
         />
         <StatCard
@@ -74,12 +76,13 @@ export default function SecurityDashboardPage() {
           icon={QrCode}
           variant="default"
           action={
-            <button
+            <PrimaryButton
+              variant="blue"
               onClick={() => setActiveTab('Scan QR')}
-              className="px-4 py-1.5 bg-[#3b82f6] text-white text-xs font-bold rounded-full hover:bg-blue-600 transition-colors"
+              className="px-4 py-1.5 text-xs font-bold rounded-full flex items-center justify-center m-0"
             >
               Scan
-            </button>
+            </PrimaryButton>
           }
         />
         <StatCard

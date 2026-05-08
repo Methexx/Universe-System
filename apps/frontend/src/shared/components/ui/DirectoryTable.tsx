@@ -32,6 +32,8 @@ interface DirectoryTableProps {
   idColumnHeader?: string;
   emptyMessage?: string;
   showEdit?: boolean;
+  hideClass?: boolean;
+  hideGender?: boolean;
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
 }
@@ -42,6 +44,8 @@ export function DirectoryTable({
   idColumnHeader = "Student ID",
   emptyMessage = "No records found matching your criteria.",
   showEdit = false,
+  hideClass = false,
+  hideGender = false,
   onSelect,
   onEdit,
 }: DirectoryTableProps) {
@@ -53,8 +57,8 @@ export function DirectoryTable({
             <th className="py-4 px-6 font-bold">Name</th>
             <th className="py-4 px-6 font-bold">{idColumnHeader}</th>
             <th className="py-4 px-6 font-bold">Email address</th>
-            <th className="py-4 px-6 font-bold">Class</th>
-            <th className="py-4 px-6 font-bold">Gender</th>
+            {!hideClass && <th className="py-4 px-6 font-bold">Class</th>}
+            {!hideGender && <th className="py-4 px-6 font-bold">Gender</th>}
             {showEdit && <th className="py-4 px-6 w-10"></th>}
           </tr>
         </thead>
@@ -83,8 +87,8 @@ export function DirectoryTable({
                 </td>
                 <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.id}</td>
                 <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.email}</td>
-                <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.class}</td>
-                <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.gender}</td>
+                {!hideClass && <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.class}</td>}
+                {!hideGender && <td className={clsx("py-3 px-6 text-[13px]", isSelected ? "text-blue-50/90" : "text-[#475569]")}>{user.gender}</td>}
                 {showEdit && (
                   <td className="py-3 px-6 text-right">
                     <button 
