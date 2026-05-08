@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import {
-  Search, Loader2, CheckCircle, AlertCircle,
+import { Search, Loader2, CheckCircle, AlertCircle,
   GraduationCap, Phone, Mail, User, BookOpen,
   ArrowRight, ChevronDown, Check,
 } from "lucide-react";
-import { getStudentByIdNo, submitManualEntry, GateStudentResult } from "@/features/gate/lib/gate-api";
+import { getStudentByIdNo, searchStudents, submitManualEntry, GateStudentResult } from "@/features/gate/lib/gate-api";
 import clsx from "clsx";
+import { FilterBar } from "@/shared/components/ui/FilterBar";
 
 const AVATAR_COLORS = [
   "bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500",
@@ -48,6 +48,10 @@ export function ManualEntry() {
   const [student, setStudent] = useState<GateStudentResult | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  const [searchResults, setSearchResults] = useState<GateStudentResult[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
   const [reason, setReason] = useState("");
   const [reasonOpen, setReasonOpen] = useState(false);
   const reasonRef = useRef<HTMLDivElement>(null);
@@ -61,20 +65,52 @@ export function ManualEntry() {
       if (reasonRef.current && !reasonRef.current.contains(e.target as Node)) {
         setReasonOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    const query = searchInput.trim();
+    if (query.length < 1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchResults([]);
+       
+      setIsSearchOpen(false);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      const res = await searchStudents(query);
+      if (res.ok) {
+        setSearchResults(res.data);
+        setIsSearchOpen(true);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [searchInput]);
+
+  const handleSelectStudent = (selected: GateStudentResult) => {
+    setStudent(selected);
+    setSearchInput(selected.student_id_no);
+    setIsSearchOpen(false);
+    setSubmitState("idle");
+    setReason("");
+    setSearchError(null);
+  };
+
   const handleSearch = useCallback(async () => {
     const raw = searchInput.trim();
     if (!raw) return;
-    const id = `S-${raw}`;
+    const id = raw;
     setSearching(true);
     setSearchError(null);
     setStudent(null);
     setSubmitState("idle");
     setReason("");
+    setIsSearchOpen(false);
 
     const result = await getStudentByIdNo(id);
     setSearching(false);
@@ -82,9 +118,15 @@ export function ManualEntry() {
     if (result.ok) {
       setStudent(result.data);
     } else {
-      setSearchError(result.status === 404 ? "No student found with that ID." : "Search failed. Please try again.");
+      // fallback: take the first one from search results if possible
+      if (searchResults.length > 0) {
+        setStudent(searchResults[0]);
+        setSearchInput(searchResults[0].student_id_no);
+      } else {
+        setSearchError(result.status === 404 ? "No student found with that ID." : "Search failed. Please try again.");
+      }
     }
-  }, [searchInput]);
+  }, [searchInput, searchResults]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -127,26 +169,38 @@ export function ManualEntry() {
     <div className="flex flex-col gap-4 w-full">
 
       {/* ── Compact search row ── */}
-      <div className="flex items-center gap-3">
-        {/* Input with fixed "S-" prefix */}
-        <div className="flex items-center border border-gray-200 rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#3b82f6]/20 w-64 shrink-0">
-          <span className="pl-3 pr-1 text-[13px] font-bold text-[#0f172a] select-none">S-</span>
-          <input
-            type="text"
-            placeholder="000012"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={handleKeyDown}
-            maxLength={10}
-            className="flex-1 pr-3 py-2 text-[13px] font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none bg-transparent"
-          />
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+        <div ref={searchRef} className="relative w-full max-w-[320px]">
+          <div onKeyDown={handleKeyDown}>
+            <FilterBar
+              searchPlaceholder="Type ID or Name..."
+              searchValue={searchInput}
+              onSearchChange={setSearchInput}
+            />
+          </div>
+          {isSearchOpen && searchResults.length > 0 && (
+            <div className="absolute left-0 top-full mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-60 overflow-y-auto">
+              {searchResults.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSelectStudent(s)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 text-left"
+                >
+                  <div>
+                    <div className="text-[13px] font-bold text-gray-900">{s.full_name}</div>
+                    <div className="text-[11px] font-medium text-gray-500">{s.student_id_no} • {s.class?.name || "No Class"}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <button
           onClick={handleSearch}
           disabled={searching || !searchInput.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#3b82f6] hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[13px] font-bold transition-colors shrink-0"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#3b82f6] hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer ml-auto xl:ml-0"
         >
-          {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          {searching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
           Search
         </button>
         {searchError && (

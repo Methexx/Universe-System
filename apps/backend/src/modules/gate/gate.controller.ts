@@ -111,6 +111,42 @@ export class GateController {
     }
   }
 
+  // GET /api/gate/search?q=000
+  static async searchStudents(
+    request: FastifyRequest<{ Querystring: { q: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const query = request.query.q || '';
+      if (!query.trim()) {
+        return reply.status(200).send({ success: true, data: [] });
+      }
+
+      const students = await prisma.student.findMany({
+        where: {
+          OR: [
+            { full_name: { contains: query, mode: 'insensitive' } },
+            { student_id_no: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        take: 10,
+        include: {
+          class: {
+            include: {
+              school_grade: true,
+              teacher: { select: { id: true, full_name: true, email: true } }
+            }
+          }
+        }
+      });
+
+      return reply.status(200).send({ success: true, data: students });
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, message: 'Internal server error' });
+    }
+  }
+
   // GET /api/gate/stats
   static async getStats(_request: FastifyRequest, reply: FastifyReply) {
     try {
@@ -151,9 +187,18 @@ export class GateController {
       const yesterdayStart = new Date(todayStart);
       yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-      let timestampFilter: any = { gte: yesterdayStart }; // default: today + yesterday
+      const weekAgoStart = new Date(todayStart);
+      weekAgoStart.setDate(weekAgoStart.getDate() - 6);
+      let timestampFilter: any = { gte: weekAgoStart }; // default: last 7 days
       if (date === 'today')     timestampFilter = { gte: todayStart };
       if (date === 'yesterday') timestampFilter = { gte: yesterdayStart, lt: todayStart };
+      if (date && date !== 'today' && date !== 'yesterday') {
+        const specificDate = new Date(date);
+        specificDate.setHours(0, 0, 0, 0);
+        const specificDateEnd = new Date(specificDate);
+        specificDateEnd.setDate(specificDateEnd.getDate() + 1);
+        timestampFilter = { gte: specificDate, lt: specificDateEnd };
+      }
 
       const whereClause: any = { timestamp: timestampFilter };
       if (method) whereClause.method = method;
@@ -209,6 +254,79 @@ export class GateController {
     } catch (error: any) {
       request.log.error(error);
       return reply.status(500).send({ success: false, message: 'Internal server error fetching gate events' });
+    }
+  }
+
+  // GET /api/gate/stats/timeseries?range=today|week|30days
+  static async getTimeseries(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { range = 'week' } = request.query as { range?: string };
+
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+
+      if (range === 'today') {
+        // Hourly buckets for today: 0AM to 23PM
+        const hours = Array.from({ length: 24 }, (_, i) => i);
+        const buckets = await Promise.all(
+          hours.map(async (h) => {
+            const from = new Date(todayStart);
+            from.setHours(h, 0, 0, 0);
+            const to = new Date(todayStart);
+            to.setHours(h + 1, 0, 0, 0);
+            const count = await prisma.gateEvent.count({
+              where: { direction: 'IN', timestamp: { gte: from, lt: to } },
+            });
+            const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+            return { name: label, uv: count };
+          })
+        );
+        return reply.status(200).send({ success: true, data: buckets });
+      }
+
+      if (range === 'week') {
+        // Daily buckets for last 7 days
+        const days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(todayStart);
+          d.setDate(d.getDate() - (6 - i));
+          return d;
+        });
+        const buckets = await Promise.all(
+          days.map(async (day) => {
+            const nextDay = new Date(day);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const count = await prisma.gateEvent.count({
+              where: { direction: 'IN', timestamp: { gte: day, lt: nextDay } },
+            });
+            const label = day.toLocaleDateString('en-US', { weekday: 'short' });
+            return { name: label, uv: count };
+          })
+        );
+        return reply.status(200).send({ success: true, data: buckets });
+      }
+
+      // 30 days — daily buckets
+      const days30 = Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(todayStart);
+        d.setDate(d.getDate() - (29 - i));
+        return d;
+      });
+      const buckets30 = await Promise.all(
+        days30.map(async (day) => {
+          const nextDay = new Date(day);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const count = await prisma.gateEvent.count({
+            where: { direction: 'IN', timestamp: { gte: day, lt: nextDay } },
+          });
+          const label = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          return { name: label, uv: count };
+        })
+      );
+      return reply.status(200).send({ success: true, data: buckets30 });
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, message: 'Internal server error fetching timeseries' });
     }
   }
 }

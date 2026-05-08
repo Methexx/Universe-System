@@ -252,35 +252,63 @@ export class SchoolService {
   }
 
   static async getOverviewStats() {
-    const [activeStudents, suspendedStudents, suspendedUsers] = await Promise.all([
-      prisma.student.count({ where: { is_active: true } }),
-      prisma.student.count({ where: { is_active: false } }),
-      prisma.user.count({ 
-        where: { 
-          OR: [
-            { is_suspended: true },
-            { is_active: false }
-          ],
-          role: { not: 'pending' } // Don't count pending approvals as suspended
-        } 
-      }),
-    ]);
-
-    // Mock attendance data for now as we don't have a robust way to calculate it yet
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const attendanceCount = await prisma.attendanceRecord.count({
-      where: {
-        date: today,
-        status: 'present'
-      }
-    });
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const [activeStudents, suspendedStudents, todayGateCheckIns, yesterdayGateCheckIns] = await Promise.all([
+      prisma.student.count({ where: { is_active: true } }),
+      // Suspended students = students with is_active: false
+      prisma.student.count({ where: { is_active: false } }),
+      // Gate check-ins as the attendance figure (matches attendance page stat card)
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: today } } }),
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: yesterday, lt: today } } }),
+    ]);
 
     return {
       activeStudents,
       suspendedStudents,
-      lockedAccounts: suspendedStudents + suspendedUsers,
-      todayAttendance: attendanceCount || 13245,
+      // lockedAccounts = suspended students only (shown in the "Suspended Accounts" stat card)
+      lockedAccounts: suspendedStudents,
+      todayAttendance: todayGateCheckIns,
+      yesterdayAttendance: yesterdayGateCheckIns,
     };
+  }
+
+  static async getRecentActivity() {
+    const recentStudents = await prisma.student.findMany({
+      orderBy: { created_at: 'desc' },
+      take: 5,
+      include: { class: true }
+    });
+
+    const recentGateEvents = await prisma.gateEvent.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 5,
+      include: { student: { include: { class: true } } }
+    });
+
+    const activities = [
+      ...recentStudents.map(s => ({
+        type: 'registration',
+        id: `reg-${s.id}`,
+        timestamp: s.created_at,
+        title: 'New Student Registration',
+        details: `Name - ${s.full_name}   SID - ${s.student_id_no}   class - ${s.class?.name ?? 'Unassigned'}`,
+      })),
+      ...recentGateEvents.map(g => ({
+        type: 'gate_log',
+        id: `gate-${g.id}`,
+        timestamp: g.timestamp,
+        title: `Gate ${g.direction === 'IN' ? 'Check-in' : 'Check-out'} (${g.method})`,
+        details: `Name - ${g.student.full_name}   SID - ${g.student.student_id_no}   class - ${g.student.class?.name ?? 'Unassigned'}`,
+      }))
+    ];
+
+    activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return activities.slice(0, 5);
   }
 }

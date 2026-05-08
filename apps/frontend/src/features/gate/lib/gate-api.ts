@@ -47,6 +47,10 @@ export function getStudentByIdNo(student_id_no: string) {
   return request<GateStudentResult>(`/api/gate/student?id=${encodeURIComponent(student_id_no)}`);
 }
 
+export function searchStudents(query: string) {
+  return request<GateStudentResult[]>(`/api/gate/search?q=${encodeURIComponent(query)}`);
+}
+
 export type ManualScanBody = {
   qr_code: string;
   direction: 'IN' | 'OUT';
@@ -88,4 +92,10 @@ export function submitManualEntry(body: ManualScanBody) {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export type TimeseriesPoint = { name: string; uv: number };
+
+export function getGateTimeseries(range: 'today' | 'week' | '30days') {
+  return request<TimeseriesPoint[]>(`/api/gate/stats/timeseries?range=${range}`);
 }

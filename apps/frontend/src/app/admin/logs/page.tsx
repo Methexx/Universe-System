@@ -17,7 +17,8 @@ import {
   unsuspendUser,
   deleteUser,
 } from "@/features/auth/lib/auth-api";
-import { getStudents } from '@/features/school/lib/school-api';
+import { getStudents, suspendStudent, unsuspendStudent } from '@/features/school/lib/school-api';
+import { getGateEvents, GateLogRow } from '@/features/gate/lib/gate-api';
 
 type TabType = 'Gate' | 'Pending requests' | 'All users' | 'Security';
 
@@ -109,15 +110,6 @@ type StudentEntry = {
 
 type DisplayEntry = (UserProfile & { entryType: 'user' }) | StudentEntry;
 
-const GATE_LOGS = [
-  { id: '1', studentId: '29854', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '09:12 AM', checkOut: '-- : --', status: 'QR' },
-  { id: '2', studentId: '38491', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '08:45 AM', checkOut: '02:30 PM', status: 'QR' },
-  { id: '3', studentId: '83920', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '07:30 AM', checkOut: '-- : --', status: 'QR' },
-  { id: '4', studentId: '29854', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '09:12 AM', checkOut: '-- : --', status: 'Manual' },
-  { id: '5', studentId: '10293', date: 'Oct 25, 2024', timeLabel: 'Today', checkIn: '10:05 AM', checkOut: '-- : --', status: 'Manual' },
-  { id: '6', studentId: '48573', date: 'Oct 24, 2024', timeLabel: 'Yesterday', checkIn: '07:15 AM', checkOut: '03:00 PM', status: 'Manual' },
-];
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: 'numeric', month: 'short', day: 'numeric',
@@ -126,15 +118,15 @@ function formatDate(iso: string) {
 
 /* ───── inline dropdown component ───── */
 function UserActionsMenu({
-  user,
+  isSuspended,
   onSuspend,
   onUnsuspend,
   onDelete,
 }: {
-  user: UserProfile;
+  isSuspended: boolean;
   onSuspend: () => void;
   onUnsuspend: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -188,25 +180,29 @@ function UserActionsMenu({
         >
           <button
             onClick={wrap(onUnsuspend)}
-            disabled={!user.is_suspended}
+            disabled={!isSuspended}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Reactivate
           </button>
           <button
             onClick={wrap(onSuspend)}
-            disabled={user.is_suspended}
+            disabled={isSuspended}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Freeze Account
+            Suspend Account
           </button>
-          <hr className="my-1 border-gray-100" />
-          <button
-            onClick={wrap(onDelete)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
-          >
-            Delete User
-          </button>
+          {onDelete && (
+            <>
+              <hr className="my-1 border-gray-100" />
+              <button
+                onClick={wrap(onDelete)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Delete User
+              </button>
+            </>
+          )}
         </div>
       )}
     </>
@@ -222,8 +218,12 @@ export default function LogsPage() {
   const [filterClassGate, setFilterClassGate] = useState('');
   const [filterDateGate, setFilterDateGate] = useState('');
 
+  const [gateLogs, setGateLogs] = useState<GateLogRow[]>([]);
+  const [gateLoading, setGateLoading] = useState(true);
+
   const [searchUsers, setSearchUsers] = useState('');
   const [filterRoleUsers, setFilterRoleUsers] = useState('');
+  const [filterStatusUsers, setFilterStatusUsers] = useState('');
 
   const [searchSecurity, setSearchSecurity] = useState('');
   const [filterTypeSecurity, setFilterTypeSecurity] = useState<LogType | 'all'>('all');
@@ -235,6 +235,30 @@ export default function LogsPage() {
   const [loadingAllUsers, setLoadingAllUsers] = useState(true);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, "approving" | "rejecting" | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLogs = async () => {
+      setGateLoading(true);
+      const dateParam =
+        filterDateGate === 'today' ? 'today'
+        : filterDateGate === 'yesterday' ? 'yesterday'
+        : undefined;
+
+      const res = await getGateEvents({
+        method: filterStatusGate.toLowerCase() || undefined,
+        date: dateParam,
+      });
+
+      if (!cancelled) {
+        if (res.ok) setGateLogs(res.data);
+        setGateLoading(false);
+      }
+    };
+    fetchLogs();
+    
+    return () => { cancelled = true; };
+  }, [filterStatusGate, filterDateGate]);
 
   useEffect(() => {
     getPendingUsers().then((result) => {
@@ -303,6 +327,20 @@ export default function LogsPage() {
     if (res.ok) setAllUsers(prev => prev.filter(u => u.id !== id));
   };
 
+  const handleSuspendStudent = async (studentIdNo: string) => {
+    const res = await suspendStudent(studentIdNo);
+    if (res.ok) {
+      setAllStudentEntries(prev => prev.map(s => s.id === studentIdNo ? { ...s, is_active: false } : s));
+    }
+  };
+
+  const handleUnsuspendStudent = async (studentIdNo: string) => {
+    const res = await unsuspendStudent(studentIdNo);
+    if (res.ok) {
+      setAllStudentEntries(prev => prev.map(s => s.id === studentIdNo ? { ...s, is_active: true } : s));
+    }
+  };
+
   const allEntries = useMemo<DisplayEntry[]>(() => {
     const userEntries: DisplayEntry[] = allUsers.map(u => ({ ...u, entryType: 'user' as const }));
     return [...userEntries, ...allStudentEntries].sort(
@@ -315,8 +353,17 @@ export default function LogsPage() {
     if (filterRoleUsers && filterRoleUsers !== 'All') {
       if (entry.role !== filterRoleUsers.toLowerCase()) return false;
     }
+    if (filterStatusUsers) {
+      const isSuspended = entry.is_suspended || !entry.is_active;
+      if (filterStatusUsers === 'suspended' && !isSuspended) return false;
+      if (filterStatusUsers === 'active' && isSuspended) return false;
+    }
     return true;
   });
+
+  const filteredGateLogs = gateLogs.filter(log =>
+    searchGate ? log.student_id_no.toLowerCase().includes(searchGate.toLowerCase()) : true
+  );
 
   const renderGateTab = () => (
     <div className="bg-white border border-[var(--line)] rounded-[20px] p-6 w-full shadow-sm mt-6">
@@ -372,27 +419,41 @@ export default function LogsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
-            {GATE_LOGS.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="py-4 px-6 text-[#334155]">{log.studentId}</td>
-                <td className="py-4 px-6">
-                  <div className="flex flex-col">
-                    <span className="text-[#0f172a] font-semibold">{log.timeLabel}</span>
-                    <span className="text-gray-400 text-xs mt-0.5">{log.date}</span>
-                  </div>
-                </td>
-                <td className="py-4 px-6">{log.checkIn}</td>
-                <td className="py-4 px-6">{log.checkOut}</td>
-                <td className="py-4 px-6">
-                  <span className={clsx(
-                    "px-4 py-1.5 rounded-full text-[11px] font-bold",
-                    log.status === 'QR' ? "bg-[#dcfce7] text-[#16a34a]" : "bg-gray-100 border border-gray-200 text-gray-600"
-                  )}>
-                    {log.status}
-                  </span>
+            {gateLoading ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-gray-400 text-[13px]">
+                  Loading...
                 </td>
               </tr>
-            ))}
+            ) : filteredGateLogs.length > 0 ? (
+              filteredGateLogs.map((log) => (
+                <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="py-4 px-6 text-[#334155]">{log.student_id_no}</td>
+                  <td className="py-4 px-6">
+                    <div className="flex flex-col">
+                      <span className="text-[#0f172a] font-semibold">{log.timeLabel}</span>
+                      <span className="text-gray-400 text-xs mt-0.5">{log.date}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">{log.checkIn ?? '-- : --'}</td>
+                  <td className="py-4 px-6">{log.checkOut ?? '-- : --'}</td>
+                  <td className="py-4 px-6">
+                    <span className={clsx(
+                      "px-4 py-1.5 rounded-full text-[11px] font-bold",
+                      log.method === 'qr' ? "bg-[#dcfce7] text-[#16a34a]" : log.method === 'auto' ? "bg-[#f3e8ff] text-[#7c3aed]" : "bg-gray-100 border border-gray-200 text-gray-600"
+                    )}>
+                      {log.method === 'qr' ? 'QR' : log.method === 'auto' ? 'Auto' : 'Manual'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-gray-400 text-[13px]">
+                  No logs found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -523,6 +584,15 @@ export default function LogsPage() {
             <option value="admin">Admin</option>
             <option value="student">Students</option>
           </select>
+          <select
+            value={filterStatusUsers}
+            onChange={e => setFilterStatusUsers(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
         </div>
       </div>
 
@@ -584,13 +654,17 @@ export default function LogsPage() {
                     <td className="py-3.5 px-6 text-right">
                       {entry.entryType === 'user' ? (
                         <UserActionsMenu
-                          user={entry}
+                          isSuspended={entry.is_suspended || !entry.is_active}
                           onSuspend={() => handleSuspend(entry.id)}
                           onUnsuspend={() => handleUnsuspend(entry.id)}
                           onDelete={() => handleDelete(entry.id)}
                         />
                       ) : (
-                        <span />
+                        <UserActionsMenu
+                          isSuspended={!entry.is_active}
+                          onSuspend={() => handleSuspendStudent(entry.id)}
+                          onUnsuspend={() => handleUnsuspendStudent(entry.id)}
+                        />
                       )}
                     </td>
                   </tr>

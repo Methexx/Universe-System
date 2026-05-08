@@ -16,7 +16,9 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
       return;
     }
     if (user.role !== "parent") {
-      router.replace(user.role === "pending" ? "/pending" : `/${user.role}/overview`);
+      if (user.role === "pending") router.replace("/pending");
+      else if (user.role === "security") router.replace("/security/dashboard");
+      else router.replace(`/${user.role}/overview`);
     }
   }, [user, loading, router]);
 

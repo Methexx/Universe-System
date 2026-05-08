@@ -26,10 +26,20 @@ export default async function gateRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin', 'security', 'teacher'])]
   }, GateController.getStudentByIdNo);
 
+  // Search students by name or ID for autocomplete
+  fastify.get<{ Querystring: { q: string } }>('/search', {
+    preHandler: [authorize(['admin', 'security', 'teacher'])]
+  }, GateController.searchStudents);
+
   // Gate stats for dashboard cards
   fastify.get('/stats', {
     preHandler: [authorize(['admin', 'security', 'teacher'])]
   }, GateController.getStats);
+
+  // Time-series check-in data for charts (range=today|week|30days)
+  fastify.get<{ Querystring: { range?: string } }>('/stats/timeseries', {
+    preHandler: [authorize(['admin'])]
+  }, GateController.getTimeseries);
 
   // Retrieve recent scan events
   fastify.get('/events', {

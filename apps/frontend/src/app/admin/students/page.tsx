@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
@@ -45,13 +46,14 @@ function mapApiStudentToStudent(s: StudentRecord): Student {
 }
 
 export default function StudentsPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'general' | 'attendance' | 'grades'>('general');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
 
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') ?? '');
   const [classFilter, setClassFilter] = useState('');
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

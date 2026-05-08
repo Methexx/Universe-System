@@ -91,4 +91,8 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
   fastify.get('/overview/stats', {
     preHandler: [authorize(['admin'])]
   }, SchoolController.getOverviewStats);
+
+  fastify.get('/overview/recent-activity', {
+    preHandler: [authorize(['admin'])]
+  }, SchoolController.getRecentActivity);
 }
