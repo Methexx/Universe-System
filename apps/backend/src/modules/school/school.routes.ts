@@ -53,10 +53,6 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin']), async (request) => { updateClassSchema.parse({ body: request.body }) }]
   }, SchoolController.updateClass);
 
-  fastify.get('/classes/mine', {
-    preHandler: [authorize(['teacher'])]
-  }, SchoolController.getMyClasses);
-
   fastify.get<{ Params: { id: string } }>('/classes/:id/students', {
     preHandler: [authorize(['admin', 'teacher'])]
   }, SchoolController.getClassStudents);
@@ -89,7 +85,7 @@ export default async function schoolRoutes(fastify: FastifyInstance) {
   }, SchoolController.deleteStudent);
 
   fastify.get('/overview/stats', {
-    preHandler: [authorize(['admin'])]
+    preHandler: [authorize(['admin', 'teacher'])]
   }, SchoolController.getOverviewStats);
 
   fastify.get('/overview/recent-activity', {

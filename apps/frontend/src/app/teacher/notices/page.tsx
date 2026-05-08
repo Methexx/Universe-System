@@ -81,6 +81,7 @@ export default function TeacherNoticesPage() {
       <PageHeader
         title="Notices"
         subtitle="Post class updates and stay informed about school-wide announcements"
+        onRefresh={fetchNotices}
       />
 
       {/* Error Alert */}

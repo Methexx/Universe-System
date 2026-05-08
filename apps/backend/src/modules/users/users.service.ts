@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { UpdateProfileInput, PromoteUserInput } from './users.schema';
+import { sendApprovalEmail } from '../../common/utils/email';
 
 export class UsersService {
   static async getProfile(userId: string) {
@@ -117,7 +118,7 @@ export class UsersService {
 
     const updated = await prisma.user.update({
       where: { id: targetUserId },
-      data: { role, ...(user_id_no ? { user_id_no } : {}) },
+      data: { role, requested_role: null, ...(user_id_no ? { user_id_no } : {}) },
       select: {
         id: true,
         email: true,
@@ -126,6 +127,12 @@ export class UsersService {
         user_id_no: true,
       }
     });
+
+    try {
+      await sendApprovalEmail(updated.email, updated.full_name ?? 'User', role);
+    } catch (_) {
+      // email failure should not block promotion
+    }
 
     return updated;
   }

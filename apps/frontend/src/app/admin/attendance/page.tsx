@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StatCard } from '@/shared/components/ui/StatCard';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
@@ -48,28 +48,25 @@ export default function AttendancePage() {
   const [classWeek, setClassWeek] = useState('');
   const [classFilter, setClassFilter] = useState('');
 
-  useEffect(() => {
-    getGateStats().then(res => { if (res.ok) setStats(res.data); });
-  }, []);
-
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     const dateParam =
       gateTime === 'today'      ? 'today'
       : gateTime === 'yesterday' ? 'yesterday'
       : gateTime === 'pick'      ? (gatePickedDate || undefined)
       : undefined;
 
-    let cancelled = false;
-    getGateEvents({
-      method: gateStatus || undefined,
-      date:   dateParam,
-    }).then(res => {
-      if (cancelled) return;
-      if (res.ok) setGateLogs(res.data);
-      setGateLoading(false);
-    });
-    return () => { cancelled = true; };
+    setGateLoading(true);
+    const [statsRes, logsRes] = await Promise.all([
+      getGateStats(),
+      getGateEvents({ method: gateStatus || undefined, date: dateParam }),
+    ]);
+    if (statsRes.ok) setStats(statsRes.data);
+    if (logsRes.ok) setGateLogs(logsRes.data);
+    setGateLoading(false);
   }, [gateStatus, gateTime, gatePickedDate]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filteredGateLogs = gateLogs.filter(log =>
     gateSearch ? log.student_id_no.toLowerCase().includes(gateSearch.toLowerCase()) : true
@@ -303,6 +300,7 @@ export default function AttendancePage() {
       <PageHeader
         title="Attendance"
         subtitle="Welcome back Methum Pathirana!"
+        onRefresh={fetchData}
       />
 
       {/* Stats Grid */}

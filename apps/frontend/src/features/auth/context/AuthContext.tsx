@@ -13,6 +13,11 @@ export type AuthUser = {
   avatar_url?: string | null;
   gender?: string | null;
   last_seen?: string | null;
+  classes_taught?: Array<{
+    id: string;
+    name: string;
+    school_grade: { id: string; name: string };
+  }>;
 };
 
 type AuthContextValue = {

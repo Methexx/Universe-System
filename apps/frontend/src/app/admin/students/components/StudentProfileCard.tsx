@@ -37,6 +37,7 @@ interface StudentProfileCardProps {
   student: Student | undefined;
   allStudents: Student[];
   onSelectStudent: (id: string) => void;
+  hideClassmates?: boolean;
 }
 
 function ContactPopup({ label, value, onClose }: { label: string; value: string; onClose: () => void }) {
@@ -64,7 +65,7 @@ function ContactPopup({ label, value, onClose }: { label: string; value: string;
   );
 }
 
-export function StudentProfileCard({ student, allStudents, onSelectStudent }: StudentProfileCardProps) {
+export function StudentProfileCard({ student, allStudents, onSelectStudent, hideClassmates }: StudentProfileCardProps) {
   const [activePopup, setActivePopup] = useState<'phone' | 'email' | null>(null);
 
   const togglePopup = (type: 'phone' | 'email') => {
@@ -159,35 +160,37 @@ export function StudentProfileCard({ student, allStudents, onSelectStudent }: St
             </div>
           </div>
 
-          <div className="w-full mt-10 px-2">
-            <h4 className="text-[13px] font-bold text-[#0f172a] mb-4">People from the same class</h4>
-            {classmates.length === 0 ? (
-              <p className="text-[12px] text-[#94a3b8]">No classmates found.</p>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-3">
-                  {displayClassmates.map(cm => (
-                    <button
-                      key={cm.id}
-                      onClick={() => onSelectStudent(cm.id)}
-                      title={cm.name}
-                      className="relative w-9 h-9 rounded-full border-2 border-white overflow-hidden flex-shrink-0 hover:z-10 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-transform"
-                    >
-                      {cm.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cm.avatar} className="w-full h-full object-cover" alt={cm.name} />
-                      ) : (
-                        <LetterAvatar name={cm.name} id={cm.id} textSize="text-sm" />
-                      )}
-                    </button>
-                  ))}
+          {!hideClassmates && (
+            <div className="w-full mt-10 px-2">
+              <h4 className="text-[13px] font-bold text-[#0f172a] mb-4">People from the same class</h4>
+              {classmates.length === 0 ? (
+                <p className="text-[12px] text-[#94a3b8]">No classmates found.</p>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-3">
+                    {displayClassmates.map(cm => (
+                      <button
+                        key={cm.id}
+                        onClick={() => onSelectStudent(cm.id)}
+                        title={cm.name}
+                        className="relative w-9 h-9 rounded-full border-2 border-white overflow-hidden flex-shrink-0 hover:z-10 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-transform"
+                      >
+                        {cm.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={cm.avatar} className="w-full h-full object-cover" alt={cm.name} />
+                        ) : (
+                          <LetterAvatar name={cm.name} id={cm.id} textSize="text-sm" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {extraCount > 0 && (
+                    <span className="text-[12px] font-bold text-[#3b82f6]">+{extraCount} more</span>
+                  )}
                 </div>
-                {extraCount > 0 && (
-                  <span className="text-[12px] font-bold text-[#3b82f6]">+{extraCount} more</span>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-[300px] text-center w-full my-auto text-gray-400">

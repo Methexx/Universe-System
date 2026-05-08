@@ -50,6 +50,7 @@ const sanitizeUser = (user: {
   full_name: user.full_name,
   avatar_url: user.avatar_url,
   phone_number: user.phone_number,
+  classes_taught: (user as any).classes_taught,
 });
 
 const buildAuthPayload = (user: {
@@ -310,6 +311,11 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        classes_taught: {
+          select: { id: true, name: true, school_grade: { select: { id: true, name: true } } }
+        }
+      }
     });
 
     if (!user) {
@@ -385,6 +391,11 @@ export class AuthService {
         full_name: true,
         is_active: true,
         is_suspended: true,
+        avatar_url: true,
+        phone_number: true,
+        classes_taught: {
+          select: { id: true, name: true, school_grade: { select: { id: true, name: true } } }
+        }
       },
     });
 

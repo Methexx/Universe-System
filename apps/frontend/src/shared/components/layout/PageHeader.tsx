@@ -7,9 +7,10 @@ import clsx from "clsx";
 interface PageHeaderProps {
   title: string;
   subtitle: string;
+  onRefresh?: () => Promise<void> | void;
 }
 
-export function PageHeader({ title, subtitle }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, onRefresh }: PageHeaderProps) {
   const [time, setTime] = useState<Date | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -35,12 +36,16 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
     };
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (isRefreshing) return;
-    
     setIsRefreshing(true);
-    // Perform a hard reload of the page
-    window.location.reload();
+    if (onRefresh) {
+      await onRefresh();
+      setLastUpdated(new Date());
+      setIsRefreshing(false);
+    } else {
+      window.location.reload();
+    }
   };
 
   const formattedTimeParts = time ? {

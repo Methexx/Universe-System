@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { SectionCard } from './components/SectionCard';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
@@ -63,14 +63,14 @@ export default function EnrollmentsPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    getGradesWithClasses().then(res => {
-      if (res.ok) setGrades(res.data);
-    });
-    getNextStudentId().then(res => {
-      if (res.ok) setNextStudentId(res.data.next_id);
-    });
+  const fetchData = useCallback(async () => {
+    const [gradesRes, nextIdRes] = await Promise.all([getGradesWithClasses(), getNextStudentId()]);
+    if (gradesRes.ok) setGrades(gradesRes.data);
+    if (nextIdRes.ok) setNextStudentId(nextIdRes.data.next_id);
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const selectedGrade = grades.find(g => g.id === selectedGradeId);
   const classesForGrade: ClassItem[] = selectedGrade?.classes ?? [];
@@ -214,6 +214,7 @@ export default function EnrollmentsPage() {
         <PageHeader
           title="Enrollments Management"
           subtitle="Manage student records, enrollment, and academic information"
+          onRefresh={fetchData}
         />
 
         <div className="flex flex-col items-center justify-center py-16 animate-in fade-in duration-500">

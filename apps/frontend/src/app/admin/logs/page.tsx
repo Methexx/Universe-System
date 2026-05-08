@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
@@ -236,59 +236,53 @@ export default function LogsPage() {
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, "approving" | "rejecting" | null>>({});
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchLogs = async () => {
-      setGateLoading(true);
-      const dateParam =
-        filterDateGate === 'today' ? 'today'
-        : filterDateGate === 'yesterday' ? 'yesterday'
-        : undefined;
+  const fetchData = useCallback(async () => {
+    const dateParam =
+      filterDateGate === 'today' ? 'today'
+      : filterDateGate === 'yesterday' ? 'yesterday'
+      : undefined;
 
-      const res = await getGateEvents({
-        method: filterStatusGate.toLowerCase() || undefined,
-        date: dateParam,
-      });
+    setGateLoading(true);
+    setLoadingPending(true);
+    setLoadingAllUsers(true);
 
-      if (!cancelled) {
-        if (res.ok) setGateLogs(res.data);
-        setGateLoading(false);
-      }
-    };
-    fetchLogs();
-    
-    return () => { cancelled = true; };
+    const [gateRes, pendingRes, usersRes, studentsRes] = await Promise.all([
+      getGateEvents({ method: filterStatusGate.toLowerCase() || undefined, date: dateParam }),
+      getPendingUsers(),
+      getAllUsers(),
+      getStudents(),
+    ]);
+
+    if (gateRes.ok) setGateLogs(gateRes.data);
+    setGateLoading(false);
+
+    if (pendingRes.ok) {
+      setPendingUsers(pendingRes.data);
+      const defaults: Record<string, string> = {};
+      pendingRes.data.forEach((u) => { defaults[u.id] = u.requested_role || "teacher"; });
+      setSelectedRoles(defaults);
+    }
+    setLoadingPending(false);
+
+    if (usersRes.ok) setAllUsers(usersRes.data);
+    if (studentsRes.ok) {
+      setAllStudentEntries(studentsRes.data.map(s => ({
+        entryType: 'student' as const,
+        id: s.student_id_no,
+        full_name: s.full_name,
+        role: 'student' as const,
+        email: s.parent_email ?? '',
+        is_active: s.is_active,
+        is_suspended: false as const,
+        created_at: s.created_at,
+        avatar_url: s.photo_url ?? null,
+      })));
+    }
+    setLoadingAllUsers(false);
   }, [filterStatusGate, filterDateGate]);
 
-  useEffect(() => {
-    getPendingUsers().then((result) => {
-      if (result.ok) {
-        setPendingUsers(result.data);
-        const defaults: Record<string, string> = {};
-        result.data.forEach((u) => { defaults[u.id] = u.requested_role || "teacher"; });
-        setSelectedRoles(defaults);
-      }
-      setLoadingPending(false);
-    });
-
-    Promise.all([getAllUsers(), getStudents()]).then(([usersRes, studentsRes]) => {
-      if (usersRes.ok) setAllUsers(usersRes.data);
-      if (studentsRes.ok) {
-        setAllStudentEntries(studentsRes.data.map(s => ({
-          entryType: 'student' as const,
-          id: s.student_id_no,
-          full_name: s.full_name,
-          role: 'student' as const,
-          email: s.parent_email ?? '',
-          is_active: s.is_active,
-          is_suspended: false as const,
-          created_at: s.created_at,
-          avatar_url: s.photo_url ?? null,
-        })));
-      }
-      setLoadingAllUsers(false);
-    });
-  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const handleApprove = async (id: string) => {
     const role = selectedRoles[id] ?? "teacher";
@@ -788,6 +782,7 @@ export default function LogsPage() {
       <PageHeader
         title="Logs"
         subtitle=""
+        onRefresh={fetchData}
       />
 
       <div className="mt-4">
