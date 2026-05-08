@@ -51,9 +51,10 @@ export const UsersController = {
     return reply.status(200).send({ success: true, data: users });
   },
 
-  async getAll(request: FastifyRequest, reply: FastifyReply) {
+  async getAll(_request: FastifyRequest, reply: FastifyReply) {
     const users = await prisma.user.findMany({
-      select: { id: true, email: true, full_name: true, role: true, is_active: true },
+      where: { role: { not: 'pending' } },
+      select: { id: true, email: true, full_name: true, role: true, is_active: true, is_suspended: true, avatar_url: true, created_at: true },
     });
     return reply.status(200).send({ success: true, data: users });
   },

@@ -258,32 +258,57 @@ export class SchoolService {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const [activeStudents, suspendedStudents, suspendedUsers, attendanceCount, yesterdayCount] = await Promise.all([
+    const [activeStudents, suspendedStudents, todayGateCheckIns, yesterdayGateCheckIns] = await Promise.all([
       prisma.student.count({ where: { is_active: true } }),
+      // Suspended students = students with is_active: false
       prisma.student.count({ where: { is_active: false } }),
-      prisma.user.count({
-        where: {
-          OR: [
-            { is_suspended: true },
-            { is_active: false }
-          ],
-          role: { not: 'pending' }
-        }
-      }),
-      prisma.attendanceRecord.count({
-        where: { date: today, status: 'present' }
-      }),
-      prisma.attendanceRecord.count({
-        where: { date: yesterday, status: 'present' }
-      }),
+      // Gate check-ins as the attendance figure (matches attendance page stat card)
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: today } } }),
+      prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: yesterday, lt: today } } }),
     ]);
 
     return {
       activeStudents,
       suspendedStudents,
-      lockedAccounts: suspendedStudents + suspendedUsers,
-      todayAttendance: attendanceCount,
-      yesterdayAttendance: yesterdayCount,
+      // lockedAccounts = suspended students only (shown in the "Suspended Accounts" stat card)
+      lockedAccounts: suspendedStudents,
+      todayAttendance: todayGateCheckIns,
+      yesterdayAttendance: yesterdayGateCheckIns,
     };
+  }
+
+  static async getRecentActivity() {
+    const recentStudents = await prisma.student.findMany({
+      orderBy: { created_at: 'desc' },
+      take: 5,
+      include: { class: true }
+    });
+
+    const recentGateEvents = await prisma.gateEvent.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 5,
+      include: { student: { include: { class: true } } }
+    });
+
+    const activities = [
+      ...recentStudents.map(s => ({
+        type: 'registration',
+        id: `reg-${s.id}`,
+        timestamp: s.created_at,
+        title: 'New Student Registration',
+        details: `Name - ${s.full_name}   SID - ${s.student_id_no}   class - ${s.class?.name ?? 'Unassigned'}`,
+      })),
+      ...recentGateEvents.map(g => ({
+        type: 'gate_log',
+        id: `gate-${g.id}`,
+        timestamp: g.timestamp,
+        title: `Gate ${g.direction === 'IN' ? 'Check-in' : 'Check-out'} (${g.method})`,
+        details: `Name - ${g.student.full_name}   SID - ${g.student.student_id_no}   class - ${g.student.class?.name ?? 'Unassigned'}`,
+      }))
+    ];
+
+    activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return activities.slice(0, 5);
   }
 }

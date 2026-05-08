@@ -149,6 +149,14 @@ export function updateStudent(id: string, body: Partial<CreateStudentBody> & { i
   });
 }
 
+export function suspendStudent(id: string) {
+  return updateStudent(id, { is_active: false });
+}
+
+export function unsuspendStudent(id: string) {
+  return updateStudent(id, { is_active: true });
+}
+
 export function deleteStudent(id: string) {
   return request<void>(`/api/school/students/${id}`, {
     method: 'DELETE',
@@ -165,6 +173,18 @@ export type OverviewStats = {
 
 export function getOverviewStats() {
   return request<OverviewStats>('/api/school/overview/stats');
+}
+
+export type RecentActivity = {
+  type: string;
+  id: string;
+  timestamp: string;
+  title: string;
+  details: string;
+};
+
+export function getRecentActivity() {
+  return request<RecentActivity[]>('/api/school/overview/recent-activity');
 }
 
 export function createGrade(name: string) {

@@ -36,6 +36,11 @@ export default async function gateRoutes(fastify: FastifyInstance) {
     preHandler: [authorize(['admin', 'security', 'teacher'])]
   }, GateController.getStats);
 
+  // Time-series check-in data for charts (range=today|week|30days)
+  fastify.get<{ Querystring: { range?: string } }>('/stats/timeseries', {
+    preHandler: [authorize(['admin'])]
+  }, GateController.getTimeseries);
+
   // Retrieve recent scan events
   fastify.get('/events', {
     preHandler: [authorize(['admin', 'security', 'teacher'])]

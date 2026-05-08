@@ -140,10 +140,20 @@ export class SchoolController {
     }
   }
 
+
   static async getOverviewStats(request: FastifyRequest, reply: FastifyReply) {
     try {
       const results = await getOrSetCache('school:overview-stats', () => SchoolService.getOverviewStats(), 300); // 5 min cache
       return reply.send(successResponse('Overview stats fetched', results));
+    } catch (error: any) {
+      return reply.status(500).send(errorResponse(error.message));
+    }
+  }
+
+  static async getRecentActivity(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const results = await SchoolService.getRecentActivity();
+      return reply.send(successResponse('Recent activity fetched', results));
     } catch (error: any) {
       return reply.status(500).send(errorResponse(error.message));
     }

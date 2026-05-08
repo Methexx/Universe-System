@@ -17,7 +17,7 @@ import {
   unsuspendUser,
   deleteUser,
 } from "@/features/auth/lib/auth-api";
-import { getStudents } from '@/features/school/lib/school-api';
+import { getStudents, suspendStudent, unsuspendStudent } from '@/features/school/lib/school-api';
 import { getGateEvents, GateLogRow } from '@/features/gate/lib/gate-api';
 
 type TabType = 'Gate' | 'Pending requests' | 'All users' | 'Security';
@@ -118,15 +118,15 @@ function formatDate(iso: string) {
 
 /* ───── inline dropdown component ───── */
 function UserActionsMenu({
-  user,
+  isSuspended,
   onSuspend,
   onUnsuspend,
   onDelete,
 }: {
-  user: UserProfile;
+  isSuspended: boolean;
   onSuspend: () => void;
   onUnsuspend: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -180,25 +180,29 @@ function UserActionsMenu({
         >
           <button
             onClick={wrap(onUnsuspend)}
-            disabled={!user.is_suspended}
+            disabled={!isSuspended}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Reactivate
           </button>
           <button
             onClick={wrap(onSuspend)}
-            disabled={user.is_suspended}
+            disabled={isSuspended}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Freeze Account
+            Suspend Account
           </button>
-          <hr className="my-1 border-gray-100" />
-          <button
-            onClick={wrap(onDelete)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
-          >
-            Delete User
-          </button>
+          {onDelete && (
+            <>
+              <hr className="my-1 border-gray-100" />
+              <button
+                onClick={wrap(onDelete)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Delete User
+              </button>
+            </>
+          )}
         </div>
       )}
     </>
@@ -219,6 +223,7 @@ export default function LogsPage() {
 
   const [searchUsers, setSearchUsers] = useState('');
   const [filterRoleUsers, setFilterRoleUsers] = useState('');
+  const [filterStatusUsers, setFilterStatusUsers] = useState('');
 
   const [searchSecurity, setSearchSecurity] = useState('');
   const [filterTypeSecurity, setFilterTypeSecurity] = useState<LogType | 'all'>('all');
@@ -322,6 +327,20 @@ export default function LogsPage() {
     if (res.ok) setAllUsers(prev => prev.filter(u => u.id !== id));
   };
 
+  const handleSuspendStudent = async (studentIdNo: string) => {
+    const res = await suspendStudent(studentIdNo);
+    if (res.ok) {
+      setAllStudentEntries(prev => prev.map(s => s.id === studentIdNo ? { ...s, is_active: false } : s));
+    }
+  };
+
+  const handleUnsuspendStudent = async (studentIdNo: string) => {
+    const res = await unsuspendStudent(studentIdNo);
+    if (res.ok) {
+      setAllStudentEntries(prev => prev.map(s => s.id === studentIdNo ? { ...s, is_active: true } : s));
+    }
+  };
+
   const allEntries = useMemo<DisplayEntry[]>(() => {
     const userEntries: DisplayEntry[] = allUsers.map(u => ({ ...u, entryType: 'user' as const }));
     return [...userEntries, ...allStudentEntries].sort(
@@ -333,6 +352,11 @@ export default function LogsPage() {
     if (searchUsers && !entry.full_name?.toLowerCase().includes(searchUsers.toLowerCase())) return false;
     if (filterRoleUsers && filterRoleUsers !== 'All') {
       if (entry.role !== filterRoleUsers.toLowerCase()) return false;
+    }
+    if (filterStatusUsers) {
+      const isSuspended = entry.is_suspended || !entry.is_active;
+      if (filterStatusUsers === 'suspended' && !isSuspended) return false;
+      if (filterStatusUsers === 'active' && isSuspended) return false;
     }
     return true;
   });
@@ -560,6 +584,15 @@ export default function LogsPage() {
             <option value="admin">Admin</option>
             <option value="student">Students</option>
           </select>
+          <select
+            value={filterStatusUsers}
+            onChange={e => setFilterStatusUsers(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
         </div>
       </div>
 
@@ -621,13 +654,17 @@ export default function LogsPage() {
                     <td className="py-3.5 px-6 text-right">
                       {entry.entryType === 'user' ? (
                         <UserActionsMenu
-                          user={entry}
+                          isSuspended={entry.is_suspended || !entry.is_active}
                           onSuspend={() => handleSuspend(entry.id)}
                           onUnsuspend={() => handleUnsuspend(entry.id)}
                           onDelete={() => handleDelete(entry.id)}
                         />
                       ) : (
-                        <span />
+                        <UserActionsMenu
+                          isSuspended={!entry.is_active}
+                          onSuspend={() => handleSuspendStudent(entry.id)}
+                          onUnsuspend={() => handleUnsuspendStudent(entry.id)}
+                        />
                       )}
                     </td>
                   </tr>

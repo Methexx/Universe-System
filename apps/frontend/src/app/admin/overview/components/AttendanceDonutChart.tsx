@@ -14,7 +14,8 @@ export function AttendanceDonutChart({
   activeStudents,
   suspendedAccounts,
 }: AttendanceDonutChartProps) {
-  const total = todayAttendance + activeStudents + suspendedAccounts;
+  const absentStudents = Math.max(0, activeStudents - todayAttendance);
+  const total = todayAttendance + absentStudents + suspendedAccounts;
 
   // When all values are 0 show a neutral placeholder so the chart renders
   const pieData =
@@ -23,7 +24,7 @@ export function AttendanceDonutChart({
       : [
           { name: "Suspended Accounts", value: suspendedAccounts, color: "#f97316" },
           { name: "Today's Attendance", value: todayAttendance, color: "#1e293b" },
-          { name: "Active Students", value: activeStudents, color: "#cbd5e1" },
+          { name: "Absent Students", value: absentStudents, color: "#cbd5e1" },
         ];
 
   return (

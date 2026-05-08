@@ -93,3 +93,9 @@ export function submitManualEntry(body: ManualScanBody) {
     body: JSON.stringify(body),
   });
 }
+
+export type TimeseriesPoint = { name: string; uv: number };
+
+export function getGateTimeseries(range: 'today' | 'week' | '30days') {
+  return request<TimeseriesPoint[]>(`/api/gate/stats/timeseries?range=${range}`);
+}
