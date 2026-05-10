@@ -5,14 +5,13 @@ import clsx from "clsx";
 import {
   Search,
   Send,
-  Sparkles,
   ChevronLeft,
   MessageSquare,
   Trash2,
 } from "lucide-react";
 import Image from "next/image";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { getInbox, getContacts, getThread, sendMessage, markAsRead, generateAiDraft, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
+import { getInbox, getContacts, getThread, sendMessage, markAsRead, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useUnreadMessages } from "@/features/messages/context/UnreadMessagesContext";
 import { Loader2 } from "lucide-react";
@@ -26,14 +25,12 @@ function formatTimestamp(isoString: string) {
   const date = new Date(isoString);
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
-  
+
   if (isToday) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
-
-// generateAiDraft helper is imported from messages-api.ts
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -70,12 +67,12 @@ function ThreadListItem({
       <div className="relative h-9 w-9 flex-shrink-0">
         <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
           {thread.user.avatar_url ? (
-            <Image 
-              src={thread.user.avatar_url} 
-              alt="" 
-              width={36} 
-              height={36} 
-              className="h-full w-full object-cover" 
+            <Image
+              src={thread.user.avatar_url}
+              alt=""
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
               unoptimized
             />
           ) : (
@@ -94,7 +91,7 @@ function ThreadListItem({
           <span className="flex-shrink-0 text-[11px] text-[#94a3b8]">{formatTimestamp(thread.lastMessage.created_at)}</span>
         </div>
         <p className="text-[11px] text-[#64748b] flex items-center gap-2">
-          {capitalizeRole(thread.user.role)}
+          {capitalizeRole(thread.user.role)} {thread.user.class_name ? `(${thread.user.class_name})` : ""}
         </p>
         <div className="mt-0.5 flex items-center gap-1">
           <p
@@ -128,12 +125,12 @@ function ContactListItem({
       <div className="relative h-9 w-9 flex-shrink-0">
         <div className="flex h-full w-full items-center justify-center rounded-full bg-[#e0e7ff] text-[13px] font-bold text-[#4f46e5] overflow-hidden">
           {contact.avatar_url ? (
-            <Image 
-              src={contact.avatar_url} 
-              alt="" 
-              width={36} 
-              height={36} 
-              className="h-full w-full object-cover" 
+            <Image
+              src={contact.avatar_url}
+              alt=""
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
               unoptimized
             />
           ) : (
@@ -147,7 +144,7 @@ function ContactListItem({
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold text-[#0f172a]">{contact.full_name}</p>
         <p className="text-[11px] text-[#64748b] flex items-center gap-2">
-          {contact.role === 'parent' ? `Parent of ${contact.student_name}` : capitalizeRole(contact.role)}
+          {capitalizeRole(contact.role)} {contact.class_name ? `(${contact.class_name})` : ""}
         </p>
       </div>
     </button>
@@ -176,7 +173,6 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
           {formatTimestamp(message.created_at)}
         </p>
 
-        {/* Delete button on hover (only for sender) */}
         {isMe && (
           <button
             onClick={() => onDelete(message.id)}
@@ -195,7 +191,7 @@ function ChatBubble({ message, currentUserId, onDelete }: { message: ApiMessage;
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function TeacherMessagesPage() {
+export default function ParentMessagesPage() {
   const { user } = useAuth();
   const { clearUnread, refresh: refreshUnread } = useUnreadMessages();
   const [threads, setThreads] = useState<MessageThread[]>([]);
@@ -204,14 +200,12 @@ export default function TeacherMessagesPage() {
   const [activeMessages, setActiveMessages] = useState<ApiMessage[]>([]);
   const [search, setSearch] = useState("");
   const [compose, setCompose] = useState("");
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Total unread across all threads
-  const totalUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
+  const totalUnread = threads.reduce((sum: number, t: MessageThread) => sum + t.unreadCount, 0);
 
   const fetchData = React.useCallback(async () => {
     const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
@@ -221,53 +215,44 @@ export default function TeacherMessagesPage() {
   }, []);
 
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 0);
-    return () => clearTimeout(timer);
+    void (async () => { await fetchData(); })();
   }, [fetchData]);
 
-  // Polling for real-time updates
+  // Polling
   React.useEffect(() => {
     const interval = setInterval(async () => {
-      // Refresh inbox
       const inboxRes = await getInbox();
       if (inboxRes.ok) setThreads(inboxRes.data);
 
-      // If a thread is open, refresh its messages
       if (activeThreadId) {
         const threadRes = await getThread(activeThreadId);
         if (threadRes.ok) {
           setActiveMessages(threadRes.data);
         }
       }
-      
-      // Refresh contacts occasionally too
-      const contactsRes = await getContacts();
-      if (contactsRes.ok) setContacts(contactsRes.data);
     }, 5000);
 
     return () => clearInterval(interval);
   }, [activeThreadId]);
 
   const filteredThreads = useMemo(() => {
-    return threads.filter((t) => {
+    return threads.filter((t: MessageThread) => {
       const q = search.toLowerCase();
       return !q || t.user.full_name?.toLowerCase().includes(q);
     });
   }, [threads, search]);
 
   const filteredContacts = useMemo(() => {
-    return contacts.filter((c) => {
+    return contacts.filter((c: MessageContact) => {
       const q = search.toLowerCase();
       return !q || c.full_name?.toLowerCase().includes(q);
     });
   }, [contacts, search]);
 
   const activeThread = useMemo(() => {
-    const t = threads.find((t) => t.user.id === activeThreadId);
+    const t = threads.find((t: MessageThread) => t.user.id === activeThreadId);
     if (t) return t;
-    return contacts.find((c) => c.id === activeThreadId);
+    return contacts.find((c: MessageContact) => c.id === activeThreadId);
   }, [threads, contacts, activeThreadId]);
 
   const activeUser = useMemo(() => {
@@ -281,12 +266,11 @@ export default function TeacherMessagesPage() {
     const res = await getThread(userId);
     if (res.ok) {
       setActiveMessages(res.data);
-      // Mark as read
-      const unreadMsgs = res.data.filter(m => !m.is_read && m.receiver_id === user?.userId);
+      const unreadMsgs = res.data.filter((m: ApiMessage) => !m.is_read && m.receiver_id === user?.userId);
       if (unreadMsgs.length > 0) {
         clearUnread();
-        setThreads(prev => prev.map(t => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
-        await Promise.all(unreadMsgs.map(m => markAsRead(m.id)));
+        setThreads((prev: MessageThread[]) => prev.map((t: MessageThread) => t.user.id === userId ? { ...t, unreadCount: 0 } : t));
+        await Promise.all(unreadMsgs.map((m: ApiMessage) => markAsRead(m.id)));
         refreshUnread();
       }
     }
@@ -306,11 +290,9 @@ export default function TeacherMessagesPage() {
     });
 
     if (res.ok) {
-      // Refresh thread
       const threadRes = await getThread(activeThreadId);
       if (threadRes.ok) setActiveMessages(threadRes.data);
       setCompose("");
-      // Refresh inbox
       const inboxRes = await getInbox();
       if (inboxRes.ok) setThreads(inboxRes.data);
     }
@@ -321,10 +303,10 @@ export default function TeacherMessagesPage() {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!confirm("Delete this message for everyone?")) return;
+    if (!confirm("Delete this message?")) return;
     const res = await deleteMessage(messageId);
     if (res.ok) {
-      setActiveMessages(prev => prev.filter(m => m.id !== messageId));
+      setActiveMessages((prev: ApiMessage[]) => prev.filter((m: ApiMessage) => m.id !== messageId));
       fetchData(); 
     }
   };
@@ -334,27 +316,6 @@ export default function TeacherMessagesPage() {
       e.preventDefault();
       handleSend();
     }
-  };
-
-  const handleAiDraft = async () => {
-    if (!activeThread) return;
-    
-    // Try to get student ID from contact object or last message
-    const studentId = ('user' in activeThread) 
-      ? (activeThread.user.student_id || activeThread.lastMessage.student_id)
-      : activeThread.student_id;
-
-    if (!studentId) {
-      alert("Could not identify the related student for this conversation.");
-      return;
-    }
-
-    setIsAiLoading(true);
-    const res = await generateAiDraft(studentId); 
-    if (res.ok) {
-      setCompose(res.data.draft);
-    }
-    setIsAiLoading(false);
   };
 
   return (
@@ -369,18 +330,13 @@ export default function TeacherMessagesPage() {
         }
       />
 
-      {/* Main panel */}
       <div className="flex h-[calc(100vh-220px)] min-h-[560px] overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-
-        {/* ── LEFT: Thread list ── */}
         <div
           className={clsx(
             "flex w-full flex-col border-r border-[#e2e8f0] md:w-[320px] md:flex-shrink-0",
-            // On mobile, hide list when a thread is open
             activeThread ? "hidden md:flex" : "flex"
           )}
         >
-          {/* Search + action */}
           <div className="border-b border-[#e2e8f0] p-4">
             <div className="flex gap-2 mb-3">
               <div className="relative flex-1">
@@ -388,8 +344,8 @@ export default function TeacherMessagesPage() {
                 <input
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={showContacts ? "Search contacts..." : "Search messages..."}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                  placeholder={showContacts ? "Search teachers..." : "Search messages..."}
                   className="w-full rounded-lg border border-[#e2e8f0] py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-400"
                 />
               </div>
@@ -405,7 +361,6 @@ export default function TeacherMessagesPage() {
             </div>
           </div>
 
-          {/* List area */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center py-8">
@@ -414,10 +369,10 @@ export default function TeacherMessagesPage() {
             ) : showContacts ? (
               filteredContacts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-[#94a3b8]">
-                  <p className="text-[13px]">No contacts found.</p>
+                  <p className="text-[13px]">No teachers found.</p>
                 </div>
               ) : (
-                filteredContacts.map((contact) => (
+                filteredContacts.map((contact: MessageContact) => (
                   <ContactListItem
                     key={contact.id}
                     contact={contact}
@@ -431,7 +386,7 @@ export default function TeacherMessagesPage() {
                 <p className="text-[13px]">No conversations found.</p>
               </div>
             ) : (
-              filteredThreads.map((thread) => (
+              filteredThreads.map((thread: MessageThread) => (
                 <ThreadListItem
                   key={thread.user.id}
                   thread={thread}
@@ -443,19 +398,15 @@ export default function TeacherMessagesPage() {
           </div>
         </div>
 
-        {/* ── RIGHT: Thread view ── */}
         <div
           className={clsx(
             "flex flex-1 flex-col",
-            // On mobile, hide pane when no thread selected
             !activeThread ? "hidden md:flex" : "flex"
           )}
         >
           {activeThread ? (
             <>
-              {/* Thread header */}
               <div className="flex items-center gap-3 border-b border-[#e2e8f0] px-5 py-3.5">
-                {/* Back button — mobile only */}
                 <button
                   type="button"
                   onClick={() => setActiveThreadId(null)}
@@ -492,51 +443,29 @@ export default function TeacherMessagesPage() {
                   <p className="text-[11px] font-medium text-[#64748b]">{capitalizeRole(activeUser?.role || "")}</p>
                 </div>
 
-                {/* Status indicator */}
                 <UserStatus 
                   isOnline={!!activeUser?.is_online} 
                   lastSeen={activeUser?.last_seen}
                   className="ml-auto rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1"
                 />
-
-                {/* Oversight notice */}
-                <div className="hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
-                  <div className="h-2 w-2 rounded-full bg-amber-400" />
-                  Visible to Principal
-                </div>
               </div>
 
-              {/* Messages area */}
               <div className="flex-1 overflow-y-auto bg-[#f8fafc] px-5 py-4">
                 <div className="flex flex-col gap-3">
-                  {activeMessages.map((msg) => (
+                  {activeMessages.map((msg: ApiMessage) => (
                     <ChatBubble key={msg.id} message={msg} currentUserId={user?.userId || ""} onDelete={handleDeleteMessage} />
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
               </div>
 
-              {/* Compose bar */}
               <div className="border-t border-[#e2e8f0] bg-white px-5 py-4">
-                {/* AI Draft button */}
-                <div className="mb-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAiDraft}
-                    disabled={isAiLoading}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e0e7ff] bg-[#eef2ff] px-3 py-1.5 text-[12px] font-bold text-[#4f46e5] hover:bg-[#e0e7ff] disabled:opacity-60"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {isAiLoading ? "Generating…" : "Draft with AI"}
-                  </button>
-                </div>
-
                 <div className="flex items-end gap-3">
                   <textarea
                     value={compose}
-                    onChange={(e) => setCompose(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompose(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+                    placeholder="Type a message to teacher..."
                     rows={2}
                     className="flex-1 resize-none rounded-xl border border-[#e2e8f0] px-4 py-2.5 text-[13px] leading-relaxed outline-none focus:border-indigo-400"
                   />
@@ -549,19 +478,14 @@ export default function TeacherMessagesPage() {
                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
-
-                <p className="mt-1.5 text-[11px] text-[#94a3b8]">
-                  Parent receives an FCM push notification when you send a message.
-                </p>
               </div>
             </>
           ) : (
-            /* Empty state — no thread selected */
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-[#94a3b8]">
               <MessageSquare className="h-12 w-12 opacity-30" />
-              <p className="text-[15px] font-semibold text-[#475569]">Select a conversation</p>
+              <p className="text-[15px] font-semibold text-[#475569]">Select a teacher</p>
               <p className="text-[13px]">
-                Choose a parent thread from the list to view and reply.
+                Start a conversation with your child&apos;s class teacher.
               </p>
             </div>
           )}

@@ -1,30 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
+import 'package:universe_app/features/gate/models/gate_event_model.dart';
+import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
-
-// ─── Dummy data ───────────────────────────────────────────────────────────────
-
-class _GateRecord {
-  const _GateRecord({
-    required this.date,
-    required this.time,
-    required this.isIn,
-  });
-  final String date;
-  final String time;
-  final bool isIn;
-}
-
-const List<_GateRecord> _kRecords = <_GateRecord>[
-  _GateRecord(date: '2025–10–12', time: '02:45 PM', isIn: false),
-  _GateRecord(date: '2025–10–15', time: '09:45 AM', isIn: true),
-  _GateRecord(date: '2025–10–20', time: '09:45 AM', isIn: false),
-  _GateRecord(date: '2025–10–12', time: '09:45 AM', isIn: true),
-  _GateRecord(date: '2025–10–21', time: '09:45 AM', isIn: false),
-  _GateRecord(date: '2025–10–12', time: '09:45 AM', isIn: true),
-  _GateRecord(date: '2025–10–12', time: '09:45 AM', isIn: false),
-];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -41,9 +21,6 @@ class _GateStatusScreenState extends State<GateStatusScreen>
   late final Animation<Offset> _slideAnim;
   late final Animation<double> _fadeAnim;
 
-  // Dummy: student is currently outside
-  final bool _isOutside = true;
-
   @override
   void initState() {
     super.initState();
@@ -57,6 +34,27 @@ class _GateStatusScreenState extends State<GateStatusScreen>
     ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
     _entryController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<GateViewModel>();
+      vm.loadGateStatus();
+      // Listen for refresh errors and show them as SnackBars
+      vm.addListener(() {
+        if (!mounted) return;
+        final err = vm.refreshError;
+        if (err != null && err.isNotEmpty) {
+          vm.clearRefreshError();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(err),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      });
+    });
   }
 
   @override
@@ -70,119 +68,198 @@ class _GateStatusScreenState extends State<GateStatusScreen>
     return '${now.year} – ${now.month.toString().padLeft(2, '0')} – ${now.day.toString().padLeft(2, '0')}';
   }
 
+  String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final second = local.second.toString().padLeft(2, '0');
+    final period = local.hour < 12 ? 'AM' : 'PM';
+    return '${hour.toString().padLeft(2, '0')}:$minute:$second $period';
+  }
+
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F7FA),
-      body: Column(
-        children: <Widget>[
-          // ── App bar ──────────────────────────────────────────────────────
-          Container(
-            color: const Color(0xFFF0F7FA),
-            padding: EdgeInsets.fromLTRB(8, topInset + 8, 16, 8),
-            child: Row(
-              children: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 20, color: Color(0xFF1A3A44)),
-                  onPressed: () => context.pop(),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Gate Status',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A3A44),
+    return Consumer<GateViewModel>(
+      builder: (context, vm, _) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF0F7FA),
+          body: Column(
+            children: <Widget>[
+              // ── App bar ──────────────────────────────────────────────────────
+              Container(
+                color: const Color(0xFFF0F7FA),
+                padding: EdgeInsets.fromLTRB(8, topInset + 8, 16, 8),
+                child: Row(
+                  children: <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 20, color: Color(0xFF1A3A44)),
+                      onPressed: () => context.pop(),
                     ),
-                  ),
-                ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                    const Expanded(
+                      child: Text(
+                        'Gate Status',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A3A44),
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const Icon(Icons.refresh_rounded,
-                      size: 18, color: Color(0xFF1A3A44)),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Animated content ─────────────────────────────────────────────
-          Expanded(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset + 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      // ── Status banner ─────────────────────────────────
-                      _StatusBanner(isOutside: _isOutside, todayLabel: _todayLabel),
-                      const SizedBox(height: 12),
-
-                      // ── Disclaimer ────────────────────────────────────
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
+                    ),
+                    GestureDetector(
+                      onTap: () => vm.refresh(),
+                      child: Container(
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: const Color(0xFFE2EDF2), width: 1),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(Icons.info_outline_rounded,
-                                size: 16,
-                                color: AppColors.primary.withValues(alpha: 0.6)),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                '*This may take up to 10 minutes to update!',
-                                style: TextStyle(
-                                  fontFamily: 'Plus Jakarta Sans',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF5A7A85),
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
+                          shape: BoxShape.circle,
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.07),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
+                        child: (vm.isLoading || vm.isRefreshing)
+                            ? const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF1A3A44),
+                                ),
+                              )
+                            : const Icon(Icons.refresh_rounded,
+                                size: 18, color: Color(0xFF1A3A44)),
                       ),
-                      const SizedBox(height: 20),
+                    ),
+                  ],
+                ),
+              ),
 
-                      // ── History table ─────────────────────────────────
-                      _HistoryTable(records: _kRecords),
-                    ],
+              // ── Animated content ─────────────────────────────────────────────
+              Expanded(
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: SlideTransition(
+                    position: _slideAnim,
+                    child: vm.isLoading && vm.events.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : vm.error != null && vm.events.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.error_outline_rounded,
+                                        size: 48, color: Color(0xFFDC2626)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      vm.error!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        fontSize: 14,
+                                        color: Color(0xFF5A7A85),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextButton(
+                                      onPressed: vm.refresh,
+                                      child: const Text('Try Again'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: vm.refresh,
+                                color: AppColors.primary,
+                                child: SingleChildScrollView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset + 24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      // ── Status banner ─────────────────────────────────
+                                      _StatusBanner(
+                                        isOutside: !(vm.isInsideSchool ?? false),
+                                        todayLabel: _todayLabel,
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                      // ── Disclaimer ────────────────────────────────────
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: const Color(0xFFE2EDF2), width: 1),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Row(
+                                              children: <Widget>[
+                                                Icon(Icons.info_outline_rounded,
+                                                    size: 16,
+                                                    color: AppColors.primary.withValues(alpha: 0.6)),
+                                                const SizedBox(width: 8),
+                                                const Expanded(
+                                                  child: Text(
+                                                    '*This may take up to 10 minutes to update!',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Plus Jakarta Sans',
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Color(0xFF5A7A85),
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (vm.lastUpdated != null) ...<Widget>[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Last updated: ${_formatTime(vm.lastUpdated!)}',
+                                                style: const TextStyle(
+                                                  fontFamily: 'Plus Jakarta Sans',
+                                                  fontSize: 11,
+                                                  color: Color(0xFF94A3B0),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // ── History table ─────────────────────────────────
+                                      _HistoryTable(
+                                        events: vm.events,
+                                        hasMore: vm.hasMore,
+                                        isLoadingMore: vm.isLoadingMore,
+                                        onLoadMore: vm.loadMore,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -308,8 +385,16 @@ class _StatusBannerState extends State<_StatusBanner>
 // ─── History table ────────────────────────────────────────────────────────────
 
 class _HistoryTable extends StatelessWidget {
-  const _HistoryTable({required this.records});
-  final List<_GateRecord> records;
+  const _HistoryTable({
+    required this.events,
+    required this.hasMore,
+    required this.isLoadingMore,
+    required this.onLoadMore,
+  });
+  final List<GateEventModel> events;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final VoidCallback onLoadMore;
 
   @override
   Widget build(BuildContext context) {
@@ -380,37 +465,60 @@ class _HistoryTable extends StatelessWidget {
             ),
           ),
 
-          // Data rows
-          ...records.asMap().entries.map(
-            (MapEntry<int, _GateRecord> entry) => _TableRow(
-              record: entry.value,
-              isLast: entry.key == records.length - 1,
-            ),
-          ),
-
-          // Load More
-          InkWell(
-            onTap: () {},
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Color(0xFFEBF3F6), width: 1),
-                ),
-              ),
-              child: const Text(
-                'Load More',
+          if (events.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Text(
+                'No gate records found',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                   color: Color(0xFF94A3B0),
                 ),
               ),
+            )
+          else
+            // Data rows
+            ...events.asMap().entries.map(
+              (MapEntry<int, GateEventModel> entry) => _TableRow(
+                event: entry.value,
+                isLast: entry.key == events.length - 1 && !hasMore,
+              ),
             ),
-          ),
+
+          // Load More
+          if (hasMore)
+            InkWell(
+              onTap: isLoadingMore ? null : onLoadMore,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Color(0xFFEBF3F6), width: 1),
+                  ),
+                ),
+                child: isLoadingMore
+                    ? const Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : const Text(
+                        'Load More',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF94A3B0),
+                        ),
+                      ),
+              ),
+            ),
         ],
       ),
     );
@@ -418,16 +526,16 @@ class _HistoryTable extends StatelessWidget {
 }
 
 class _TableRow extends StatelessWidget {
-  const _TableRow({required this.record, required this.isLast});
-  final _GateRecord record;
+  const _TableRow({required this.event, required this.isLast});
+  final GateEventModel event;
   final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = record.isIn
+    final Color statusColor = event.isIn
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
-    final String statusText = record.isIn ? 'Gate IN' : 'Gate Out';
+    final String statusText = event.isIn ? 'Gate IN' : 'Gate OUT';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -443,7 +551,7 @@ class _TableRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Text(
-              record.date,
+              event.formattedDate,
               style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontSize: 13,
@@ -455,7 +563,7 @@ class _TableRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              record.time,
+              event.formattedTime,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
@@ -495,3 +603,4 @@ class _TableRow extends StatelessWidget {
     );
   }
 }
+

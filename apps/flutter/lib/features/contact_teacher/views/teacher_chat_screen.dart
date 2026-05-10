@@ -1,61 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
-
-// ─── Teacher constant ─────────────────────────────────────────────────────────
-
-const _kTeacherName = 'Mrs. Silva';
-const _kTeacherSubject = 'Class Teacher';
-const _kTeacherInitials = 'MS';
-const _kTeacherEmail = 'silva@universe.edu.lk';
-const _kTeacherPhone = '+94 71 234 5678';
-const _kTeacherOnline = true;
-const _kTeacherColor = Color(0xFF6C5CE7);
-
-// ─── Models ───────────────────────────────────────────────────────────────────
-
-class _ChatMessage {
-  const _ChatMessage({
-    required this.text,
-    required this.isMine,
-    required this.time,
-    this.attachment,
-  });
-  final String text;
-  final bool isMine;
-  final String time;
-  final _Attachment? attachment;
-}
-
-class _Attachment {
-  const _Attachment({required this.name, required this.size});
-  final String name;
-  final String size;
-}
-
-const List<_ChatMessage> _kInitialMessages = <_ChatMessage>[
-  _ChatMessage(
-    text: 'Hello Mrs. Silva, I was wondering if Alex had any homework for the weekend?',
-    isMine: true,
-    time: '08:30 AM',
-  ),
-  _ChatMessage(
-    text: 'Hi! Yes, he needs to complete the algebra practice on page 42.',
-    isMine: false,
-    time: '08:45 AM',
-    attachment: _Attachment(name: 'Algebra Practice 8A.pdf', size: '2.4 MB'),
-  ),
-  _ChatMessage(
-    text: 'Thank you, we will get that done!',
-    isMine: true,
-    time: '08:47 AM',
-  ),
-];
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/messages/models/message_models.dart';
+import 'package:universe_app/features/messages/viewmodels/messages_viewmodel.dart';
+import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+import 'package:intl/intl.dart';
 
 class TeacherChatScreen extends StatefulWidget {
-  const TeacherChatScreen({super.key});
+  final String? targetUserId;
+  const TeacherChatScreen({super.key, this.targetUserId});
 
   @override
   State<TeacherChatScreen> createState() => _TeacherChatScreenState();
@@ -65,40 +21,81 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late List<_ChatMessage> _messages;
   late final AnimationController _entryCtrl;
   late final Animation<double> _fadeAnim;
+
+  ContactModel? _targetTeacher;
+  Timer? _pollingTimer;
+
+  String? get _userId => context.read<AuthViewModel>().currentUser?.id;
 
   @override
   void initState() {
     super.initState();
-    _messages = List<_ChatMessage>.from(_kInitialMessages);
     _entryCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initChat();
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _inputController.dispose();
     _scrollController.dispose();
     _entryCtrl.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final String text = _inputController.text.trim();
-    if (text.isEmpty) return;
-    final now = TimeOfDay.now();
-    final String time =
-        '${now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod}:${now.minute.toString().padLeft(2, '0')} ${now.period == DayPeriod.am ? 'AM' : 'PM'}';
-    setState(() {
-      _messages = List<_ChatMessage>.from(_messages)
-        ..add(_ChatMessage(text: text, isMine: true, time: time));
+  Future<void> _initChat() async {
+    final messagesVm = context.read<MessagesViewModel>();
+    await messagesVm.fetchContacts();
+    
+    if (widget.targetUserId != null) {
+      final matches = messagesVm.contacts.where((c) => c.id == widget.targetUserId).toList();
+      if (matches.isNotEmpty) {
+        setState(() {
+          _targetTeacher = matches.first;
+        });
+      } else {
+        final teachers = messagesVm.contacts.where((c) => c.role == 'teacher').toList();
+        if (teachers.isNotEmpty) {
+          setState(() {
+            _targetTeacher = teachers.first;
+          });
+        }
+      }
+    } else {
+      final teachers = messagesVm.contacts.where((c) => c.role == 'teacher').toList();
+      if (teachers.isNotEmpty) {
+        setState(() {
+          _targetTeacher = teachers.first;
+        });
+      }
+    }
+
+    if (_targetTeacher != null) {
+      await messagesVm.fetchThread(_targetTeacher!.id, userId: _userId);
+      _scrollToBottom();
+      _startPolling();
+    }
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (_targetTeacher != null) {
+        await context.read<MessagesViewModel>().fetchThread(_targetTeacher!.id, userId: _userId);
+      }
     });
-    _inputController.clear();
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -110,28 +107,54 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
     });
   }
 
+  void _send() async {
+    final String text = _inputController.text.trim();
+    if (text.isEmpty || _targetTeacher == null) return;
+
+    final messagesVm = context.read<MessagesViewModel>();
+    final profileVm = context.read<ProfileViewModel>();
+    
+    final success = await messagesVm.sendMessage(
+      receiverId: _targetTeacher!.id,
+      content: text,
+      studentId: profileVm.profile?.student?.id,
+      userId: _userId,
+    );
+
+    if (success) {
+      _inputController.clear();
+      _scrollToBottom();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final messagesVm = context.watch<MessagesViewModel>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFEDF5F8),
       body: Column(
         children: <Widget>[
-          _ChatTopBar(topInset: topInset),
+          _ChatTopBar(
+            topInset: topInset,
+            teacher: _targetTeacher,
+          ),
           Expanded(
             child: FadeTransition(
               opacity: _fadeAnim,
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                itemCount: _messages.length + 1,
-                itemBuilder: (ctx, i) {
-                  if (i == 0) return const _DateChip(label: 'TODAY');
-                  return _MessageBubble(message: _messages[i - 1]);
-                },
-              ),
+              child: messagesVm.isLoading && messagesVm.messages.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      itemCount: messagesVm.messages.length + 1,
+                      itemBuilder: (ctx, i) {
+                        if (i == 0) return const _DateChip(label: 'TODAY');
+                        return _MessageBubble(message: messagesVm.messages[i - 1]);
+                      },
+                    ),
             ),
           ),
           _InputBar(
@@ -148,11 +171,22 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
 // ─── Top bar ──────────────────────────────────────────────────────────────────
 
 class _ChatTopBar extends StatelessWidget {
-  const _ChatTopBar({required this.topInset});
+  const _ChatTopBar({required this.topInset, this.teacher});
   final double topInset;
+  final ContactModel? teacher;
 
   @override
   Widget build(BuildContext context) {
+    final initials = teacher?.fullName != null
+        ? teacher!.fullName!
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .take(2)
+            .map((e) => e[0])
+            .join()
+            .toUpperCase()
+        : 'TR';
+
     return Container(
       color: Colors.white,
       padding: EdgeInsets.fromLTRB(12, topInset + 10, 16, 14),
@@ -181,35 +215,21 @@ class _ChatTopBar extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: _kTeacherColor.withValues(alpha: 0.15),
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    _kTeacherInitials,
+                    initials,
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: _kTeacherColor,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
               ),
-              if (_kTeacherOnline)
-                Positioned(
-                  bottom: 1,
-                  right: 1,
-                  child: Container(
-                    width: 11,
-                    height: 11,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4ADE80),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
             ],
           ),
           const SizedBox(width: 10),
@@ -217,9 +237,9 @@ class _ChatTopBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
-                  _kTeacherName,
-                  style: TextStyle(
+                Text(
+                  teacher?.fullName ?? 'Loading...',
+                  style: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -227,27 +247,14 @@ class _ChatTopBar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  children: <Widget>[
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4ADE80),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Online',
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF16A34A),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Teacher',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF94A3B0),
+                  ),
                 ),
               ],
             ),
@@ -262,13 +269,14 @@ class _ChatTopBar extends StatelessWidget {
   }
 
   void _showTeacherInfo(BuildContext context) {
+    if (teacher == null) return;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const _TeacherInfoSheet(),
+      builder: (_) => _TeacherInfoSheet(teacher: teacher!),
     );
   }
 }
@@ -276,11 +284,22 @@ class _ChatTopBar extends StatelessWidget {
 // ─── Teacher info bottom sheet ────────────────────────────────────────────────
 
 class _TeacherInfoSheet extends StatelessWidget {
-  const _TeacherInfoSheet();
+  const _TeacherInfoSheet({required this.teacher});
+  final ContactModel teacher;
 
   @override
   Widget build(BuildContext context) {
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final initials = teacher.fullName != null
+        ? teacher.fullName!
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .take(2)
+            .map((e) => e[0])
+            .join()
+            .toUpperCase()
+        : 'TR';
+
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 24),
       child: Column(
@@ -301,40 +320,27 @@ class _TeacherInfoSheet extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: _kTeacherColor.withValues(alpha: 0.15),
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    _kTeacherInitials,
+                    initials,
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: _kTeacherColor,
+                      color: AppColors.primary,
                     ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 4,
-                right: 4,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4ADE80),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            _kTeacherName,
-            style: TextStyle(
+          Text(
+            teacher.fullName ?? 'Teacher Name',
+            style: const TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -349,7 +355,7 @@ class _TeacherInfoSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              _kTeacherSubject,
+              teacher.className ?? 'Class Teacher',
               style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontSize: 12,
@@ -361,16 +367,16 @@ class _TeacherInfoSheet extends StatelessWidget {
           const SizedBox(height: 28),
           const _InfoRow(
             icon: Icons.email_outlined,
-            label: 'Email',
-            value: _kTeacherEmail,
+            label: 'Role',
+            value: 'School Teacher',
             iconColor: Color(0xFF3EA8D8),
           ),
           const SizedBox(height: 14),
-          const _InfoRow(
-            icon: Icons.phone_outlined,
-            label: 'Phone',
-            value: _kTeacherPhone,
-            iconColor: Color(0xFF2E6B7F),
+          _InfoRow(
+            icon: Icons.school_outlined,
+            label: 'Class',
+            value: teacher.className ?? 'N/A',
+            iconColor: const Color(0xFF2E6B7F),
           ),
           const SizedBox(height: 28),
           GestureDetector(
@@ -496,11 +502,24 @@ class _DateChip extends StatelessWidget {
 
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.message});
-  final _ChatMessage message;
+  final MessageModel message;
 
   @override
   Widget build(BuildContext context) {
-    final bool mine = message.isMine;
+    final authVm = context.read<AuthViewModel>();
+    final bool mine = message.senderId == authVm.currentUser?.id;
+    final String time = DateFormat('hh:mm a').format(message.createdAt);
+    
+    final initials = message.sender.fullName != null
+        ? message.sender.fullName!
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .take(2)
+            .map((e) => e[0])
+            .join()
+            .toUpperCase()
+        : 'TR';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -512,17 +531,17 @@ class _MessageBubble extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: _kTeacherColor.withValues(alpha: 0.15),
+                color: AppColors.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  _kTeacherInitials,
+                  initials,
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: _kTeacherColor,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -559,7 +578,7 @@ class _MessageBubble extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        message.text,
+                        message.content,
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 14,
@@ -568,10 +587,6 @@ class _MessageBubble extends StatelessWidget {
                           height: 1.45,
                         ),
                       ),
-                      if (message.attachment != null) ...<Widget>[
-                        const SizedBox(height: 10),
-                        _AttachmentChip(attachment: message.attachment!),
-                      ],
                     ],
                   ),
                 ),
@@ -580,7 +595,7 @@ class _MessageBubble extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Text(
-                      message.time,
+                      time,
                       style: const TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 10,
@@ -590,83 +605,16 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     if (mine) ...<Widget>[
                       const SizedBox(width: 4),
-                      const Icon(
+                      Icon(
                         Icons.done_all_rounded,
                         size: 14,
-                        color: Color(0xFF3EA8D8),
+                        color: message.isRead ? const Color(0xFF3EA8D8) : const Color(0xFF94A3B0),
                       ),
                     ],
                   ],
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Attachment chip ──────────────────────────────────────────────────────────
-
-class _AttachmentChip extends StatelessWidget {
-  const _AttachmentChip({required this.attachment});
-  final _Attachment attachment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.20),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.picture_as_pdf_rounded,
-              size: 18,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                attachment.name,
-                style: const TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                attachment.size,
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.70),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 10),
-          Icon(
-            Icons.download_rounded,
-            size: 18,
-            color: Colors.white.withValues(alpha: 0.80),
           ),
         ],
       ),

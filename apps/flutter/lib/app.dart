@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_strings.dart';
 import 'package:universe_app/core/navigation/app_router.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/messages/viewmodels/messages_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 import 'package:universe_app/shared/themes/app_theme.dart';
@@ -13,11 +15,13 @@ class UniverseApp extends StatefulWidget {
     required this.authViewModel,
     required this.messagesViewModel,
     required this.profileViewModel,
+    required this.gateViewModel,
   });
 
   final AuthViewModel authViewModel;
   final MessagesViewModel messagesViewModel;
   final ProfileViewModel profileViewModel;
+  final GateViewModel gateViewModel;
 
   @override
   State<UniverseApp> createState() => _UniverseAppState();
@@ -51,6 +55,7 @@ class _UniverseAppState extends State<UniverseApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<AuthViewModel>.value(value: widget.authViewModel),
         ChangeNotifierProvider<MessagesViewModel>.value(value: widget.messagesViewModel),
         ChangeNotifierProvider<ProfileViewModel>.value(value: widget.profileViewModel),
+        ChangeNotifierProvider<GateViewModel>.value(value: widget.gateViewModel),
       ],
       child: MaterialApp.router(
         title: AppStrings.appName,
