@@ -110,6 +110,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       curve: Curves.easeOut,
     );
     _entryController.forward();
+
+    // Fetch fresh profile data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ProfileViewModel>().loadProfile();
+      }
+    });
   }
 
   @override

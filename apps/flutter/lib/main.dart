@@ -10,7 +10,8 @@ import 'firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // OS shows the notification automatically; no extra work needed here
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // OS auto-displays the notification — backend sends notification-keyed messages.
 }
 
 void main() async {
@@ -19,10 +20,16 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   final sl = ServiceLocator.instance;
-  sl.setup();
+  await sl.setup();
 
   runApp(UniverseApp(
-    authViewModel: AuthViewModel(sl.authRepository, sl.localStorageService, sl.firebaseService),
+    authViewModel: AuthViewModel(
+      sl.authRepository,
+      sl.localStorageService,
+      sl.firebaseService,
+      sl.secureStorageService,
+      sl.biometricService,
+    ),
     messagesViewModel: MessagesViewModel(sl.messagesRepository),
     profileViewModel: ProfileViewModel(
       repository: sl.profileRepository,

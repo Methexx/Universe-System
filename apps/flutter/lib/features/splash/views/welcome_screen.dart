@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
+import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/shared/widgets/app_button.dart';
 
 class OnboardingData {
@@ -245,9 +247,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
             Positioned(
               bottom: 110,
-              child: AppButton(
-                text: 'Login',
-                onPressed: () => context.go(AppRoutes.login),
+              child: Consumer<AuthViewModel>(
+                builder: (context, authVm, _) {
+                  return AppButton(
+                    text: 'Login',
+                    onPressed: () async {
+                      if (await authVm.isBiometricAvailableAndEnabled()) {
+                        final success = await authVm.biometricLogin();
+                        if (success && context.mounted) {
+                          context.go(AppRoutes.dashboard);
+                          return;
+                        }
+                      }
+                      if (context.mounted) {
+                        context.go(AppRoutes.login);
+                      }
+                    },
+                  );
+                },
               ),
             ),
             Positioned(

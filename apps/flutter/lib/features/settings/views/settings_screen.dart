@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/core/di/service_locator.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -44,6 +46,15 @@ class _SettingsScreenState extends State<SettingsScreen>
         .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entryCtrl.forward();
+
+    ServiceLocator.instance.secureStorageService.getBiometricEnabled().then((value) {
+      if (mounted) setState(() => _biometric = value);
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profileVm = context.read<ProfileViewModel>();
+      if (profileVm.profile == null) profileVm.loadProfile();
+    });
   }
 
   @override
@@ -219,8 +230,36 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 icon: Icons.fingerprint_rounded,
                                 value: _biometric,
                                 activeColor: const Color(0xFF1A6B4A),
-                                onChanged: (v) =>
-                                    setState(() => _biometric = v),
+                                onChanged: (v) async {
+                                  if (!v) {
+                                    setState(() => _biometric = false);
+                                    await ServiceLocator.instance.secureStorageService
+                                        .setBiometricEnabled(false);
+                                    return;
+                                  }
+
+                                  final sl = ServiceLocator.instance;
+                                  final available = await sl.biometricService.isBiometricAvailable();
+                                  if (!available) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('No biometric hardware found on this device.'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  final confirmed = await sl.biometricService.authenticate(
+                                    reason: 'Confirm your fingerprint to enable biometric login',
+                                  );
+
+                                  if (confirmed) {
+                                    setState(() => _biometric = true);
+                                    await sl.secureStorageService.setBiometricEnabled(true);
+                                  }
+                                },
                               ),
                               _Divider(),
                               _ToggleRow(
@@ -358,9 +397,17 @@ class _SettingsScreenState extends State<SettingsScreen>
 class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final String? email = context.select<AuthViewModel, String?>(
-      (vm) => vm.currentUser?.email,
-    );
+    final authVm = context.watch<AuthViewModel>();
+    final profileVm = context.watch<ProfileViewModel>();
+    
+    final user = authVm.currentUser;
+    final student = profileVm.profile?.student;
+
+    final String name = student?.fullName ?? user?.fullName ?? 'Parent Name';
+    final String email = user?.email ?? 'parent@school.lk';
+    final String gradeClass = student != null
+        ? 'Grade ${student.grade} — ${student.className}'
+        : 'No Student Linked';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -384,10 +431,15 @@ class _AccountCard extends StatelessWidget {
           Stack(
             alignment: Alignment.bottomRight,
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 30,
-                backgroundColor: Color(0xFFE3C091),
-                child: Icon(Icons.person, color: Color(0xFF374151), size: 30),
+                backgroundColor: const Color(0xFFE3C091),
+                backgroundImage: student?.photoUrl != null
+                    ? NetworkImage(student!.photoUrl!)
+                    : null,
+                child: student?.photoUrl == null
+                    ? const Icon(Icons.person, color: Color(0xFF374151), size: 30)
+                    : null,
               ),
               Container(
                 width: 18,
@@ -405,9 +457,9 @@ class _AccountCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Methum Pathirana',
-                  style: TextStyle(
+                Text(
+                  name,
+                  style: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -416,7 +468,7 @@ class _AccountCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  email ?? 'student@school.lk',
+                  email,
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 12,
@@ -432,9 +484,9 @@ class _AccountCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'Grade 10 — Class A',
-                    style: TextStyle(
+                  child: Text(
+                    gradeClass,
+                    style: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

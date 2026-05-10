@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:universe_app/core/api/api_client.dart';
 import 'package:universe_app/core/api/api_config.dart';
+import 'package:universe_app/core/services/biometric_service.dart';
 import 'package:universe_app/core/services/firebase_service.dart';
 import 'package:universe_app/core/storage/local_storage.dart';
 import 'package:universe_app/core/storage/secure_storage.dart';
@@ -26,8 +27,9 @@ class ServiceLocator {
   late MessagesRepository messagesRepository;
   late ChatbotService chatbotService;
   late FirebaseService firebaseService;
+  late BiometricService biometricService;
 
-  void setup() {
+  Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
     secureStorageService = SecureStorageService(const FlutterSecureStorage());
     localStorageService = LocalStorageService();
@@ -47,6 +49,7 @@ class ServiceLocator {
     messagesRepository = MessagesRepository(apiClient);
     chatbotService = ChatbotService(dio: apiClient.dio, storage: secureStorageService);
     firebaseService = FirebaseService(secureStorage: secureStorageService);
-    firebaseService.initialize();
+    await firebaseService.initialize();
+    biometricService = BiometricService();
   }
 }

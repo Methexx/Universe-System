@@ -48,6 +48,20 @@ export async function sendFcmNotification(
       notification: { title, body },
       data,
       token,
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'high_importance_channel',
+          priority: 'max',
+          defaultSound: true,
+        },
+      },
+      apns: {
+        payload: {
+          aps: { sound: 'default', badge: 1, contentAvailable: true },
+        },
+        headers: { 'apns-priority': '10' },
+      },
     };
 
     const response = await admin.messaging(app).send(message);
@@ -76,6 +90,20 @@ export async function sendMulticastFcmNotification(
       notification: { title, body },
       data,
       tokens,
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'high_importance_channel',
+          priority: 'max',
+          defaultSound: true,
+        },
+      },
+      apns: {
+        payload: {
+          aps: { sound: 'default', badge: 1, contentAvailable: true },
+        },
+        headers: { 'apns-priority': '10' },
+      },
     };
 
     const response = await (admin.messaging(app) as any).sendMulticast(message);

@@ -14,11 +14,12 @@ class FirebaseService {
   FirebaseMessaging? _messaging;
   late FlutterLocalNotificationsPlugin _localNotifications;
 
-  // Notification channel for Android Heads-up notifications
+  void Function(RemoteMessage)? onNotificationTap;
+
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'high_importance_channel', // id
-    'High Importance Notifications', // title
-    description: 'This channel is used for important notifications.', // description
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
     importance: Importance.max,
   );
 
@@ -37,20 +38,17 @@ class FirebaseService {
         if (token != null) await _saveFcmToken(token);
 
         _messaging!.onTokenRefresh.listen(_saveFcmToken);
-        
-        // Initialize local notifications
+
         _localNotifications = FlutterLocalNotificationsPlugin();
         const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
         const iosInit = DarwinInitializationSettings();
         const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
         await _localNotifications.initialize(settings: initSettings);
 
-        // Create the Android channel
         await _localNotifications
             .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(_channel);
 
-        // Required to show foreground notifications on iOS
         await _messaging!.setForegroundNotificationPresentationOptions(
           alert: true,
           badge: true,
@@ -58,16 +56,27 @@ class FirebaseService {
         );
 
         FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+        FirebaseMessaging.onMessageOpenedApp.listen((message) {
+          onNotificationTap?.call(message);
+        });
+
+        FirebaseMessaging.instance.getInitialMessage().then((message) {
+          if (message != null) {
+            Future.delayed(Duration.zero, () => onNotificationTap?.call(message));
+          }
+        });
       }
     } catch (e) {
       print('Firebase initialization failed: $e');
     }
   }
 
-  // Call this after login so the token is uploaded with a valid JWT
   Future<void> uploadTokenIfLoggedIn() async {
     try {
-      final token = await _messaging?.getToken();
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('fcm_token');
+      final token = cached ?? await _messaging?.getToken();
       if (token != null) await _saveFcmToken(token);
     } catch (e) {
       print('Failed to upload FCM token post-login: $e');
@@ -76,27 +85,31 @@ class FirebaseService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     print('Gate notification: ${message.notification?.title} — ${message.notification?.body}');
-    
-    final notification = message.notification;
-    final android = message.notification?.android;
 
-    if (notification != null && android != null) {
-      _localNotifications.show(
-        id: notification.hashCode,
-        title: notification.title,
-        body: notification.body,
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            icon: '@mipmap/ic_launcher',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
+    final notification = message.notification;
+    if (notification == null) return;
+
+    _localNotifications.show(
+      id: notification.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          icon: '@mipmap/ic_launcher',
+          importance: Importance.max,
+          priority: Priority.high,
         ),
-      );
-    }
+        iOS: const DarwinNotificationDetails(
+          sound: 'default',
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+    );
   }
 
   Future<void> _saveFcmToken(String token) async {
