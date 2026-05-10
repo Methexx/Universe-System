@@ -207,15 +207,16 @@ export default function ParentMessagesPage() {
 
   const totalUnread = threads.reduce((sum: number, t: MessageThread) => sum + t.unreadCount, 0);
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
-      if (inboxRes.ok) setThreads(inboxRes.data);
-      if (contactsRes.ok) setContacts(contactsRes.data);
-      setIsLoading(false);
-    };
-    fetchData();
+  const fetchData = React.useCallback(async () => {
+    const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
+    if (inboxRes.ok) setThreads(inboxRes.data);
+    if (contactsRes.ok) setContacts(contactsRes.data);
+    setIsLoading(false);
   }, []);
+
+  React.useEffect(() => {
+    void (async () => { await fetchData(); })();
+  }, [fetchData]);
 
   // Polling
   React.useEffect(() => {
