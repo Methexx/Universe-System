@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class MessageModel {
   final String id;
   final String senderId;
@@ -37,22 +39,53 @@ class MessageModel {
       student: json['student'] != null ? MessageStudent.fromJson(json['student']) : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'sender_id': senderId,
+        'receiver_id': receiverId,
+        'student_id': studentId,
+        'content': content,
+        'is_read': isRead,
+        'created_at': createdAt.toIso8601String(),
+        'sender': sender.toJson(),
+        'receiver': receiver.toJson(),
+        if (student != null) 'student': student!.toJson(),
+      };
+
+  static List<MessageModel> listFromJsonString(String jsonString) {
+    final List decoded = jsonDecode(jsonString) as List;
+    return decoded.map((e) => MessageModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static String listToJsonString(List<MessageModel> messages) {
+    return jsonEncode(messages.map((m) => m.toJson()).toList());
+  }
 }
 
 class MessageUser {
+  final String id;
   final String? fullName;
   final String role;
   final String? avatarUrl;
 
-  MessageUser({this.fullName, required this.role, this.avatarUrl});
+  MessageUser({required this.id, this.fullName, required this.role, this.avatarUrl});
 
   factory MessageUser.fromJson(Map<String, dynamic> json) {
     return MessageUser(
+      id: json['id'] ?? '',
       fullName: json['full_name'],
       role: json['role'] ?? '',
       avatarUrl: json['avatar_url'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'full_name': fullName,
+        'role': role,
+        'avatar_url': avatarUrl,
+      };
 }
 
 class MessageStudent {
@@ -61,10 +94,10 @@ class MessageStudent {
   MessageStudent({this.fullName});
 
   factory MessageStudent.fromJson(Map<String, dynamic> json) {
-    return MessageStudent(
-      fullName: json['full_name'],
-    );
+    return MessageStudent(fullName: json['full_name']);
   }
+
+  Map<String, dynamic> toJson() => {'full_name': fullName};
 }
 
 class ContactModel {
@@ -74,6 +107,7 @@ class ContactModel {
   final String? avatarUrl;
   final String? studentName;
   final String? className;
+  final String? studentId;
 
   ContactModel({
     required this.id,
@@ -82,6 +116,7 @@ class ContactModel {
     this.avatarUrl,
     this.studentName,
     this.className,
+    this.studentId,
   });
 
   factory ContactModel.fromJson(Map<String, dynamic> json) {
@@ -92,8 +127,19 @@ class ContactModel {
       avatarUrl: json['avatar_url'],
       studentName: json['student_name'],
       className: json['class_name'],
+      studentId: json['student_id'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'full_name': fullName,
+        'role': role,
+        'avatar_url': avatarUrl,
+        'student_name': studentName,
+        'class_name': className,
+        'student_id': studentId,
+      };
 }
 
 class ThreadModel {
@@ -113,6 +159,21 @@ class ThreadModel {
       lastMessage: MessageModel.fromJson(json['lastMessage']),
       unreadCount: json['unreadCount'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'user': user.toJson(),
+        'lastMessage': lastMessage.toJson(),
+        'unreadCount': unreadCount,
+      };
+
+  static List<ThreadModel> listFromJsonString(String jsonString) {
+    final List decoded = jsonDecode(jsonString) as List;
+    return decoded.map((e) => ThreadModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static String listToJsonString(List<ThreadModel> threads) {
+    return jsonEncode(threads.map((t) => t.toJson()).toList());
   }
 }
 
@@ -137,4 +198,11 @@ class ThreadUser {
       avatarUrl: json['avatar_url'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'full_name': fullName,
+        'role': role,
+        'avatar_url': avatarUrl,
+      };
 }

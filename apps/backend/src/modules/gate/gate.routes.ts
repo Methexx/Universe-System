@@ -45,4 +45,9 @@ export default async function gateRoutes(fastify: FastifyInstance) {
   fastify.get('/events', {
     preHandler: [authorize(['admin', 'security', 'teacher'])]
   }, GateController.getRecentEvents);
+
+  // Parent: get their child's gate history + current status
+  fastify.get('/my-child-events', {
+    preHandler: [authorize(['parent'])]
+  }, GateController.getMyChildEvents);
 }

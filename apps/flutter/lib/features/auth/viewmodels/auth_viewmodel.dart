@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:universe_app/core/services/biometric_service.dart';
+import 'package:universe_app/core/services/firebase_service.dart';
+import 'package:universe_app/core/storage/secure_storage.dart';
 import 'package:universe_app/core/viewmodels/base_viewmodel.dart';
 import 'package:universe_app/features/auth/models/user_model.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
 import 'package:universe_app/core/storage/local_storage.dart';
 
 class AuthViewModel extends BaseViewModel {
-  AuthViewModel(this._repository, this._localStorage);
+  AuthViewModel(
+    this._repository,
+    this._localStorage,
+    this._firebaseService,
+    this._secureStorage,
+    this._biometricService,
+  );
 
   final AuthRepository _repository;
+  final FirebaseService _firebaseService;
   final LocalStorageService _localStorage;
+  final SecureStorageService _secureStorage;
+  final BiometricService _biometricService;
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
@@ -39,6 +51,35 @@ class AuthViewModel extends BaseViewModel {
     }
   }
 
+  Future<bool> isBiometricAvailableAndEnabled() async {
+    final enabled = await _secureStorage.getBiometricEnabled();
+    if (!enabled) return false;
+    final available = await _biometricService.isBiometricAvailable();
+    if (!available) return false;
+    final creds = await _secureStorage.getBiometricCredentials();
+    return creds != null;
+  }
+
+  Future<bool> biometricLogin() async {
+    final availableAndEnabled = await isBiometricAvailableAndEnabled();
+    if (!availableAndEnabled) return false;
+
+    final authenticated = await _biometricService.authenticate(
+      reason: 'Please authenticate to log in automatically',
+    );
+
+    if (!authenticated) return false;
+
+    final creds = await _secureStorage.getBiometricCredentials();
+    if (creds == null) return false;
+
+    return login(
+      email: creds['email']!,
+      password: creds['password']!,
+      keepMeSignedIn: await _localStorage.getKeepMeSignedIn(),
+    );
+  }
+
   Future<bool> login({
     required String email,
     required String password,
@@ -50,6 +91,9 @@ class AuthViewModel extends BaseViewModel {
     try {
       _currentUser = await _repository.login(email: email, password: password);
       await _localStorage.setKeepMeSignedIn(keepMeSignedIn);
+      await _secureStorage.saveBiometricCredentials(email, password);
+      // Upload FCM token now that a valid JWT exists in secure storage
+      await _firebaseService.uploadTokenIfLoggedIn();
       return true;
     } catch (error) {
       setError(error.toString().replaceFirst('Exception: ', ''));

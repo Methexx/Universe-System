@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { ScanQrInput } from './gate.schema';
 import { getOrSetCache, delCacheByPattern } from '../../common/utils/cache';
+import { sendFcmNotification } from '../../config/firebase';
 
 export class GateController {
   
@@ -57,7 +58,29 @@ export class GateController {
       // Invalidate gate caches on every scan
       await delCacheByPattern('gate:*');
 
-      // 4. Return success to display on the security app screen
+      // 4. Notify linked parent via FCM (fire-and-forget — never block the scan response)
+      try {
+        const parentLink = await prisma.parentStudent.findFirst({
+          where: { student_id: student.id },
+          select: { parent: { select: { fcm_token: true } } },
+        });
+        const fcmToken = (parentLink as any)?.parent?.fcm_token;
+        if (fcmToken) {
+          const isIn = direction === 'IN';
+          await sendFcmNotification(
+            fcmToken,
+            isIn ? '✅ Student Arrived' : '🚶 Student Left School',
+            isIn
+              ? `${student.full_name} has entered the school.`
+              : `${student.full_name} has left the school.`,
+            { type: 'gate_event', direction, student_id: student.id }
+          );
+        }
+      } catch (_notifErr) {
+        // Notification failure must never fail the scan response
+      }
+
+      // 5. Return success to display on the security app screen
       return reply.status(200).send({
         success: true,
         message: `Successfully checked ${direction}`,
@@ -318,6 +341,70 @@ export class GateController {
     } catch (error: any) {
       request.log.error(error);
       return reply.status(500).send({ success: false, message: 'Internal server error fetching timeseries' });
+    }
+  }
+  // GET /api/gate/my-child-events  (parent role)
+  static async getMyChildEvents(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const user = (request as any).user as { userId: string };
+      const { page = '1', limit = '20' } = request.query as any;
+      const pageNum = Math.max(1, parseInt(page));
+      const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+
+      // 1. Find the child linked to this parent
+      const parentLink = await prisma.parentStudent.findFirst({
+        where: { parent_id: user.userId },
+        select: { student_id: true },
+      });
+
+      if (!parentLink) {
+        return reply.status(404).send({ success: false, message: 'No child linked to this account' });
+      }
+
+      const studentId = parentLink.student_id;
+
+      // 2. Total count for pagination
+      const total = await prisma.gateEvent.count({ where: { student_id: studentId } });
+
+      // 3. Fetch paginated events ordered newest first
+      const events = await prisma.gateEvent.findMany({
+        where: { student_id: studentId },
+        orderBy: { timestamp: 'desc' },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        select: {
+          id: true,
+          direction: true,
+          method: true,
+          timestamp: true,
+        },
+      });
+
+      // 4. Also compute current status (latest event direction)
+      const latest = await prisma.gateEvent.findFirst({
+        where: { student_id: studentId },
+        orderBy: { timestamp: 'desc' },
+        select: { direction: true },
+      });
+
+      const isInsideSchool = latest?.direction === 'IN';
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          is_inside_school: isInsideSchool,
+          events,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            has_more: pageNum * limitNum < total,
+          },
+        },
+      });
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, message: 'Internal server error' });
     }
   }
 }

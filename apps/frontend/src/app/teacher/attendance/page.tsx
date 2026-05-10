@@ -9,7 +9,6 @@ import {
   Calendar as CalendarIcon,
   Check,
   Clock3,
-  FileText,
   ShieldAlert,
   X,
   MessageSquare,

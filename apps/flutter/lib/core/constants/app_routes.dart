@@ -12,6 +12,7 @@ class AppRoutes {
   static const String attendance = '/attendance';
   static const String support = '/support';
   static const String teacherChat = '/teacher-chat';
+  static const String teacherInbox = '/teacher-inbox';
   static const String lostAndFound = '/lost-and-found';
   static const String results = '/results';
   static const String chatbot = '/chatbot';

@@ -11,9 +11,11 @@ class ApiEndpoints {
 
   static const String parentProfile = '$basePath/auth/parent-profile';
 
-  // Messaging
   static const String getContacts = '$basePath/messages/contacts';
   static const String getInbox = '$basePath/messages/inbox';
   static const String getThread = '$basePath/messages/thread';
   static const String sendMessage = '$basePath/messages/send';
+
+  // Gate
+  static const String gateMyChildEvents = '$basePath/gate/my-child-events';
 }

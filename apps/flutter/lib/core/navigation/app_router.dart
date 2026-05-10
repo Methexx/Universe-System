@@ -15,6 +15,7 @@ import 'package:universe_app/features/auth/views/register_screen.dart';
 import 'package:universe_app/features/messages/views/messages_screen.dart';
 import 'package:universe_app/features/profile/views/profile_setup_screen.dart';
 import 'package:universe_app/features/contact_teacher/views/teacher_chat_screen.dart';
+import 'package:universe_app/features/messages/views/teacher_inbox_screen.dart';
 import 'package:universe_app/features/lost_and_found/views/lost_and_found_screen.dart';
 import 'package:universe_app/features/results/views/results_screen.dart';
 import 'package:universe_app/features/chatbot/views/chatbot_screen.dart';
@@ -136,7 +137,14 @@ class AppRouter {
         path: AppRoutes.teacherChat,
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
-          child: const TeacherChatScreen(),
+          child: TeacherChatScreen(targetUserId: state.extra as String?),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.teacherInbox,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: TeacherInboxScreen(initialContactId: state.extra as String?),
         ),
       ),
       GoRoute(

@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma';
 import { sendSchema, aiDraftSchema } from './messages.schema';
 import { z } from 'zod';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
+import { sendFcmNotification } from '../../config/firebase';
 
 export const getInbox = async (request: FastifyRequest, reply: FastifyReply) => {
   const user = (request as any).user;
@@ -102,7 +103,7 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
             select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
           },
           student: {
-            select: { full_name: true } as any,
+            select: { id: true, full_name: true } as any,
           },
         },
       })) as any[];
@@ -114,6 +115,7 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
           parentMap.set(ps.parent.id, {
             ...ps.parent,
             student_name: ps.student.full_name,
+            student_id: ps.student.id,
           });
         }
       });
@@ -269,6 +271,29 @@ export const sendMessage = async (request: FastifyRequest, reply: FastifyReply) 
       },
     });
 
+    // Send FCM notification to receiver
+    try {
+      const receiverUser = await prisma.user.findUnique({
+        where: { id: data.receiver_id },
+        select: { fcm_token: true, full_name: true },
+      });
+
+      if (receiverUser?.fcm_token) {
+        await sendFcmNotification(
+          receiverUser.fcm_token,
+          `New Message from ${user.full_name}`,
+          data.content.length > 50 ? data.content.substring(0, 47) + '...' : data.content,
+          { 
+            type: 'message', 
+            sender_id: senderId, 
+            message_id: message.id 
+          }
+        );
+      }
+    } catch (fcmErr) {
+      console.error('Failed to send FCM message notification:', fcmErr);
+    }
+
     await delCacheByPattern(`messages:inbox:${senderId}`);
     await delCacheByPattern(`messages:inbox:${data.receiver_id}`);
     await delCacheByPattern(`messages:thread:${senderId}:*`);
@@ -293,10 +318,10 @@ export const markAsRead = async (request: FastifyRequest<{ Params: { id: string 
       data: { is_read: true },
     });
 
-    await delCacheByPattern(`messages:inbox:${user.userId}`);
     await delCacheByPattern(`messages:inbox:${updated.sender_id}`);
-    await delCacheByPattern(`messages:thread:${user.userId}:*`);
+    await delCacheByPattern(`messages:inbox:${updated.receiver_id}`);
     await delCacheByPattern(`messages:thread:${updated.sender_id}:*`);
+    await delCacheByPattern(`messages:thread:${updated.receiver_id}:*`);
 
     return reply.status(200).send({ success: true });
   } catch (error: any) {

@@ -30,6 +30,7 @@ export type MessageContact = {
   avatar_url: string | null;
   last_seen: string | null;
   student_name?: string;
+  student_id?: string;
   class_name?: string;
   is_online?: boolean;
 };
