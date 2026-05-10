@@ -38,21 +38,21 @@ export const createAnnouncement = async (request: FastifyRequest, reply: Fastify
             select: { fcm_token: true },
             where: { fcm_token: { not: null } }
           });
-          tokens.push(...students.map(s => s.fcm_token).filter(Boolean) as string[]);
+          tokens.push(...students.map((s: { fcm_token: string | null }) => s.fcm_token).filter(Boolean) as string[]);
         }
         if (data.target === 'all' || data.target === 'parents_only') {
           const parents = await prisma.user.findMany({
             select: { fcm_token: true },
             where: { role: 'parent', fcm_token: { not: null } }
           });
-          tokens.push(...parents.map(p => p.fcm_token).filter(Boolean) as string[]);
+          tokens.push(...parents.map((p: { fcm_token: string | null }) => p.fcm_token).filter(Boolean) as string[]);
         }
         if (data.target === 'all' || data.target === 'teachers') {
           const teachers = await prisma.user.findMany({
             select: { fcm_token: true },
             where: { role: 'teacher', fcm_token: { not: null } }
           });
-          tokens.push(...teachers.map(t => t.fcm_token).filter(Boolean) as string[]);
+          tokens.push(...teachers.map((t: { fcm_token: string | null }) => t.fcm_token).filter(Boolean) as string[]);
         }
       }
 
