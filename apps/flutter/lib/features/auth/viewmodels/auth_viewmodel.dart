@@ -1,21 +1,33 @@
+import 'package:flutter/material.dart';
 import 'package:universe_app/core/viewmodels/base_viewmodel.dart';
 import 'package:universe_app/features/auth/models/user_model.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
+import 'package:universe_app/core/storage/local_storage.dart';
 
 class AuthViewModel extends BaseViewModel {
-  AuthViewModel(this._repository);
+  AuthViewModel(this._repository, this._localStorage);
 
   final AuthRepository _repository;
+  final LocalStorageService _localStorage;
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
   String? _pendingRegistrationEmail;
   String? _pendingForgotPasswordEmail;
+  Map<String, dynamic>? _pendingStudentData;
+
+  Map<String, dynamic>? get pendingStudentData => _pendingStudentData;
 
   bool get isAuthenticated => _currentUser != null;
 
   Future<bool> restoreSession() async {
     setError(null);
+
+    final bool keepMeSignedIn = await _localStorage.getKeepMeSignedIn();
+    if (!keepMeSignedIn) {
+      await _repository.logout();
+      return false;
+    }
 
     try {
       _currentUser = await _repository.restoreSession();
@@ -27,12 +39,17 @@ class AuthViewModel extends BaseViewModel {
     }
   }
 
-  Future<bool> login({required String email, required String password}) async {
+  Future<bool> login({
+    required String email,
+    required String password,
+    bool keepMeSignedIn = false,
+  }) async {
     setError(null);
     setLoading(true);
 
     try {
       _currentUser = await _repository.login(email: email, password: password);
+      await _localStorage.setKeepMeSignedIn(keepMeSignedIn);
       return true;
     } catch (error) {
       setError(error.toString().replaceFirst('Exception: ', ''));
@@ -79,8 +96,76 @@ class AuthViewModel extends BaseViewModel {
     setLoading(true);
 
     try {
-      _currentUser = await _repository.verifyRegistrationOtp(email: email, otp: otp);
+      final result = await _repository.verifyRegistrationOtp(email: email, otp: otp);
+      final bool requiresProfileSetup = result['requires_profile_setup'] == true;
+
+      _currentUser = result['user'] as UserModel?;
+      _pendingStudentData = result['student'] as Map<String, dynamic>?;
+
+      // Keep email if we need to call completeRegistration next
+      if (!requiresProfileSetup) {
+        _pendingRegistrationEmail = null;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (error) {
+      setError(error.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  Future<bool> completeRegistration({
+    required String grade,
+    required String className,
+    required String admissionYear,
+    required String gender,
+  }) async {
+    final String? email = _pendingRegistrationEmail;
+    if (email == null || email.isEmpty) {
+      setError('Registration session expired. Please register again.');
+      return false;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      final result = await (_repository as dynamic).completeRegistration(
+        email: email,
+        grade: grade,
+        className: className,
+        admissionYear: admissionYear,
+        gender: gender,
+      );
+
+      _currentUser = result['user'] as UserModel;
       _pendingRegistrationEmail = null;
+      _pendingStudentData = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      setError(error.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  Future<bool> resendRegistrationOtp() async {
+    final String? email = _pendingRegistrationEmail;
+    if (email == null || email.isEmpty) {
+      setError('Please submit registration details first.');
+      return false;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      await _repository.resendOtp(email: email);
       return true;
     } catch (error) {
       setError(error.toString().replaceFirst('Exception: ', ''));
@@ -134,8 +219,21 @@ class AuthViewModel extends BaseViewModel {
 
   Future<void> logout() async {
     await _repository.logout();
+    await _localStorage.clearProfileCache();
+    await _localStorage.setKeepMeSignedIn(false);
     _currentUser = null;
     setError(null);
     notifyListeners();
+  }
+
+  void onAppLifecycleChanged(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // If screen locks or app goes background, clear the current user state 
+      // to force a re-login when the user returns, as per security requirements.
+      if (_currentUser != null) {
+        _currentUser = null;
+        notifyListeners();
+      }
+    }
   }
 }

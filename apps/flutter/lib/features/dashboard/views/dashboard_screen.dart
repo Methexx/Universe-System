@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -8,8 +10,20 @@ import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/notifications/views/notifications_screen.dart';
+import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 import 'package:universe_app/shared/widgets/action_card.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
+
+ImageProvider? _resolveImage(String? url) {
+  if (url == null) return null;
+  if (url.startsWith('data:image')) {
+    final int comma = url.indexOf(',');
+    if (comma == -1) return null;
+    final Uint8List bytes = base64Decode(url.substring(comma + 1));
+    return MemoryImage(bytes);
+  }
+  return NetworkImage(url);
+}
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -146,10 +160,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final String? studentName = context.select<ProfileViewModel, String?>(
+      (ProfileViewModel vm) => vm.profile?.student?.fullName,
+    );
+    final String? photoUrl = context.select<ProfileViewModel, String?>(
+      (ProfileViewModel vm) => vm.profile?.student?.photoUrl,
+    );
     final String? userEmail = context.select<AuthViewModel, String?>(
       (AuthViewModel vm) => vm.currentUser?.email,
     );
-    final String displayName = _displayNameFromEmail(userEmail);
+    final String displayName = studentName ?? _displayNameFromEmail(userEmail);
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
     const double navBarHeight = 72;
@@ -165,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: <Widget>[
                 _TopHeader(
                   displayName: displayName,
+                  photoUrl: photoUrl,
                   topInset: topInset,
                   onBellTap: _showBellPopup,
                 ),
@@ -260,9 +281,11 @@ class _TopHeader extends StatefulWidget {
     required this.displayName,
     required this.topInset,
     required this.onBellTap,
+    this.photoUrl,
   });
 
   final String displayName;
+  final String? photoUrl;
   final double topInset;
   final VoidCallback onBellTap;
 
@@ -313,10 +336,13 @@ class _TopHeaderState extends State<_TopHeader> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white24, width: 2),
                   ),
-                  child: const CircleAvatar(
+                  child: CircleAvatar(
                     radius: 24,
-                    backgroundColor: Color(0xFFE3C091),
-                    child: Icon(Icons.person, color: Color(0xFF374151), size: 24),
+                    backgroundColor: const Color(0xFFE3C091),
+                    backgroundImage: _resolveImage(widget.photoUrl),
+                    child: widget.photoUrl == null
+                        ? const Icon(Icons.person, color: Color(0xFF374151), size: 24)
+                        : null,
                   ),
                 ),
               ),
@@ -325,7 +351,7 @@ class _TopHeaderState extends State<_TopHeader> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Mr. Pathirana',
+                    widget.displayName,
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 12,

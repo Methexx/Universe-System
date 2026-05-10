@@ -11,10 +11,11 @@ abstract class AuthRepository {
     required String password,
     required String studentIdNo,
   });
-  Future<UserModel> verifyRegistrationOtp({
+  Future<Map<String, dynamic>> verifyRegistrationOtp({
     required String email,
     required String otp,
   });
+  Future<void> resendOtp({required String email});
   Future<void> requestPasswordResetOtp({required String email});
   Future<void> resetPassword({
     required String email,
@@ -48,8 +49,16 @@ class ApiAuthRepository implements AuthRepository {
       if (message is String && message.isNotEmpty) {
         return message;
       }
+    } else if (data is String && data.isNotEmpty) {
+      return data;
     }
-    return 'Request failed. Please try again.';
+
+    if (error.type == DioExceptionType.connectionTimeout || 
+        error.type == DioExceptionType.connectionError) {
+      return 'Could not connect to the server. Please check your API IP address.';
+    }
+
+    return error.message ?? 'Request failed. Please try again.';
   }
 
   Future<Map<String, dynamic>> _post(String path, {Map<String, dynamic>? data, Map<String, dynamic>? headers}) async {
@@ -122,7 +131,7 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserModel> verifyRegistrationOtp({
+  Future<Map<String, dynamic>> verifyRegistrationOtp({
     required String email,
     required String otp,
   }) async {
@@ -137,14 +146,61 @@ class ApiAuthRepository implements AuthRepository {
     final Map<String, dynamic> data = await _extractDataEnvelope(verifyPayload);
     final String? token = data['token'] as String?;
     final dynamic userJson = data['user'];
+    final bool requiresProfileSetup = data['requires_profile_setup'] == true;
 
-    if (token == null || userJson is! Map<String, dynamic>) {
+    // For non-parents, token and user are required immediately
+    if (!requiresProfileSetup && (token == null || userJson is! Map<String, dynamic>)) {
       throw Exception('Invalid OTP verification response from server.');
     }
 
-    final UserModel user = _requireParent(userJson, action: 'complete registration');
+    if (token != null) {
+      await _secureStorage.saveAccessToken(token);
+    }
+
+    return {
+      'user': userJson != null ? _requireParent(userJson, action: 'complete registration') : null,
+      'student': data['student'],
+      'requires_profile_setup': requiresProfileSetup,
+    };
+  }
+
+  Future<Map<String, dynamic>> completeRegistration({
+    required String email,
+    required String grade,
+    required String className,
+    required String admissionYear,
+    required String gender,
+  }) async {
+    final Map<String, dynamic> response = await _post(
+      '/api/auth/complete-registration',
+      data: {
+        'email': email.trim(),
+        'grade': grade,
+        'class': className,
+        'admission_year': admissionYear,
+        'gender': gender,
+      },
+    );
+
+    final Map<String, dynamic> data = await _extractDataEnvelope(response);
+    final String? token = data['token'] as String?;
+    final dynamic userJson = data['user'];
+
+    if (token == null || userJson is! Map<String, dynamic>) {
+      throw Exception('Invalid registration completion response.');
+    }
+
+    final UserModel user = _requireParent(userJson, action: 'finalize registration');
     await _secureStorage.saveAccessToken(token);
-    return user;
+    return {'user': user};
+  }
+
+  @override
+  Future<void> resendOtp({required String email}) async {
+    await _post(
+      ApiEndpoints.resendOtp,
+      data: {'email': email.trim()},
+    );
   }
 
   @override

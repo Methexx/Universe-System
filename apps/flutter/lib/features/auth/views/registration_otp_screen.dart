@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:pinput/pinput.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 
@@ -13,11 +15,66 @@ class RegistrationOtpScreen extends StatefulWidget {
 
 class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
   final TextEditingController _otpController = TextEditingController();
+  Timer? _timer;
+  int _secondsRemaining = 180;
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    setState(() {
+      _secondsRemaining = 180;
+      _canResend = false;
+    });
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        setState(() {
+          _canResend = true;
+          _timer?.cancel();
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _otpController.dispose();
     super.dispose();
+  }
+
+  String get _formattedTime {
+    final minutes = (_secondsRemaining / 60).floor();
+    final seconds = _secondsRemaining % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _resendOtp() async {
+    if (!_canResend) return;
+
+    final AuthViewModel viewModel = context.read<AuthViewModel>();
+    final bool success = await viewModel.resendRegistrationOtp();
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A new OTP has been sent to your email.')),
+      );
+      _startTimer();
+    } else {
+      final String message = viewModel.errorMessage ?? 'Failed to resend OTP.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   Future<void> _verifyOtp() async {
@@ -37,7 +94,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     }
 
     if (success) {
-      context.go(AppRoutes.dashboard);
+      context.go(AppRoutes.profileSetup);
       return;
     }
 
@@ -71,15 +128,35 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              TextField(
+              Pinput(
                 controller: _otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  labelText: 'OTP',
-                  counterText: '',
-                  border: OutlineInputBorder(
+                length: 6,
+                defaultPinTheme: PinTheme(
+                  width: 52,
+                  height: 64,
+                  textStyle: const TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF111827),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                ),
+                focusedPinTheme: PinTheme(
+                  width: 52,
+                  height: 64,
+                  textStyle: const TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF111827),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF3C4CF4), width: 2),
                   ),
                 ),
               ),
@@ -108,6 +185,38 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                         : const Text('Verify and Continue'),
                   );
                 },
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _canResend ? "Didn't receive the code? " : 'Resend code in $_formattedTime',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _canResend ? const Color(0xFF4B5563) : const Color(0xFF94A3B8),
+                      fontFamily: 'Plus Jakarta Sans',
+                    ),
+                  ),
+                  if (_canResend)
+                    TextButton(
+                      onPressed: _resendOtp,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Resend',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF3C4CF4),
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Plus Jakarta Sans',
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

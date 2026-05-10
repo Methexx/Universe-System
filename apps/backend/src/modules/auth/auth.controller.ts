@@ -10,6 +10,7 @@ import {
   ResetPasswordInput,
   UpdateFcmTokenInput,
   VerifyOtpInput,
+  CompleteRegistrationInput,
 } from './auth.schema';
 import { successResponse, errorResponse } from '../../common/utils/response';
 import { env } from '../../config/env';
@@ -34,17 +35,24 @@ export class AuthController {
       if (error.message.startsWith('Please wait')) {
         return reply.status(429).send(errorResponse('RATE_LIMIT'));
       }
-      throw error;
+      return reply.status(400).send(errorResponse(error.message));
     }
   }
 
   static async verifyOtp(request: FastifyRequest<{ Body: VerifyOtpInput }>, reply: FastifyReply) {
     try {
-      const result = await AuthService.verifyOtp(request.body);
-      reply.setCookie('auth_token', result.token, COOKIE_OPTIONS);
-      return reply.send(successResponse('Verified and registered successfully', {
+      const result = await AuthService.verifyOtp(request.body) as any;
+      
+      if (result.token) {
+        reply.setCookie('auth_token', result.token, COOKIE_OPTIONS);
+      }
+
+      return reply.send(successResponse(result.message || 'Verified successfully', {
+        token: result.token,
         role: result.role,
         user: result.user,
+        student: result.student,
+        requires_profile_setup: result.requires_profile_setup,
       }));
     } catch (error: any) {
       if (error.message === 'Invalid OTP') {
@@ -60,11 +68,26 @@ export class AuthController {
     }
   }
 
+  static async completeRegistration(request: FastifyRequest<{ Body: CompleteRegistrationInput }>, reply: FastifyReply) {
+    try {
+      const result = await AuthService.completeRegistration(request.body);
+      reply.setCookie('auth_token', result.token, COOKIE_OPTIONS);
+      return reply.send(successResponse('Profile verified and account created', {
+        token: result.token,
+        role: result.role,
+        user: result.user,
+      }));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
   static async login(request: FastifyRequest<{ Body: LoginInput }>, reply: FastifyReply) {
     try {
       const result = await AuthService.login(request.body);
       reply.setCookie('auth_token', result.token, COOKIE_OPTIONS);
       return reply.send(successResponse('Login successful', {
+        token: result.token,
         role: result.role,
         user: result.user,
       }));
@@ -173,6 +196,19 @@ export class AuthController {
     reply.clearCookie('auth_token', { path: '/' });
     const result = await AuthService.logoutAll();
     return reply.send(successResponse(result.message));
+  }
+
+  static async getParentProfile(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const userClaims = (request as any).user as { userId: string; role: string };
+      if (userClaims.role !== 'parent') {
+        return reply.status(403).send(errorResponse('Forbidden'));
+      }
+      const result = await AuthService.getParentProfile(userClaims.userId);
+      return reply.send(successResponse('OK', result));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
   }
 
   static async linkChild(request: FastifyRequest<{ Body: LinkChildInput }>, reply: FastifyReply) {

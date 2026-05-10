@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/profile/models/parent_profile_model.dart';
+import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -39,6 +43,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     _fadeAnim =
         CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
     _entryController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProfileViewModel>().loadProfile();
+    });
   }
 
   @override
@@ -82,48 +90,74 @@ class _ProfileScreenState extends State<ProfileScreen>
                           topRight: Radius.circular(32),
                         ),
                       ),
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.fromLTRB(
-                            18, 24, 18, bottomInset + 100),
-                        child: Column(
-                          children: [
-                            _buildProfileAvatar(),
-                            const SizedBox(height: 24),
-                            _buildSection(
-                              icon: Icons.school_rounded,
-                              iconColor: const Color(0xFF2E6B7F),
-                              iconBg: const Color(0xFFE0F4FA),
-                              title: 'Student Details',
-                              expanded: _studentExpanded,
-                              onTap: () => setState(
-                                  () => _studentExpanded = !_studentExpanded),
-                              rows: _studentRows(),
+                      child: Consumer<ProfileViewModel>(
+                        builder: (context, vm, _) {
+                          if (vm.isLoading && vm.profile == null) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          if (vm.errorMessage != null && vm.profile == null) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text(
+                                  vm.errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontFamily: 'Plus Jakarta Sans',
+                                    fontSize: 14,
+                                    color: Color(0xFF78909C),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          final ParentProfileModel? profile = vm.profile;
+                          return SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.fromLTRB(
+                                18, 24, 18, bottomInset + 100),
+                            child: Column(
+                              children: [
+                                _buildProfileAvatar(profile),
+                                const SizedBox(height: 24),
+                                _buildSection(
+                                  icon: Icons.school_rounded,
+                                  iconColor: const Color(0xFF2E6B7F),
+                                  iconBg: const Color(0xFFE0F4FA),
+                                  title: 'Student Details',
+                                  expanded: _studentExpanded,
+                                  onTap: () => setState(
+                                      () => _studentExpanded = !_studentExpanded),
+                                  rows: _studentRows(profile?.student),
+                                ),
+                                const SizedBox(height: 14),
+                                _buildSection(
+                                  icon: Icons.person_rounded,
+                                  iconColor: const Color(0xFF5C3D8F),
+                                  iconBg: const Color(0xFFEDE8F8),
+                                  title: 'Teacher Details',
+                                  expanded: _teacherExpanded,
+                                  onTap: () => setState(
+                                      () => _teacherExpanded = !_teacherExpanded),
+                                  rows: _teacherRows(profile?.teacher),
+                                ),
+                                const SizedBox(height: 14),
+                                _buildSection(
+                                  icon: Icons.family_restroom_rounded,
+                                  iconColor: const Color(0xFF1A6B4A),
+                                  iconBg: const Color(0xFFE0F5ED),
+                                  title: 'Parent Details',
+                                  expanded: _parentExpanded,
+                                  onTap: () => setState(
+                                      () => _parentExpanded = !_parentExpanded),
+                                  rows: _parentRows(profile),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 14),
-                            _buildSection(
-                              icon: Icons.person_rounded,
-                              iconColor: const Color(0xFF5C3D8F),
-                              iconBg: const Color(0xFFEDE8F8),
-                              title: 'Teacher Details',
-                              expanded: _teacherExpanded,
-                              onTap: () => setState(
-                                  () => _teacherExpanded = !_teacherExpanded),
-                              rows: _teacherRows(),
-                            ),
-                            const SizedBox(height: 14),
-                            _buildSection(
-                              icon: Icons.family_restroom_rounded,
-                              iconColor: const Color(0xFF1A6B4A),
-                              iconBg: const Color(0xFFE0F5ED),
-                              title: 'Parent Details',
-                              expanded: _parentExpanded,
-                              onTap: () => setState(
-                                  () => _parentExpanded = !_parentExpanded),
-                              rows: _parentRows(),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -131,7 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ],
           ),
-          // Logout button pinned at bottom above safe area
           Positioned(
             left: 18,
             right: 18,
@@ -174,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(width: 14),
           const Text(
-            'My Profile',
+            'Student Profile',
             style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 20,
@@ -187,48 +220,42 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildProfileAvatar() {
+  Widget _buildProfileAvatar(ParentProfileModel? profile) {
+    final String? photoUrl = profile?.student?.photoUrl;
+    final String displayName = profile?.student?.fullName ?? '—';
+    final String? grade = profile?.student?.grade;
+    final String? className = profile?.student?.className;
+    final String gradeBadge = (grade != null && className != null)
+        ? '$grade — Class $className'
+        : (grade ?? '');
+
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-              child: const CircleAvatar(
-                radius: 52,
-                backgroundColor: Color(0xFFE3C091),
-                child:
-                    Icon(Icons.person, color: Color(0xFF374151), size: 52),
-              ),
-            ),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(Icons.camera_alt_rounded,
-                  color: Colors.white, size: 16),
-            ),
-          ],
+            ],
+          ),
+          child: CircleAvatar(
+            radius: 52,
+            backgroundColor: const Color(0xFFE3C091),
+            backgroundImage: _resolveImage(photoUrl),
+            child: photoUrl == null
+                ? const Icon(Icons.person, color: Color(0xFF374151), size: 52)
+                : null,
+          ),
         ),
         const SizedBox(height: 14),
-        const Text(
-          'Methum Pathirana',
-          style: TextStyle(
+        Text(
+          displayName,
+          style: const TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -236,22 +263,23 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            'Grade 10 — Class A',
-            style: TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+        if (gradeBadge.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              gradeBadge,
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -375,31 +403,37 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  List<_DetailRow> _studentRows() => const [
-        _DetailRow('Full Name', 'Methum Pathirana'),
-        _DetailRow('Student ID', 'STU-2024-0042'),
-        _DetailRow('Grade', 'Grade 10'),
-        _DetailRow('Class', 'Class A'),
-        _DetailRow('Admission Year', '2022'),
-        _DetailRow('Academic Year', '2024/25'),
-        _DetailRow('Index No.', 'IX-100423'),
+  List<_DetailRow> _studentRows(StudentProfile? s) => [
+        _DetailRow('Full Name', s?.fullName ?? '—'),
+        _DetailRow('Student ID', s?.studentIdNo ?? '—'),
+        _DetailRow('Grade', s?.grade ?? '—'),
+        _DetailRow('Class', s?.className != null ? 'Class ${s!.className}' : '—'),
+        _DetailRow('Gender', s?.gender ?? '—'),
+        _DetailRow('Admission Year', s?.admissionYear ?? '—'),
       ];
 
-  List<_DetailRow> _teacherRows() => const [
-        _DetailRow('Class Teacher', 'Ms. Dilani Fernando'),
-        _DetailRow('Subject', 'Mathematics'),
-        _DetailRow('Contact', '+94 77 123 4567'),
-        _DetailRow('Email', 'dilani.f@school.lk'),
-        _DetailRow('Room', 'Block B — Room 204'),
+  List<_DetailRow> _teacherRows(TeacherProfile? t) => [
+        _DetailRow('Class Teacher', t?.fullName ?? '—'),
+        _DetailRow('Contact', t?.phoneNumber ?? '—'),
+        _DetailRow('Email', t?.email ?? '—'),
       ];
 
-  List<_DetailRow> _parentRows() => const [
-        _DetailRow('Parent Name', 'Mr. Nimal Pathirana'),
-        _DetailRow('Relationship', 'Father'),
-        _DetailRow('Contact', '+94 71 987 6543'),
-        _DetailRow('Email', 'nimal.p@gmail.com'),
-        _DetailRow('NIC', '197812345678V'),
+  List<_DetailRow> _parentRows(ParentProfileModel? p) => [
+        _DetailRow('Parent Name', p?.fullName ?? '—'),
+        _DetailRow('Contact', p?.phoneNumber ?? '—'),
+        _DetailRow('Email', p?.email ?? '—'),
       ];
+}
+
+ImageProvider? _resolveImage(String? url) {
+  if (url == null) return null;
+  if (url.startsWith('data:image')) {
+    final int comma = url.indexOf(',');
+    if (comma == -1) return null;
+    final Uint8List bytes = base64Decode(url.substring(comma + 1));
+    return MemoryImage(bytes);
+  }
+  return NetworkImage(url);
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -489,7 +523,6 @@ class _LogoutBottomSheet extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 width: 36,
@@ -539,13 +572,14 @@ class _LogoutBottomSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    // Yes
                     Expanded(
                       child: GestureDetector(
                         onTap: () async {
                           Navigator.of(context).pop();
-                          final vm = context.read<AuthViewModel>();
-                          await vm.logout();
+                          final authVm = context.read<AuthViewModel>();
+                          final profileVm = context.read<ProfileViewModel>();
+                          await authVm.logout();
+                          await profileVm.clearProfile();
                           if (context.mounted) {
                             context.go(AppRoutes.login);
                           }
@@ -571,7 +605,6 @@ class _LogoutBottomSheet extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // No
                     Expanded(
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),

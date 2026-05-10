@@ -47,6 +47,9 @@ model User {
   policy_documents    PolicyDocument[]   @relation("PolicyDocuments")
 
   @@index([email])
+  @@index([role])
+  @@index([is_active])
+  @@index([role, is_active])
   @@map("users")
 }
 
@@ -122,6 +125,8 @@ model Student {
   complaints         Complaint[]
   lost_reports       LostFoundReport[]
 
+  @@index([class_id])
+  @@index([is_active])
   @@map("students")
 }
 
@@ -158,6 +163,7 @@ model GateEvent {
   @@index([student_id])
   @@index([direction])
   @@index([timestamp])
+  @@index([student_id, timestamp])
   @@map("gate_events")
 }
 
@@ -200,6 +206,7 @@ model Announcement {
   @@index([author_id])
   @@index([class_id])
   @@index([scope])
+  @@index([created_at])
   @@map("announcements")
 }
 

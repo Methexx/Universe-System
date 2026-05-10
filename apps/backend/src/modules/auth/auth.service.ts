@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { generateOTP } from '../../common/utils/otp';
 import { hashPassword, comparePassword } from '../../common/utils/hash';
 import {
+  CompleteRegistrationInput,
   ForgotPasswordInput,
   LinkChildInput,
   LoginInput,
@@ -198,13 +199,15 @@ export class AuthService {
   static async register(input: RegisterInput) {
     const email = normalizeEmail(input.email);
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
-      throw new Error('User already exists');
+      if (existingUser.role === 'pending' && existingUser.requested_role === input.role) {
+        // Stale pending user from an incomplete registration — clear it so they can retry
+        await prisma.user.delete({ where: { id: existingUser.id } });
+      } else {
+        throw new Error('User already exists');
+      }
     }
 
     await AuthService.ensureParentRegistrationInput({ ...input, email });
@@ -234,63 +237,31 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(pendingRegistration.password);
 
+    // If Parent, we DON'T create the user yet. 
+    // We wait for the Profile Setup (2FA) to be completed.
+    if (pendingRegistration.role === 'parent') {
+      // Mark as verified in cache but don't delete yet
+      (pendingRegistration as any).is_otp_verified = true;
+      await AuthService.putPendingRegistration(pendingRegistration);
+
+      const studentData = await prisma.student.findUnique({
+        where: { student_id_no: pendingRegistration.student_id_no },
+        include: {
+          class: {
+            include: { school_grade: true }
+          }
+        }
+      });
+
+      return {
+        success: true,
+        message: 'OTP verified. Please complete profile setup.',
+        requires_profile_setup: true,
+        student: studentData,
+      };
+    }
+
     const createdUser = await prisma.$transaction(async (tx) => {
-      if (pendingRegistration.role === 'parent') {
-        if (!pendingRegistration.student_id_no) {
-          throw new Error('student_id_no is required for parent registration');
-        }
-
-        const student = await tx.student.findUnique({
-          where: { student_id_no: pendingRegistration.student_id_no },
-          select: {
-            id: true,
-            is_parent_linked: true,
-            parent_email: true,
-            is_active: true,
-          },
-        });
-
-        if (!student || !student.is_active) {
-          throw new Error('Student not found');
-        }
-
-        if (student.is_parent_linked) {
-          throw new Error('This student is already linked to a parent account');
-        }
-
-        if (!student.parent_email || normalizeEmail(student.parent_email) !== email) {
-          throw new Error('Registration email does not match school records');
-        }
-
-        const parentCount = await tx.user.count({ where: { role: 'parent' } });
-        const parent_user_id_no = `P-${String(parentCount + 1).padStart(6, '0')}`;
-
-        const parent = await tx.user.create({
-          data: {
-            email,
-            full_name: pendingRegistration.full_name,
-            password_hash: hashedPassword,
-            role: 'parent',
-            user_id_no: parent_user_id_no,
-          },
-        });
-
-        await tx.parentStudent.create({
-          data: {
-            parent_id: parent.id,
-            student_id: student.id,
-            verified_via: 'email',
-          },
-        });
-
-        await tx.student.update({
-          where: { id: student.id },
-          data: { is_parent_linked: true },
-        });
-
-        return parent;
-      }
-
       return tx.user.create({
         data: {
           email,
@@ -300,6 +271,87 @@ export class AuthService {
           requested_role: pendingRegistration.role,
         },
       });
+    });
+
+    await AuthService.clearPendingRegistration(email);
+    return buildAuthPayload(createdUser);
+  }
+
+  static async completeRegistration(input: CompleteRegistrationInput) {
+    const email = normalizeEmail(input.email);
+    const pending = await AuthService.getPendingRegistration(email);
+
+    if (!pending || !(pending as any).is_otp_verified) {
+      throw new Error('Verification session expired or invalid. Please try again.');
+    }
+
+    if (pending.role !== 'parent' || !pending.student_id_no) {
+      throw new Error('Invalid operation for this role.');
+    }
+
+    // 1. Fetch student for verification
+    const student = await prisma.student.findUnique({
+      where: { student_id_no: pending.student_id_no },
+      include: {
+        class: {
+          include: { school_grade: true }
+        }
+      }
+    });
+
+    if (!student) throw new Error('Student record not found.');
+
+    // 2. Perform 2FA Check (Logic from Flutter, moved to Backend for security)
+    const actualGrade = student.class?.school_grade?.name?.toLowerCase() || '';
+    const actualClass = student.class?.name?.toLowerCase() || '';
+    const actualGender = student.gender?.toLowerCase() || '';
+    
+    // Admission year fallback if field is missing in DB
+    let actualYear = (student as any).admission_year?.toString() || '';
+    if (!actualYear && student.created_at) {
+      actualYear = new Date(student.created_at).getFullYear().toString();
+    }
+
+    const gradeMatch = input.grade.toLowerCase() === actualGrade;
+    const classMatch = input.class.toLowerCase() === actualClass || 
+                       input.class.toLowerCase() === `class ${actualClass}`;
+    const yearMatch = input.admission_year === actualYear;
+    const genderMatch = input.gender.toLowerCase() === actualGender;
+
+    if (!gradeMatch || !classMatch || !yearMatch || !genderMatch) {
+      throw new Error('Profile verification failed. Information does not match school records.');
+    }
+
+    // 3. Create User & Link Student in Transaction
+    const hashedPassword = await hashPassword(pending.password);
+    const createdUser = await prisma.$transaction(async (tx) => {
+      const parentCount = await tx.user.count({ where: { role: 'parent' } });
+      const parent_user_id_no = `P-${String(parentCount + 1).padStart(6, '0')}`;
+
+      const parent = await tx.user.create({
+        data: {
+          email,
+          full_name: pending.full_name,
+          password_hash: hashedPassword,
+          role: 'parent',
+          user_id_no: parent_user_id_no,
+        },
+      });
+
+      await tx.parentStudent.create({
+        data: {
+          parent_id: parent.id,
+          student_id: student.id,
+          verified_via: 'email',
+        },
+      });
+
+      await tx.student.update({
+        where: { id: student.id },
+        data: { is_parent_linked: true },
+      });
+
+      return parent;
     });
 
     await AuthService.clearPendingRegistration(email);
@@ -471,6 +523,82 @@ export class AuthService {
     });
 
     return { message: 'FCM token updated' };
+  }
+
+  static async getParentProfile(userId: string) {
+    const link = await prisma.parentStudent.findFirst({
+      where: { parent_id: userId },
+      include: {
+        student: {
+          include: {
+            class: {
+              include: {
+                school_grade: true,
+                teacher: {
+                  select: {
+                    full_name: true,
+                    email: true,
+                    phone_number: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const parent = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        phone_number: true,
+        avatar_url: true,
+        user_id_no: true,
+      },
+    });
+
+    if (!parent) throw new Error('User not found');
+
+    const student = link?.student ?? null;
+    const cls = student?.class ?? null;
+    const teacher = cls?.teacher ?? null;
+
+    const admissionYear = student?.created_at
+      ? new Date(student.created_at).getFullYear().toString()
+      : null;
+
+    return {
+      parent: {
+        id: parent.id,
+        full_name: parent.full_name,
+        email: parent.email,
+        phone_number: parent.phone_number,
+        avatar_url: parent.avatar_url,
+        user_id_no: parent.user_id_no,
+      },
+      student: student
+        ? {
+            id: student.id,
+            full_name: student.full_name,
+            student_id_no: student.student_id_no,
+            photo_url: student.photo_url,
+            gender: student.gender,
+            admission_year: admissionYear,
+            grade: cls?.school_grade?.name ?? null,
+            class_name: cls?.name ?? null,
+          }
+        : null,
+      teacher: teacher
+        ? {
+            full_name: teacher.full_name,
+            email: teacher.email,
+            phone_number: teacher.phone_number,
+          }
+        : null,
+    };
   }
 
   static async changePassword(userId: string, input: { old_password: string; new_password: string }) {
