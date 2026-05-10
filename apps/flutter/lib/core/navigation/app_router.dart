@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/auth/views/forgot_password_screen.dart';
 import 'package:universe_app/features/auth/views/login_screen.dart';
 import 'package:universe_app/features/auth/views/registration_otp_screen.dart';
@@ -52,9 +53,28 @@ CustomTransitionPage<void> _slideTransition({
 }
 
 class AppRouter {
-  static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.splash,
-    routes: <RouteBase>[
+  static GoRouter createRouter(AuthViewModel authViewModel) {
+    return GoRouter(
+      initialLocation: AppRoutes.splash,
+      refreshListenable: authViewModel,
+      redirect: (context, state) {
+        final bool loggedIn = authViewModel.isAuthenticated;
+        final bool isLoggingIn = state.matchedLocation == AppRoutes.login || 
+                                 state.matchedLocation == AppRoutes.welcome ||
+                                 state.matchedLocation == AppRoutes.register ||
+                                 state.matchedLocation == AppRoutes.splash;
+
+        if (!loggedIn && !isLoggingIn) {
+          return AppRoutes.login;
+        }
+
+        if (loggedIn && isLoggingIn && state.matchedLocation != AppRoutes.splash) {
+          return AppRoutes.dashboard;
+        }
+
+        return null;
+      },
+      routes: <RouteBase>[
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
@@ -169,5 +189,6 @@ class AppRouter {
         ),
       ),
     ],
-  );
+    );
+  }
 }

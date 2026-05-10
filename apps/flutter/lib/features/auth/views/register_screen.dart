@@ -12,16 +12,17 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _studentIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
   @override
   void dispose() {
-    _usernameController.dispose();
     _emailController.dispose();
     _studentIdController.dispose();
     _passwordController.dispose();
@@ -30,9 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _onRegisterPressed() async {
-    final String fullName = _usernameController.text.trim();
+    final String fullName = 'Parent';
     final String email = _emailController.text.trim();
-    final String studentId = _studentIdController.text.trim();
+    final String rawStudentId = _studentIdController.text.trim();
+    final String studentId = rawStudentId.isNotEmpty ? 'S-$rawStudentId' : '';
     final String password = _passwordController.text;
     final String confirmPassword = _confirmPasswordController.text;
 
@@ -74,10 +76,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     context.go(AppRoutes.registerOtp);
   }
 
-  InputDecoration _fieldDecoration(String hintText) {
+  InputDecoration _fieldDecoration(String hintText, {String? prefixText, Widget? prefixIcon, Widget? suffixIcon}) {
     const BorderSide borderSide = BorderSide(color: Color(0xFFE5E7EB));
     return InputDecoration(
       hintText: hintText,
+      prefixText: prefixText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      prefixStyle: const TextStyle(
+        color: Color(0xFF111827),
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        fontFamily: 'Plus Jakarta Sans',
+      ),
       hintStyle: const TextStyle(
         color: Color(0xFF94A3B8),
         fontSize: 15,
@@ -153,12 +164,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 26),
                     TextField(
-                      controller: _usernameController,
-                      textInputAction: TextInputAction.next,
-                      decoration: _fieldDecoration('Username'),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
@@ -168,22 +173,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextField(
                       controller: _studentIdController,
                       textInputAction: TextInputAction.next,
-                      decoration: _fieldDecoration('Student ID (e.g. SCH-2026-0042)'),
+                      keyboardType: TextInputType.number,
+                      decoration: _fieldDecoration(
+                        '000025',
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 14, right: 4, top: 16),
+                          child: Text(
+                            'S-',
+                            style: TextStyle(
+                              color: Color(0xFF111827),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Plus Jakarta Sans',
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
-                      decoration: _fieldDecoration('Password'),
+                      decoration: _fieldDecoration(
+                        'Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _confirmPasswordController,
-                      obscureText: true,
+                      obscureText: _obscureConfirmPassword,
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _onRegisterPressed(),
-                      decoration: _fieldDecoration('Confirm password'),
+                      decoration: _fieldDecoration(
+                        'Confirm password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
