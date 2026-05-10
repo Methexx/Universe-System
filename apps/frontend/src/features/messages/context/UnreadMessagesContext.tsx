@@ -35,7 +35,7 @@ export function UnreadMessagesProvider({ children }: { children: React.ReactNode
     if (!userId) return;
 
     fetchAndSet();
-    const id = setInterval(fetchAndSet, 10000);
+    const id = setInterval(fetchAndSet, 30000);
     return () => clearInterval(id);
   }, [userId, fetchAndSet]);
 

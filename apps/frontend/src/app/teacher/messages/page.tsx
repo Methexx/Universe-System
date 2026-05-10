@@ -229,23 +229,22 @@ export default function TeacherMessagesPage() {
 
   // Polling for real-time updates
   React.useEffect(() => {
+    let pollCount = 0;
     const interval = setInterval(async () => {
-      // Refresh inbox
+      pollCount++;
       const inboxRes = await getInbox();
       if (inboxRes.ok) setThreads(inboxRes.data);
 
-      // If a thread is open, refresh its messages
       if (activeThreadId) {
         const threadRes = await getThread(activeThreadId);
-        if (threadRes.ok) {
-          setActiveMessages(threadRes.data);
-        }
+        if (threadRes.ok) setActiveMessages(threadRes.data);
       }
-      
-      // Refresh contacts occasionally too
-      const contactsRes = await getContacts();
-      if (contactsRes.ok) setContacts(contactsRes.data);
-    }, 5000);
+
+      if (pollCount % 3 === 0) {
+        const contactsRes = await getContacts();
+        if (contactsRes.ok) setContacts(contactsRes.data);
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [activeThreadId]);
