@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (success) {
-      context.go(AppRoutes.profileSetup);
+      context.go(AppRoutes.dashboard);
       return;
     }
 

@@ -10,6 +10,7 @@ import {
   updateFcmTokenSchema,
   verifyOtpSchema,
   changePasswordSchema,
+  completeRegistrationSchema,
 } from './auth.schema';
 import { authenticate } from '../../common/middleware/authenticate';
 
@@ -44,6 +45,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
       verifyOtpSchema.parse({ body: request.body });
     }
   }, AuthController.verifyOtp);
+
+  fastify.post('/complete-registration', {
+    preHandler: async (request) => {
+      completeRegistrationSchema.parse({ body: request.body });
+    }
+  }, AuthController.completeRegistration);
 
   fastify.post('/login', {
     config: {

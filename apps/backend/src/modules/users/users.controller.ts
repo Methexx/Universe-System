@@ -43,11 +43,8 @@ export const UsersController = {
     return reply.status(200).send({ success: true, message: 'Account deactivated' });
   },
 
-  async getPending(request: FastifyRequest, reply: FastifyReply) {
-    const users = await prisma.user.findMany({
-      where: { role: 'pending' },
-      select: { id: true, email: true, requested_role: true, created_at: true },
-    });
+  async getPending(_request: FastifyRequest, reply: FastifyReply) {
+    const users = await UsersService.getPendingUsers();
     return reply.status(200).send({ success: true, data: users });
   },
 

@@ -11,6 +11,9 @@ class AuthViewModel extends BaseViewModel {
   UserModel? get currentUser => _currentUser;
   String? _pendingRegistrationEmail;
   String? _pendingForgotPasswordEmail;
+  Map<String, dynamic>? _pendingStudentData;
+
+  Map<String, dynamic>? get pendingStudentData => _pendingStudentData;
 
   bool get isAuthenticated => _currentUser != null;
 
@@ -79,8 +82,76 @@ class AuthViewModel extends BaseViewModel {
     setLoading(true);
 
     try {
-      _currentUser = await _repository.verifyRegistrationOtp(email: email, otp: otp);
+      final result = await _repository.verifyRegistrationOtp(email: email, otp: otp);
+      final bool requiresProfileSetup = result['requires_profile_setup'] == true;
+
+      _currentUser = result['user'] as UserModel?;
+      _pendingStudentData = result['student'] as Map<String, dynamic>?;
+
+      // Keep email if we need to call completeRegistration next
+      if (!requiresProfileSetup) {
+        _pendingRegistrationEmail = null;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (error) {
+      setError(error.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  Future<bool> completeRegistration({
+    required String grade,
+    required String className,
+    required String admissionYear,
+    required String gender,
+  }) async {
+    final String? email = _pendingRegistrationEmail;
+    if (email == null || email.isEmpty) {
+      setError('Registration session expired. Please register again.');
+      return false;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      final result = await (_repository as dynamic).completeRegistration(
+        email: email,
+        grade: grade,
+        className: className,
+        admissionYear: admissionYear,
+        gender: gender,
+      );
+
+      _currentUser = result['user'] as UserModel;
       _pendingRegistrationEmail = null;
+      _pendingStudentData = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      setError(error.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  Future<bool> resendRegistrationOtp() async {
+    final String? email = _pendingRegistrationEmail;
+    if (email == null || email.isEmpty) {
+      setError('Please submit registration details first.');
+      return false;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      await _repository.resendOtp(email: email);
       return true;
     } catch (error) {
       setError(error.toString().replaceFirst('Exception: ', ''));

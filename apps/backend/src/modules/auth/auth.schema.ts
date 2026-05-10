@@ -64,6 +64,16 @@ export const changePasswordSchema = z.object({
   }),
 });
 
+export const completeRegistrationSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    grade: z.string().min(1, 'Grade is required'),
+    class: z.string().min(1, 'Class is required'),
+    admission_year: z.string().min(1, 'Admission year is required'),
+    gender: z.string().min(1, 'Gender is required'),
+  }),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>['body'];
 export type LoginInput = z.infer<typeof loginSchema>['body'];
@@ -73,3 +83,4 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
 export type LinkChildInput = z.infer<typeof linkChildSchema>['body'];
 export type UpdateFcmTokenInput = z.infer<typeof updateFcmTokenSchema>['body'];
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
+export type CompleteRegistrationInput = z.infer<typeof completeRegistrationSchema>['body'];
