@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:universe_app/core/services/firebase_service.dart';
 import 'package:universe_app/core/viewmodels/base_viewmodel.dart';
 import 'package:universe_app/features/auth/models/user_model.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
 import 'package:universe_app/core/storage/local_storage.dart';
 
 class AuthViewModel extends BaseViewModel {
-  AuthViewModel(this._repository, this._localStorage);
+  AuthViewModel(this._repository, this._localStorage, this._firebaseService);
 
   final AuthRepository _repository;
+  final FirebaseService _firebaseService;
   final LocalStorageService _localStorage;
 
   UserModel? _currentUser;
@@ -50,6 +52,8 @@ class AuthViewModel extends BaseViewModel {
     try {
       _currentUser = await _repository.login(email: email, password: password);
       await _localStorage.setKeepMeSignedIn(keepMeSignedIn);
+      // Upload FCM token now that a valid JWT exists in secure storage
+      _firebaseService.uploadTokenIfLoggedIn();
       return true;
     } catch (error) {
       setError(error.toString().replaceFirst('Exception: ', ''));

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorageService {
   static const String _keepMeSignedInKey = 'keep_me_signed_in';
   static const String _profileCacheKey = 'profile_cache';
+  static const String _themeKey = 'selected_theme';
 
   Future<void> setKeepMeSignedIn(bool value) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();

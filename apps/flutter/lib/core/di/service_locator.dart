@@ -6,6 +6,8 @@ import 'package:universe_app/core/storage/local_storage.dart';
 import 'package:universe_app/core/storage/secure_storage.dart';
 import 'package:universe_app/features/auth/repositories/auth_repository.dart';
 import 'package:universe_app/features/chatbot/services/chatbot_service.dart';
+import 'package:universe_app/features/gate/repositories/gate_repository.dart';
+import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/messages/repositories/messages_repository.dart';
 import 'package:universe_app/features/profile/repositories/profile_repository.dart';
 
@@ -19,6 +21,8 @@ class ServiceLocator {
   late LocalStorageService localStorageService;
   late AuthRepository authRepository;
   late ProfileRepository profileRepository;
+  late GateRepository gateRepository;
+  late GateViewModel gateViewModel;
   late MessagesRepository messagesRepository;
   late ChatbotService chatbotService;
   late FirebaseService firebaseService;
@@ -35,9 +39,14 @@ class ServiceLocator {
       dio: apiClient.dio,
       secureStorage: secureStorageService,
     );
+    gateRepository = GateRepository(
+      dio: apiClient.dio,
+      secureStorage: secureStorageService,
+    );
+    gateViewModel = GateViewModel(repository: gateRepository);
     messagesRepository = MessagesRepository(apiClient);
     chatbotService = ChatbotService(dio: apiClient.dio, storage: secureStorageService);
-    firebaseService = FirebaseService();
+    firebaseService = FirebaseService(secureStorage: secureStorageService);
     firebaseService.initialize();
   }
 }
