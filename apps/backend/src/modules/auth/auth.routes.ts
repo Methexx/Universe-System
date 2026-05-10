@@ -139,4 +139,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/me', {
     preHandler: [authenticate],
   }, AuthController.me);
+
+  fastify.get('/parent-profile', {
+    preHandler: [authenticate],
+  }, AuthController.getParentProfile);
 }

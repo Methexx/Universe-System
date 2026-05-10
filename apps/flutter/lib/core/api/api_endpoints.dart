@@ -9,6 +9,8 @@ class ApiEndpoints {
   static const String forgotPassword = '$basePath/auth/forgot-password';
   static const String resetPassword = '$basePath/auth/reset-password';
 
+  static const String parentProfile = '$basePath/auth/parent-profile';
+
   // Messaging
   static const String getContacts = '$basePath/messages/contacts';
   static const String getInbox = '$basePath/messages/inbox';

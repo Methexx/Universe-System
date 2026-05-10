@@ -525,6 +525,82 @@ export class AuthService {
     return { message: 'FCM token updated' };
   }
 
+  static async getParentProfile(userId: string) {
+    const link = await prisma.parentStudent.findFirst({
+      where: { parent_id: userId },
+      include: {
+        student: {
+          include: {
+            class: {
+              include: {
+                school_grade: true,
+                teacher: {
+                  select: {
+                    full_name: true,
+                    email: true,
+                    phone_number: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const parent = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        phone_number: true,
+        avatar_url: true,
+        user_id_no: true,
+      },
+    });
+
+    if (!parent) throw new Error('User not found');
+
+    const student = link?.student ?? null;
+    const cls = student?.class ?? null;
+    const teacher = cls?.teacher ?? null;
+
+    const admissionYear = student?.created_at
+      ? new Date(student.created_at).getFullYear().toString()
+      : null;
+
+    return {
+      parent: {
+        id: parent.id,
+        full_name: parent.full_name,
+        email: parent.email,
+        phone_number: parent.phone_number,
+        avatar_url: parent.avatar_url,
+        user_id_no: parent.user_id_no,
+      },
+      student: student
+        ? {
+            id: student.id,
+            full_name: student.full_name,
+            student_id_no: student.student_id_no,
+            photo_url: student.photo_url,
+            gender: student.gender,
+            admission_year: admissionYear,
+            grade: cls?.school_grade?.name ?? null,
+            class_name: cls?.name ?? null,
+          }
+        : null,
+      teacher: teacher
+        ? {
+            full_name: teacher.full_name,
+            email: teacher.email,
+            phone_number: teacher.phone_number,
+          }
+        : null,
+    };
+  }
+
   static async changePassword(userId: string, input: { old_password: string; new_password: string }) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found');

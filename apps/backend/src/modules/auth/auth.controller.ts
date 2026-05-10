@@ -198,6 +198,19 @@ export class AuthController {
     return reply.send(successResponse(result.message));
   }
 
+  static async getParentProfile(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const userClaims = (request as any).user as { userId: string; role: string };
+      if (userClaims.role !== 'parent') {
+        return reply.status(403).send(errorResponse('Forbidden'));
+      }
+      const result = await AuthService.getParentProfile(userClaims.userId);
+      return reply.send(successResponse('OK', result));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
+
   static async linkChild(request: FastifyRequest<{ Body: LinkChildInput }>, reply: FastifyReply) {
     try {
       const result = await AuthService.linkChild(request.body);
