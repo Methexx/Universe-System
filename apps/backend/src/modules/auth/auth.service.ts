@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { Prisma } from '@prisma/client';
 import { generateOTP } from '../../common/utils/otp';
 import { hashPassword, comparePassword } from '../../common/utils/hash';
 import {
@@ -261,7 +262,7 @@ export class AuthService {
       };
     }
 
-    const createdUser = await prisma.$transaction(async (tx) => {
+    const createdUser = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       return tx.user.create({
         data: {
           email,
@@ -324,7 +325,7 @@ export class AuthService {
 
     // 3. Create User & Link Student in Transaction
     const hashedPassword = await hashPassword(pending.password);
-    const createdUser = await prisma.$transaction(async (tx) => {
+    const createdUser = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const parentCount = await tx.user.count({ where: { role: 'parent' } });
       const parent_user_id_no = `P-${String(parentCount + 1).padStart(6, '0')}`;
 

@@ -47,7 +47,7 @@ export async function getEvalReport() {
 
   const totalQueries = logs.length;
   const avgConfidence =
-    logs.reduce((sum: number, l) => sum + (l.confidence_score ?? 0), 0) / totalQueries;
+    logs.reduce((sum: number, l: { confidence_score: number | null }) => sum + (l.confidence_score ?? 0), 0) / totalQueries;
 
   const dontKnowCount = logs.filter((l: { generated_answer: string }) =>
     l.generated_answer.includes("I don't have enough information")

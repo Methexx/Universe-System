@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { Prisma } from '@prisma/client';
 import { UpdateProfileInput, PromoteUserInput } from './users.schema';
 import { sendApprovalEmail } from '../../common/utils/email';
 
@@ -109,7 +110,7 @@ export class UsersService {
         where: { user_id_no: { startsWith: 'T-' } },
         select: { user_id_no: true },
       });
-      const maxNum = existing.reduce((max, u) => {
+      const maxNum = existing.reduce((max: number, u: { user_id_no: string | null }) => {
         const n = parseInt(u.user_id_no?.replace('T-', '') ?? '0', 10);
         return n > max ? n : max;
       }, 0);
@@ -167,7 +168,7 @@ export class UsersService {
       throw new Error('Cannot delete an admin account');
     }
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Nullify optional FK references that don't cascade
       await tx.complaint.updateMany({
         where: { assigned_to_id: targetUserId },
