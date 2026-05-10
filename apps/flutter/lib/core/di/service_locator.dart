@@ -46,7 +46,7 @@ class ServiceLocator {
       secureStorage: secureStorageService,
     );
     gateViewModel = GateViewModel(repository: gateRepository);
-    messagesRepository = MessagesRepository(apiClient);
+    messagesRepository = MessagesRepository(apiClient, secureStorageService, localStorageService);
     chatbotService = ChatbotService(dio: apiClient.dio, storage: secureStorageService);
     firebaseService = FirebaseService(secureStorage: secureStorageService);
     await firebaseService.initialize();

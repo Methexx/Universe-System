@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../viewmodels/messages_viewmodel.dart';
-import '../models/message_models.dart';
+import 'package:universe_app/core/constants/app_routes.dart';
+import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/messages/models/message_models.dart';
+import 'package:universe_app/features/messages/viewmodels/messages_viewmodel.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -11,12 +14,23 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
+  String? get _userId => context.read<AuthViewModel>().currentUser?.id;
+  String? get _role => context.read<AuthViewModel>().currentUser?.role;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MessagesViewModel>().fetchInbox();
+      context.read<MessagesViewModel>().fetchInbox(userId: _userId);
     });
+  }
+
+  void _navigateToChat(String contactId) {
+    if (_role == 'teacher') {
+      context.push(AppRoutes.teacherInbox, extra: contactId);
+    } else {
+      context.push(AppRoutes.teacherChat, extra: contactId);
+    }
   }
 
   @override
@@ -64,7 +78,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: viewModel.fetchInbox,
+            onRefresh: () => viewModel.fetchInbox(userId: _userId),
             child: ListView.separated(
               itemCount: viewModel.threads.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
@@ -122,9 +136,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                     ],
                   ),
-                  onTap: () {
-                    // Navigate to individual chat screen (to be implemented)
-                  },
+                  onTap: () => _navigateToChat(thread.user.id),
                 );
               },
             ),
@@ -177,13 +189,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: const Color(0xFF63BEDB).withOpacity(0.2),
-                              child: Text(contact.fullName?.substring(0, 1).toUpperCase() ?? '?'),
+                              child: Text(
+                                  contact.fullName?.substring(0, 1).toUpperCase() ?? '?'),
                             ),
                             title: Text(contact.fullName ?? 'Unknown'),
-                            subtitle: Text(contact.role),
+                            subtitle: Text(contact.studentName != null
+                                ? 'Parent of ${contact.studentName}'
+                                : contact.role),
                             onTap: () {
                               Navigator.pop(context);
-                              // Navigate to individual chat screen
+                              _navigateToChat(contact.id);
                             },
                           );
                         },

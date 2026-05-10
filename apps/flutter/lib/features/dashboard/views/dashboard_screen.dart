@@ -725,13 +725,28 @@ class _ActionGrid extends StatelessWidget {
           accentColor: const Color(0xFFD4AAFF),
           onTap: () => context.push(AppRoutes.support),
         ),
-        ActionCard(
-          cardIndex: 3,
-          label: 'Contact\nTeacher',
-          icon: Icons.support_agent_rounded,
-          gradient: const [Color(0xFF1A6B4A), Color(0xFF2EAA75)],
-          accentColor: const Color(0xFF80E8B8),
-          onTap: () => context.push(AppRoutes.teacherChat),
+        Builder(
+          builder: (context) {
+            final role = context.read<AuthViewModel>().currentUser?.role;
+            if (role == 'teacher') {
+              return ActionCard(
+                cardIndex: 3,
+                label: 'Messages\nInbox',
+                icon: Icons.mark_email_unread_rounded,
+                gradient: const [Color(0xFF1A6B4A), Color(0xFF2EAA75)],
+                accentColor: const Color(0xFF80E8B8),
+                onTap: () => context.push(AppRoutes.teacherInbox),
+              );
+            }
+            return ActionCard(
+              cardIndex: 3,
+              label: 'Contact\nTeacher',
+              icon: Icons.support_agent_rounded,
+              gradient: const [Color(0xFF1A6B4A), Color(0xFF2EAA75)],
+              accentColor: const Color(0xFF80E8B8),
+              onTap: () => context.push(AppRoutes.teacherChat),
+            );
+          },
         ),
         ActionCard(
           cardIndex: 4,
