@@ -26,7 +26,7 @@ export function startGateScheduler() {
 
       if (checkedInToday.length === 0) return;
 
-      const studentIds = checkedInToday.map(e => e.student_id);
+      const studentIds = checkedInToday.map((e: { student_id: string }) => e.student_id);
 
       // Among those, find which already have an OUT event today
       const alreadyCheckedOut = await prisma.gateEvent.findMany({
@@ -39,14 +39,14 @@ export function startGateScheduler() {
         select: { student_id: true },
       });
 
-      const checkedOutSet = new Set(alreadyCheckedOut.map(e => e.student_id));
-      const stillInside = studentIds.filter(id => !checkedOutSet.has(id));
+      const checkedOutSet = new Set(alreadyCheckedOut.map((e: { student_id: string }) => e.student_id));
+      const stillInside = studentIds.filter((id: string) => !checkedOutSet.has(id));
 
       if (stillInside.length === 0) return;
 
       // Bulk-insert auto-checkout events
       await prisma.gateEvent.createMany({
-        data: stillInside.map(student_id => ({
+        data: stillInside.map((student_id: string) => ({
           student_id,
           scanned_by_id: null,
           direction: 'OUT',

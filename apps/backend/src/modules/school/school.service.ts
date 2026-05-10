@@ -149,14 +149,14 @@ export class SchoolService {
       orderBy: { full_name: 'asc' }
     });
 
-    const emails = students.map(s => s.parent_email).filter(Boolean) as string[];
-    const parents = emails.length > 0
+    const emails = students.map((s: { parent_email: string | null }) => s.parent_email).filter(Boolean) as string[];
+    const parents: { email: string | null; user_id_no: string | null; full_name: string | null }[] = emails.length > 0
       ? await prisma.user.findMany({
           where: { email: { in: emails }, role: 'parent' },
           select: { email: true, user_id_no: true, full_name: true }
         })
       : [];
-    const parentMap = new Map(parents.map(p => [p.email, p]));
+    const parentMap = new Map(parents.map((p: { email: string | null; user_id_no: string | null; full_name: string | null }) => [p.email, p]));
 
     return students.map(s => {
       const p = s.parent_email ? parentMap.get(s.parent_email) : null;

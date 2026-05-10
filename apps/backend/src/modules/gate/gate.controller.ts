@@ -193,7 +193,7 @@ export class GateController {
           distinct: ['student_id'],
           select: { student_id: true, direction: true },
         });
-        const currentlyInside = latestPerStudent.filter(e => e.direction === 'IN').length;
+        const currentlyInside = latestPerStudent.filter((e: { direction: string }) => e.direction === 'IN').length;
 
         return { checkIns, manualEntries, qrScans, currentlyInside };
       }, 60);
@@ -300,7 +300,7 @@ export class GateController {
             GROUP BY bucket
             ORDER BY bucket
           `;
-          const countMap = new Map(rows.map(r => [r.bucket.getUTCHours(), Number(r.count)]));
+          const countMap = new Map(rows.map((r: { bucket: Date; count: bigint }) => [r.bucket.getUTCHours(), Number(r.count)]));
 
           return Array.from({ length: 24 }, (_, h) => ({
             name: h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`,
@@ -324,7 +324,7 @@ export class GateController {
           GROUP BY bucket
           ORDER BY bucket
         `;
-        const countMap = new Map(rows.map(r => [r.bucket.toISOString().slice(0, 10), Number(r.count)]));
+        const countMap = new Map(rows.map((r: { bucket: Date; count: bigint }) => [r.bucket.toISOString().slice(0, 10), Number(r.count)]));
 
         return Array.from({ length: days }, (_, i) => {
           const d = new Date(rangeStart);

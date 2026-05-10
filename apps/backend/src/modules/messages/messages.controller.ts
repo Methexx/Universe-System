@@ -26,7 +26,7 @@ export const getInbox = async (request: FastifyRequest, reply: FastifyReply) => 
         orderBy: { created_at: 'desc' },
       });
 
-      const grouped = messages.reduce((acc, message: any) => {
+      const grouped = messages.reduce((acc: Record<string, any>, message: any) => {
         const otherUserId = message.sender_id === userId ? message.receiver_id : message.sender_id;
         const userObj: any = message.sender_id === userId ? message.receiver : message.sender;
         const isOnline = userObj.last_seen ? (new Date().getTime() - new Date(userObj.last_seen).getTime()) < 30000 : false;
@@ -92,7 +92,7 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
         where: { teacher_id: userId },
         select: { id: true },
       });
-      const classIds = myClasses.map((c) => c.id);
+      const classIds = myClasses.map((c: { id: string }) => c.id);
 
       const parents = (await prisma.parentStudent.findMany({
         where: {
@@ -143,7 +143,7 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
         where: { parent_id: userId },
         select: { student_id: true },
       });
-      const studentIds = myStudents.map((s) => s.student_id);
+      const studentIds = myStudents.map((s: { student_id: string }) => s.student_id);
 
       const classes = (await prisma.class.findMany({
         where: {
