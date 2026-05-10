@@ -15,7 +15,7 @@ void main() async {
   sl.setup();
 
   runApp(UniverseApp(
-    authViewModel: AuthViewModel(sl.authRepository),
+    authViewModel: AuthViewModel(sl.authRepository, sl.localStorageService),
     messagesViewModel: MessagesViewModel(sl.messagesRepository),
     profileViewModel: ProfileViewModel(
       repository: sl.profileRepository,

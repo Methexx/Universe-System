@@ -31,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final bool success = await viewModel.login(
       email: _emailController.text,
       password: _passwordController.text,
+      keepMeSignedIn: _keepMeSignedIn,
     );
 
     if (!context.mounted) {
