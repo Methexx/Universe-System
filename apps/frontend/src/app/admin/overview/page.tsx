@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
+import { cacheGet, cacheSet } from "@/shared/lib/local-cache";
 import { StatCard } from "@/shared/components/ui/StatCard";
 import { Eye, Bookmark, Activity, Loader2, Users } from "lucide-react";
 import Link from "next/link";
@@ -91,9 +92,16 @@ function OverviewContent() {
 
   const fetchData = useCallback(async () => {
     checkSystemStatus();
+    // Show cached data instantly
+    const cachedStats = cacheGet<OverviewStats>('overview-stats:admin');
+    const cachedActivity = cacheGet<RecentActivity[]>('recent-activity');
+    if (cachedStats) setStats(cachedStats);
+    if (cachedActivity) setRecentActivities(cachedActivity);
+
+    // Fetch fresh in background
     const [statsRes, activityRes] = await Promise.all([getOverviewStats(), getRecentActivity()]);
-    if (statsRes.ok) setStats(statsRes.data);
-    if (activityRes.ok) setRecentActivities(activityRes.data);
+    if (statsRes.ok) { setStats(statsRes.data); cacheSet('overview-stats:admin', statsRes.data, 60); }
+    if (activityRes.ok) { setRecentActivities(activityRes.data); cacheSet('recent-activity', activityRes.data, 60); }
   }, []);
 
   useEffect(() => {

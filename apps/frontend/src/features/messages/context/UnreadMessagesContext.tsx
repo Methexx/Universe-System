@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getInbox } from '../lib/messages-api';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { cacheGet } from '@/shared/lib/local-cache';
 
 type UnreadMessagesContextValue = {
   unreadCount: number;
@@ -33,6 +34,13 @@ export function UnreadMessagesProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (!userId) return;
+
+    // Seed unread count from cache instantly before first poll
+    const cached = cacheGet<{ unreadCount: number }[]>(`inbox:${userId}`);
+    if (cached) {
+      const count = cached.reduce((sum, t) => sum + t.unreadCount, 0);
+      setTimeout(() => setUnreadCount(count), 0);
+    }
 
     fetchAndSet();
     const id = setInterval(fetchAndSet, 30000);
