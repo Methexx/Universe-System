@@ -158,7 +158,7 @@ export class SchoolService {
       : [];
     const parentMap = new Map(parents.map((p: { email: string | null; user_id_no: string | null; full_name: string | null }) => [p.email, p]));
 
-    return students.map(s => {
+    return students.map((s: (typeof students)[number]) => {
       const p = s.parent_email ? parentMap.get(s.parent_email) : null;
       return {
         ...s,
@@ -289,14 +289,14 @@ export class SchoolService {
     });
 
     const activities = [
-      ...recentStudents.map(s => ({
+      ...recentStudents.map((s: (typeof recentStudents)[number]) => ({
         type: 'registration',
         id: `reg-${s.id}`,
         timestamp: s.created_at,
         title: 'New Student Registration',
         details: `Name - ${s.full_name}   SID - ${s.student_id_no}   class - ${s.class?.name ?? 'Unassigned'}`,
       })),
-      ...recentGateEvents.map(g => ({
+      ...recentGateEvents.map((g: (typeof recentGateEvents)[number]) => ({
         type: 'gate_log',
         id: `gate-${g.id}`,
         timestamp: g.timestamp,
