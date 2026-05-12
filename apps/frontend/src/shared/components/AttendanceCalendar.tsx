@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 
@@ -34,10 +34,6 @@ export function AttendanceCalendar({
 
   const todayISO = toLocalISO(now);
   const availableSet = useMemo(() => new Set(availableDates), [availableDates]);
-
-  const isCurrentMonthOrFuture =
-    currentYear > now.getFullYear() ||
-    (currentYear === now.getFullYear() && currentMonth >= now.getMonth() + 1);
 
   const isAtCurrentMonth =
     currentYear === now.getFullYear() && currentMonth === now.getMonth() + 1;

@@ -1,9 +1,11 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 // ── Internal fetch helper ─────────────────────────────────────────────────────
+type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
+
 async function request<T>(
   path: string,
-  options: RequestInit & { body?: unknown } = {},
+  options: RequestOptions = {},
 ): Promise<T> {
   const { body, ...rest } = options;
   const hasBody = body !== undefined && body !== null;
