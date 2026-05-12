@@ -13,6 +13,7 @@ import { AddStudentButton } from './components/AddStudentButton';
 import { GradesHistory } from './components/GradesHistory';
 import { EditStudentModal, Student } from './components/EditStudentModal';
 import { getStudents, type StudentRecord, updateStudent, deleteStudent as deleteStudentApi } from '@/features/school/lib/school-api';
+import { cacheGet, cacheSet } from '@/shared/lib/local-cache';
 
 function dedupeFullName(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -60,15 +61,26 @@ export default function StudentsPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    // Show cached data instantly
+    const cached = cacheGet<Student[]>('students');
+    if (cached && cached.length > 0) {
+      setStudents(cached);
+      setSelectedStudentId(cached[0].id);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    // Fetch fresh in background
     const res = await getStudents();
     if (res.ok) {
       const mapped = res.data.map(mapApiStudentToStudent);
       setStudents(mapped);
-      if (mapped.length > 0) setSelectedStudentId(mapped[0].id);
+      cacheSet('students', mapped, 300);
+      if (mapped.length > 0 && !selectedStudentId) setSelectedStudentId(mapped[0].id);
     }
     setIsLoading(false);
-  }, []);
+  }, [selectedStudentId]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchData(); }, [fetchData]);
@@ -102,7 +114,11 @@ export default function StudentsPage() {
     });
 
     if (res.ok) {
-      setStudents(prev => prev.map(s => s.id === updatedStudent.id ? mapApiStudentToStudent(res.data) : s));
+      setStudents(prev => {
+        const next = prev.map(s => s.id === updatedStudent.id ? mapApiStudentToStudent(res.data) : s);
+        cacheSet('students', next, 300);
+        return next;
+      });
       setIsEditModalOpen(false);
       setEditingStudentId(null);
     } else {
@@ -113,7 +129,11 @@ export default function StudentsPage() {
   const handleDeleteStudent = async (id: string) => {
     const res = await deleteStudentApi(id);
     if (res.ok) {
-      setStudents(prev => prev.filter(s => s.id !== id));
+      setStudents(prev => {
+        const next = prev.filter(s => s.id !== id);
+        cacheSet('students', next, 300);
+        return next;
+      });
       if (selectedStudentId === id) {
         setSelectedStudentId('');
       }

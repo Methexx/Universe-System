@@ -10,6 +10,7 @@ import { AttendanceDonutChart } from "@/app/admin/overview/components/Attendance
 import clsx from "clsx";
 import { getOverviewStats, OverviewStats } from "@/features/school/lib/school-api";
 import { getGateEvents, GateLogRow } from "@/features/gate/lib/gate-api";
+import { cacheGet, cacheSet } from "@/shared/lib/local-cache";
 
 export default function TeacherOverviewPage() {
   const [activeTab, setActiveTab] = useState<string>("");
@@ -26,12 +27,16 @@ export default function TeacherOverviewPage() {
     if (classes.length > 0) {
       const tabId = classes[0].id;
       setActiveTab(tabId);
-      setLoadingData(true);
+      // Show cached stats instantly
+      const cachedStats = cacheGet<OverviewStats>(`overview-stats:${tabId}`);
+      if (cachedStats) { setStats(cachedStats); setLoadingData(false); }
+      else setLoadingData(true);
+
       const [statsRes, logsRes] = await Promise.all([
         getOverviewStats(tabId),
         getGateEvents({ class_id: tabId, date: 'today' }),
       ]);
-      if (statsRes.ok) setStats(statsRes.data);
+      if (statsRes.ok) { setStats(statsRes.data); cacheSet(`overview-stats:${tabId}`, statsRes.data, 60); }
       if (logsRes.ok) setLogs(logsRes.data);
     }
     setLoadingData(false);
@@ -42,11 +47,13 @@ export default function TeacherOverviewPage() {
 
   useEffect(() => {
     if (!activeTab) return;
+    const cachedStats = cacheGet<OverviewStats>(`overview-stats:${activeTab}`);
+    if (cachedStats) { setTimeout(() => { setStats(cachedStats); setLoadingData(false); }, 0); }
     void Promise.all([
       getOverviewStats(activeTab),
       getGateEvents({ class_id: activeTab, date: 'today' })
     ]).then(([statsRes, logsRes]) => {
-      if (statsRes.ok) setStats(statsRes.data);
+      if (statsRes.ok) { setStats(statsRes.data); cacheSet(`overview-stats:${activeTab}`, statsRes.data, 60); }
       if (logsRes.ok) setLogs(logsRes.data);
       setLoadingData(false);
     });

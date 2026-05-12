@@ -71,13 +71,13 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         )}
       >
         {/* Logo / Header */}
-        <div className="flex h-[72px] shrink-0 items-center justify-center border-b border-[#ecece8]">
+        <div className="flex h-[76px] shrink-0 items-center border-b border-[#ecece8] pl-0.8 pr-3">
           <Link href={`/${role}/overview`} className="flex items-center" onClick={onClose}>
             <Image 
-              src="/Assets/Logo.svg" 
+              src="/Assets/new-logo.svg" 
               alt="Logoipsum Foundation"
-              width={160}
-              height={40}
+              width={300}
+              height={45}
               className="object-contain"
               priority
             />

@@ -4,6 +4,12 @@ import { sendSchema, aiDraftSchema } from './messages.schema';
 import { z } from 'zod';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 import { sendFcmNotification } from '../../config/firebase';
+import { redis } from '../../config/redis';
+
+async function isOnline(userId: string): Promise<boolean> {
+  if (!redis?.isOpen) return false;
+  return (await redis.exists(`user:online:${userId}`)) === 1;
+}
 
 export const getInbox = async (request: FastifyRequest, reply: FastifyReply) => {
   const user = (request as any).user;
@@ -19,34 +25,33 @@ export const getInbox = async (request: FastifyRequest, reply: FastifyReply) => 
           ],
         },
         include: {
-          sender: { select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any },
-          receiver: { select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any },
+          sender: { select: { id: true, full_name: true, role: true, avatar_url: true } as any },
+          receiver: { select: { id: true, full_name: true, role: true, avatar_url: true } as any },
           student: { select: { full_name: true } as any },
         },
         orderBy: { created_at: 'desc' },
       });
 
-      const grouped = messages.reduce((acc: Record<string, any>, message: any) => {
+      const grouped: Record<string, any> = {};
+      for (const message of messages as any[]) {
         const otherUserId = message.sender_id === userId ? message.receiver_id : message.sender_id;
         const userObj: any = message.sender_id === userId ? message.receiver : message.sender;
-        const isOnline = userObj.last_seen ? (new Date().getTime() - new Date(userObj.last_seen).getTime()) < 30000 : false;
 
-        if (!acc[otherUserId]) {
-          acc[otherUserId] = {
+        if (!grouped[otherUserId]) {
+          grouped[otherUserId] = {
             user: {
               id: otherUserId,
               ...userObj,
-              is_online: isOnline,
+              is_online: await isOnline(otherUserId),
             },
             lastMessage: message,
             unreadCount: 0,
           };
         }
         if (message.receiver_id === userId && !message.is_read) {
-          acc[otherUserId].unreadCount += 1;
+          grouped[otherUserId].unreadCount += 1;
         }
-        return acc;
-      }, {} as Record<string, any>);
+      }
 
       return Object.values(grouped);
     });
@@ -63,114 +68,78 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
   const role = user.role;
 
   try {
-    let contacts: any[] = [];
+    const contacts = await getOrSetCache(`messages:contacts:${userId}`, async () => {
+      const userSelect = { id: true, full_name: true, role: true, avatar_url: true } as any;
+      let raw: any[] = [];
 
-    if (role === 'admin') {
-      // Admin can message all teachers and security
-      contacts = (await prisma.user.findMany({
-        where: {
-          role: { in: ['teacher', 'security'] },
-          is_active: true,
-        },
-        select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
-      })) as any[];
-      contacts = contacts.map(c => ({
-        ...c,
-        is_online: c.last_seen ? (new Date().getTime() - new Date(c.last_seen).getTime()) < 30000 : false
-      }));
-    } else if (role === 'teacher') {
-      // Teacher can message all admins, security, and parents of their students
-      const adminsAndSecurity = (await prisma.user.findMany({
-        where: {
-          role: { in: ['admin', 'security'] },
-          is_active: true,
-        },
-        select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
-      })) as any[];
+      if (role === 'admin') {
+        raw = await prisma.user.findMany({
+          where: { role: { in: ['teacher', 'security'] }, is_active: true },
+          select: userSelect,
+        }) as any[];
+      } else if (role === 'teacher') {
+        const adminsAndSecurity = await prisma.user.findMany({
+          where: { role: { in: ['admin', 'security'] }, is_active: true },
+          select: userSelect,
+        }) as any[];
 
-      const myClasses = await prisma.class.findMany({
-        where: { teacher_id: userId },
-        select: { id: true },
-      });
-      const classIds = myClasses.map((c: { id: string }) => c.id);
+        const myClasses = await prisma.class.findMany({
+          where: { teacher_id: userId },
+          select: { id: true },
+        });
+        const classIds = myClasses.map((c: { id: string }) => c.id);
 
-      const parents = (await prisma.parentStudent.findMany({
-        where: {
-          student: { class_id: { in: classIds } },
-        },
-        include: {
-          parent: {
-            select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
+        const parents = await prisma.parentStudent.findMany({
+          where: { student: { class_id: { in: classIds } } },
+          include: {
+            parent: { select: userSelect },
+            student: { select: { id: true, full_name: true } as any },
           },
-          student: {
-            select: { id: true, full_name: true } as any,
-          },
-        },
-      })) as any[];
+        }) as any[];
 
-      // Group parents and unique them
-      const parentMap = new Map();
-      parents.forEach((ps) => {
-        if (!parentMap.has(ps.parent.id)) {
-          parentMap.set(ps.parent.id, {
-            ...ps.parent,
-            student_name: ps.student.full_name,
-            student_id: ps.student.id,
-          });
-        }
-      });
+        const parentMap = new Map();
+        parents.forEach((ps) => {
+          if (!parentMap.has(ps.parent.id)) {
+            parentMap.set(ps.parent.id, {
+              ...ps.parent,
+              student_name: ps.student.full_name,
+              student_id: ps.student.id,
+            });
+          }
+        });
 
-      contacts = [...adminsAndSecurity, ...Array.from(parentMap.values())].map(c => ({
-        ...c,
-        is_online: c.last_seen ? (new Date().getTime() - new Date(c.last_seen).getTime()) < 30000 : false
-      }));
-    } else if (role === 'security') {
-      // Security can message all admins and teachers
-      contacts = (await prisma.user.findMany({
-        where: {
-          role: { in: ['admin', 'teacher'] },
-          is_active: true,
-        },
-        select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
-      })) as any[];
-      contacts = contacts.map(c => ({
-        ...c,
-        is_online: c.last_seen ? (new Date().getTime() - new Date(c.last_seen).getTime()) < 30000 : false
-      }));
-    } else if (role === 'parent') {
-      // Parent can message teachers of their children
-      const myStudents = await prisma.parentStudent.findMany({
-        where: { parent_id: userId },
-        select: { student_id: true },
-      });
-      const studentIds = myStudents.map((s: { student_id: string }) => s.student_id);
+        raw = [...adminsAndSecurity, ...Array.from(parentMap.values())];
+      } else if (role === 'security') {
+        raw = await prisma.user.findMany({
+          where: { role: { in: ['admin', 'teacher'] }, is_active: true },
+          select: userSelect,
+        }) as any[];
+      } else if (role === 'parent') {
+        const myStudents = await prisma.parentStudent.findMany({
+          where: { parent_id: userId },
+          select: { student_id: true },
+        });
+        const studentIds = myStudents.map((s: { student_id: string }) => s.student_id);
 
-      const classes = (await prisma.class.findMany({
-        where: {
-          students: { some: { id: { in: studentIds } } },
-        },
-        include: {
-          teacher: {
-            select: { id: true, full_name: true, role: true, avatar_url: true, last_seen: true } as any,
-          },
-        },
-      })) as any[];
+        const classes = await prisma.class.findMany({
+          where: { students: { some: { id: { in: studentIds } } } },
+          include: { teacher: { select: userSelect } },
+        }) as any[];
 
-      const teacherMap = new Map();
-      classes.forEach((c) => {
-        if (c.teacher && !teacherMap.has(c.teacher.id)) {
-          teacherMap.set(c.teacher.id, {
-            ...c.teacher,
-            class_name: c.name,
-          });
-        }
-      });
+        const teacherMap = new Map();
+        classes.forEach((c) => {
+          if (c.teacher && !teacherMap.has(c.teacher.id)) {
+            teacherMap.set(c.teacher.id, { ...c.teacher, class_name: c.name });
+          }
+        });
 
-      contacts = Array.from(teacherMap.values()).map(c => ({
-        ...c,
-        is_online: c.last_seen ? (new Date().getTime() - new Date(c.last_seen).getTime()) < 30000 : false
-      }));
-    }
+        raw = Array.from(teacherMap.values());
+      }
+
+      return Promise.all(
+        raw.map(async (c) => ({ ...c, is_online: await isOnline(c.id) }))
+      );
+    }, 60);
 
     return reply.status(200).send({ success: true, data: contacts });
   } catch (error: any) {
@@ -298,6 +267,8 @@ export const sendMessage = async (request: FastifyRequest, reply: FastifyReply) 
     await delCacheByPattern(`messages:inbox:${data.receiver_id}`);
     await delCacheByPattern(`messages:thread:${senderId}:*`);
     await delCacheByPattern(`messages:thread:${data.receiver_id}:*`);
+    await delCacheByPattern(`messages:contacts:${senderId}`);
+    await delCacheByPattern(`messages:contacts:${data.receiver_id}`);
 
     return reply.status(201).send({ success: true, data: { message_id: message.id, fcm_sent: true } });
   } catch (error: any) {
@@ -322,6 +293,8 @@ export const markAsRead = async (request: FastifyRequest<{ Params: { id: string 
     await delCacheByPattern(`messages:inbox:${updated.receiver_id}`);
     await delCacheByPattern(`messages:thread:${updated.sender_id}:*`);
     await delCacheByPattern(`messages:thread:${updated.receiver_id}:*`);
+    await delCacheByPattern(`messages:contacts:${updated.sender_id}`);
+    await delCacheByPattern(`messages:contacts:${updated.receiver_id}`);
 
     return reply.status(200).send({ success: true });
   } catch (error: any) {

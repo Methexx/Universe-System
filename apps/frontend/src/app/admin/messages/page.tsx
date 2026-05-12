@@ -16,6 +16,7 @@ import { PageHeader } from "@/shared/components/layout/PageHeader";
 import { getInbox, getContacts, getThread, sendMessage, markAsRead, MessageContact, MessageThread, Message as ApiMessage, deleteMessage, capitalizeRole } from "@/features/messages/lib/messages-api";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useUnreadMessages } from "@/features/messages/context/UnreadMessagesContext";
+import { cacheGet, cacheSet } from "@/shared/lib/local-cache";
 import { Loader2 } from "lucide-react";
 import { UserStatus } from "@/shared/components/ui/UserStatus";
 
@@ -211,11 +212,23 @@ export default function AdminMessagesPage() {
   const totalUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
 
   const fetchData = React.useCallback(async () => {
+    const userId = user?.userId;
+    const cachedThreads = userId ? cacheGet<MessageThread[]>(`inbox:${userId}`) : null;
+    const cachedContacts = userId ? cacheGet<MessageContact[]>(`contacts:${userId}`) : null;
+    if (cachedThreads) { setThreads(cachedThreads); setIsLoading(false); }
+    if (cachedContacts) setContacts(cachedContacts);
+
     const [inboxRes, contactsRes] = await Promise.all([getInbox(), getContacts()]);
-    if (inboxRes.ok) setThreads(inboxRes.data);
-    if (contactsRes.ok) setContacts(contactsRes.data);
+    if (inboxRes.ok) {
+      setThreads(inboxRes.data);
+      if (userId) cacheSet(`inbox:${userId}`, inboxRes.data, 60);
+    }
+    if (contactsRes.ok) {
+      setContacts(contactsRes.data);
+      if (userId) cacheSet(`contacts:${userId}`, contactsRes.data, 120);
+    }
     setIsLoading(false);
-  }, []);
+  }, [user?.userId]);
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -226,24 +239,22 @@ export default function AdminMessagesPage() {
 
   // Polling for real-time updates
   React.useEffect(() => {
+    let pollCount = 0;
     const interval = setInterval(async () => {
-      // Refresh inbox
+      pollCount++;
       const inboxRes = await getInbox();
       if (inboxRes.ok) setThreads(inboxRes.data);
 
-      // If a thread is open, refresh its messages
       if (activeThreadId) {
         const threadRes = await getThread(activeThreadId);
-        if (threadRes.ok) {
-          // Only update if message count changed or unread state changed
-          setActiveMessages(threadRes.data);
-        }
+        if (threadRes.ok) setActiveMessages(threadRes.data);
       }
-      
-      // Refresh contacts occasionally too
-      const contactsRes = await getContacts();
-      if (contactsRes.ok) setContacts(contactsRes.data);
-    }, 5000);
+
+      if (pollCount % 3 === 0) {
+        const contactsRes = await getContacts();
+        if (contactsRes.ok) setContacts(contactsRes.data);
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [activeThreadId]);
@@ -308,9 +319,11 @@ export default function AdminMessagesPage() {
       const threadRes = await getThread(activeThreadId);
       if (threadRes.ok) setActiveMessages(threadRes.data);
       setCompose("");
-      // Refresh inbox
       const inboxRes = await getInbox();
-      if (inboxRes.ok) setThreads(inboxRes.data);
+      if (inboxRes.ok) {
+        setThreads(inboxRes.data);
+        if (user?.userId) cacheSet(`inbox:${user.userId}`, inboxRes.data, 60);
+      }
     }
     setIsSending(false);
     setTimeout(() => {

@@ -48,6 +48,10 @@ export function LoginForm() {
     setLoading(false);
 
     if (result.ok) {
+      if (result.data.role === 'parent') {
+        setErrors({ general: 'Parents must use the Universe mobile app. Please download it to access your account.' });
+        return;
+      }
       setUser(result.data.user);
       const destination = ROLE_DASHBOARD[result.data.role] ?? '/admin/overview';
       router.push(destination);

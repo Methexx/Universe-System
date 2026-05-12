@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { verifyToken } from '../utils/jwt';
 import { prisma } from '../../config/prisma';
+import { redis } from '../../config/redis';
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -46,10 +47,9 @@ export const authenticate = async (request: FastifyRequest, reply: FastifyReply)
       return reply.status(401).send({ success: false, message: 'Unauthorized: User no longer exists' });
     }
 
-    await prisma.user.update({
-      where: { id: decoded.userId },
-      data: { last_seen: new Date() },
-    }).catch(() => {});
+    if (redis?.isOpen) {
+      redis.set(`user:online:${decoded.userId}`, '1', { EX: 35 }).catch(() => {});
+    }
 
     (request as any).user = { ...decoded, role: dbUser.role };
   } catch (error) {
