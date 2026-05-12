@@ -514,11 +514,6 @@ export default function TeacherMessagesPage() {
                   className="ml-auto rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1"
                 />
 
-                {/* Oversight notice */}
-                <div className="hidden items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1 text-[11px] text-[#94a3b8] sm:flex">
-                  <div className="h-2 w-2 rounded-full bg-amber-400" />
-                  Visible to Principal
-                </div>
               </div>
 
               {/* Messages area */}

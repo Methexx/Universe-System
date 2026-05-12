@@ -46,6 +46,8 @@ model User {
   lost_found_items      LostFoundItem[]    @relation("LostFoundItems")
   lost_found_reports    LostFoundReport[]  @relation("LostFoundReports")
   policy_documents      PolicyDocument[]   @relation("PolicyDocuments")
+  result_sets           ResultSet[]
+  terms                 Term[]
 
   @@index([email])
   @@index([role])
@@ -94,6 +96,7 @@ model Class {
   students            Student[]
   announcements       Announcement[]
   attendanceSessions  AttendanceSession[]
+  result_sets         ResultSet[]
 
   @@unique([school_grade_id, name])
   @@index([teacher_id])
@@ -126,6 +129,7 @@ model Student {
   messages           Message[]
   complaints         Complaint[]
   lost_reports       LostFoundReport[]
+  grades             StudentGrade[]
 
   @@index([class_id])
   @@index([is_active])
@@ -361,4 +365,79 @@ model EvaluationLog {
   created_at       DateTime @default(now()) @db.Timestamptz()
 
   @@map("evaluation_logs")
+}
+
+// ==========================================
+// PHASE 7: RESULTS
+// ==========================================
+
+model Term {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  label       String
+  created_by  String    @db.Uuid
+  creator     User      @relation(fields: [created_by], references: [id])
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  result_sets ResultSet[]
+
+  @@index([created_by])
+  @@map("terms")
+}
+
+model ResultSet {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id     String    @db.Uuid
+  class        Class     @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  teacher_id   String    @db.Uuid
+  teacher      User      @relation(fields: [teacher_id], references: [id])
+  term_id      String    @db.Uuid
+  term         Term      @relation(fields: [term_id], references: [id])
+  status       String    @default("draft") // 'draft' | 'published'
+  published_at DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  modules ResultModule[]
+  grades  StudentGrade[]
+
+  @@unique([class_id, term_id])
+  @@index([class_id])
+  @@index([teacher_id])
+  @@index([term_id])
+  @@index([status])
+  @@map("result_sets")
+}
+
+model ResultModule {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  result_set_id String    @db.Uuid
+  result_set    ResultSet @relation(fields: [result_set_id], references: [id], onDelete: Cascade)
+  name          String
+  order_index   Int       @default(0)
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+
+  grades StudentGrade[]
+
+  @@unique([result_set_id, name])
+  @@index([result_set_id])
+  @@map("result_modules")
+}
+
+model StudentGrade {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  result_set_id String       @db.Uuid
+  result_set    ResultSet    @relation(fields: [result_set_id], references: [id], onDelete: Cascade)
+  module_id     String       @db.Uuid
+  module        ResultModule @relation(fields: [module_id], references: [id], onDelete: Cascade)
+  student_id    String       @db.Uuid
+  student       Student      @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  score         Float
+  created_at    DateTime     @default(now()) @db.Timestamptz()
+  updated_at    DateTime     @default(now()) @updatedAt @db.Timestamptz()
+
+  @@unique([result_set_id, module_id, student_id])
+  @@index([result_set_id])
+  @@index([student_id])
+  @@map("student_grades")
 }

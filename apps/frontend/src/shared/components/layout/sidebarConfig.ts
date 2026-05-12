@@ -42,7 +42,7 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
     { title: "Overview", icon: LayoutDashboard, path: "/teacher/overview" },
     { title: "My Classes", icon: Users, path: "/teacher/classes" },
     { title: "Attendance", icon: CheckSquare, path: "/teacher/attendance" },
-    { title: "Grades", icon: BookOpen, path: "/teacher/grades" },
+    { title: "Results", icon: BookOpen, path: "/teacher/results" },
     { title: "Messages", icon: MessageSquare, path: "/teacher/messages" },
     { title: "Notice Board", icon: ClipboardList, path: "/teacher/notices" },        
     { title: "Calendar", icon: Calendar, path: "/teacher/calendar" },

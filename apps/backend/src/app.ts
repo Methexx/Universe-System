@@ -14,6 +14,7 @@ import messageRoutes from './modules/messages/messages.routes';
 import complaintsRoutes from './modules/complaints/complaints.routes';
 import lostFoundRoutes from './modules/lost-found/lost-found.routes';
 import ragRoutes from './modules/rag/rag.routes';
+import resultsRoutes from './modules/results/results.routes';
 import { errorHandler } from './common/middleware/errorHandler';
 import { env } from './config/env';
 
@@ -67,6 +68,7 @@ app.register(messageRoutes, { prefix: '/api/messages' });
 app.register(complaintsRoutes, { prefix: '/api/complaints' });
 app.register(lostFoundRoutes, { prefix: '/api/lost-found' });
 app.register(ragRoutes, { prefix: '/api/rag' });
+app.register(resultsRoutes, { prefix: '/api/results' });
 
 app.get('/health', async () => {
   return { status: 'ok', message: 'Universe API is running' };

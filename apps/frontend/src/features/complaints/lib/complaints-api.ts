@@ -18,7 +18,6 @@ export async function getMyComplaints() {
   const res = await fetch(`${API_URL}/api/complaints/my`, {
     method: 'GET',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) throw new Error(`Failed to fetch complaints: ${res.statusText}`);
@@ -33,7 +32,6 @@ export async function getAllComplaints(params?: { status?: string }) {
   const res = await fetch(`${API_URL}/api/complaints/all?${searchParams}`, {
     method: 'GET',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) throw new Error(`Failed to fetch complaints: ${res.statusText}`);
