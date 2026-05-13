@@ -1,10 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../../config/env';
 import type { RetrievedChunk } from './retrieval.service';
 
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+const generationModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
-// Cap context to ~3000 chars to stay well within Haiku's context window and control cost
 const MAX_CONTEXT_CHARS = 3000;
 
 export interface GenerationResult {
@@ -15,15 +15,8 @@ export interface GenerationResult {
 
 const DONT_KNOW_MARKER = "I don't have enough information";
 
-/**
- * Builds a structured prompt that separates context from the question.
- * Explicit [CONTEXT] / [QUESTION] tags help the model attend to the right section
- * and reduce hallucination by making the grounding instruction unambiguous.
- */
 function buildPrompt(chunks: RetrievedChunk[], question: string): string {
   let contextText = chunks.map((c) => c.chunk_text).join('\n\n');
-
-  // Truncate if the combined context is too large to avoid token overflow
   if (contextText.length > MAX_CONTEXT_CHARS) {
     contextText = contextText.slice(0, MAX_CONTEXT_CHARS) + '\n[...context truncated]';
   }
@@ -38,27 +31,15 @@ ${contextText}
 ${question}`;
 }
 
-/**
- * Calls Claude Haiku with the context-grounded prompt.
- * Haiku is used here for its speed and low cost — responses are short factual answers,
- * not creative generation, so the smaller model is appropriate.
- */
 export async function generateAnswer(
   chunks: RetrievedChunk[],
   question: string
 ): Promise<GenerationResult> {
   const prompt = buildPrompt(chunks, question);
 
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const result = await generationModel.generateContent(prompt);
+  const answer = result.response.text().trim();
 
-  const answer =
-    message.content[0].type === 'text' ? message.content[0].text.trim() : '';
-
-  // Heuristic confidence: 0 if model said it doesn't know, else based on top chunk similarity
   const didntKnow = answer.includes(DONT_KNOW_MARKER);
   const topSimilarity = chunks.length > 0 ? chunks[0].similarity : 0;
   const confidence = didntKnow ? 0 : Math.min(topSimilarity, 1);

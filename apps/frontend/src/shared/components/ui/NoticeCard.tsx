@@ -112,7 +112,7 @@ export function NoticeCard({ notice, onDelete, canDelete, onClick, variant = 'fu
     >
       {/* Image (if present) */}
       {notice.image_url && (
-        <div className="relative w-full h-48 bg-slate-100 border-b border-slate-100 overflow-hidden">
+        <div className="relative w-full h-36 bg-slate-100 border-b border-slate-100 overflow-hidden">
           <Image
             src={notice.image_url}
             alt="Notice"

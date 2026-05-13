@@ -118,4 +118,14 @@ export class ResultsController {
       return reply.status(400).send(errorResponse(error.message));
     }
   }
+
+  static async getMyChildResults(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const parentId = (request as any).user.userId;
+      const data = await ResultsService.getMyChildResults(parentId);
+      return reply.send(successResponse('Child results fetched', data));
+    } catch (error: any) {
+      return reply.status(400).send(errorResponse(error.message));
+    }
+  }
 }

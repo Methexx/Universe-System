@@ -133,6 +133,48 @@ export class ResultsService {
     });
   }
 
+  static async getMyChildResults(parentId: string) {
+    const link = await prisma.parentStudent.findFirst({
+      where: { parent_id: parentId },
+      include: { student: true },
+    });
+
+    if (!link || !link.student) throw new Error('No linked child found');
+    const student = link.student;
+
+    if (!student.class_id) return [];
+
+    const resultSets = await prisma.resultSet.findMany({
+      where: {
+        class_id: student.class_id,
+        status: 'published',
+      },
+      include: {
+        term: true,
+        modules: {
+          orderBy: { order_index: 'asc' },
+          include: {
+            grades: {
+              where: { student_id: student.id },
+            },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return resultSets.map((rs: any) => ({
+      id: rs.id,
+      term: rs.term?.label ?? 'Unknown Term',
+      published_at: rs.published_at,
+      modules: rs.modules.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        score: m.grades[0]?.score ?? null,
+      })),
+    }));
+  }
+
   // ── Private guards ──────────────────────────────────────────────────────────
 
   private static async assertTermExists(termId: string) {

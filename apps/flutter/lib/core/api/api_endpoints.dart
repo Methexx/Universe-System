@@ -18,4 +18,16 @@ class ApiEndpoints {
 
   // Gate
   static const String gateMyChildEvents = '$basePath/gate/my-child-events';
+  static const String attendanceMyChild = '$basePath/attendance/my-child';
+  static const String resultsMyChild = '$basePath/results/my-child';
+  // Complaints / Suggestions
+  static const String complaintsSubmit = '$basePath/complaints';
+  static const String complaintsMyList = '$basePath/complaints/my';
+  static String complaintById(String id) => '$basePath/complaints/$id';
+
+  // Announcements / Notices
+  static const String announcements = '$basePath/announcements';
+
+  // RAG / Chatbot
+  static const String ragQuery = '$basePath/rag/query';
 }

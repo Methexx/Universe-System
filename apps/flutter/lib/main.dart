@@ -36,5 +36,9 @@ void main() async {
       localStorage: sl.localStorageService,
     ),
     gateViewModel: sl.gateViewModel,
+    attendanceViewModel: sl.attendanceViewModel,
+    resultsViewModel: sl.resultsViewModel,
+    supportViewModel: sl.supportViewModel,
+    noticesViewModel: sl.noticesViewModel,
   ));
 }

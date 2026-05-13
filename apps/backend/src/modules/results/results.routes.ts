@@ -57,4 +57,11 @@ export default async function resultsRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { resultSetId: string } }>('/:resultSetId/unpublish', {
     preHandler: [authorize(['teacher'])],
   }, ResultsController.unpublishResultSet);
+
+  // ── Parent endpoints ───────────────────────────────────────────────────────
+
+  // GET /api/results/my-child
+  fastify.get('/my-child', {
+    preHandler: [authorize(['parent'])],
+  }, ResultsController.getMyChildResults);
 }

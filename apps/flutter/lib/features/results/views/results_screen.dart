@@ -1,82 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-class _ModuleResult {
-  const _ModuleResult({
-    required this.code,
-    required this.name,
-    required this.credits,
-    this.marks,
-    this.grade,
-    this.isPublished = true,
-  });
-
-  final String code;
-  final String name;
-  final int credits;
-  final double? marks;    // null = not published
-  final String? grade;
-  final bool isPublished;
-}
-
-const List<_ModuleResult> _kResults = <_ModuleResult>[
-  _ModuleResult(
-    code: 'SE1095',
-    name: 'Introduction to Software Engineering',
-    credits: 3,
-    marks: 78.5,
-    grade: 'B+',
-  ),
-  _ModuleResult(
-    code: 'SE1083',
-    name: 'Fundamentals of Programming',
-    credits: 4,
-    marks: 85.0,
-    grade: 'A',
-  ),
-  _ModuleResult(
-    code: 'SE1072',
-    name: 'Mathematics for Computing',
-    credits: 3,
-    marks: 62.0,
-    grade: 'C+',
-  ),
-  _ModuleResult(
-    code: 'SE2101',
-    name: 'Data Structures & Algorithms',
-    credits: 4,
-    isPublished: false,
-  ),
-  _ModuleResult(
-    code: 'SE2114',
-    name: 'Database Management Systems',
-    credits: 3,
-    marks: 91.0,
-    grade: 'A+',
-  ),
-  _ModuleResult(
-    code: 'SE2088',
-    name: 'Operating Systems',
-    credits: 3,
-    isPublished: false,
-  ),
-  _ModuleResult(
-    code: 'SE2076',
-    name: 'Computer Networks',
-    credits: 3,
-    marks: 74.0,
-    grade: 'B',
-  ),
-  _ModuleResult(
-    code: 'SE3102',
-    name: 'Software Architecture',
-    credits: 4,
-    isPublished: false,
-  ),
-];
+import 'package:universe_app/features/results/models/result_model.dart';
+import 'package:universe_app/features/results/viewmodels/results_viewmodel.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +35,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     _fadeAnim =
         CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
     _entryController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ResultsViewModel>().loadResults();
+    });
   }
 
   @override
@@ -116,25 +47,11 @@ class _ResultsScreenState extends State<ResultsScreen>
     super.dispose();
   }
 
-  int get _publishedCount =>
-      _kResults.where((r) => r.isPublished).length;
-
-  double get _gpa {
-    final published = _kResults.where((r) => r.isPublished && r.marks != null);
-    if (published.isEmpty) return 0;
-    double total = 0;
-    int count = 0;
-    for (final r in published) {
-      total += r.marks!;
-      count++;
-    }
-    return total / count;
-  }
-
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final ResultsViewModel vm = context.watch<ResultsViewModel>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAFB),
@@ -163,7 +80,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     ),
                     const SizedBox(width: 14),
                     const Text(
-                      'My Results',
+                      'Student Results',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 20,
@@ -172,65 +89,99 @@ class _ResultsScreenState extends State<ResultsScreen>
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_kResults.length} Modules',
-                        style: const TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                    if (vm.selectedTerm != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${vm.selectedTerm!.modules.length} Modules',
+                          style: const TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 // Summary row
-                Row(
-                  children: <Widget>[
-                    _SummaryChip(
-                      label: 'Average',
-                      value: '${_gpa.toStringAsFixed(1)}%',
-                      icon: Icons.bar_chart_rounded,
-                    ),
-                    const SizedBox(width: 10),
-                    _SummaryChip(
-                      label: 'Published',
-                      value: '$_publishedCount/${_kResults.length}',
-                      icon: Icons.check_circle_outline_rounded,
-                    ),
-                    const SizedBox(width: 10),
-                    _SummaryChip(
-                      label: 'Pending',
-                      value:
-                          '${_kResults.length - _publishedCount}',
-                      icon: Icons.hourglass_top_rounded,
-                    ),
-                  ],
-                ),
+                if (vm.selectedTerm != null)
+                  Row(
+                    children: <Widget>[
+                      _SummaryChip(
+                        label: 'Average',
+                        value: '${vm.selectedTerm!.averageScore.toStringAsFixed(1)}%',
+                        icon: Icons.bar_chart_rounded,
+                      ),
+                      const SizedBox(width: 10),
+                      _SummaryChip(
+                        label: 'Published',
+                        value: '${vm.selectedTerm!.publishedCount}/${vm.selectedTerm!.modules.length}',
+                        icon: Icons.check_circle_outline_rounded,
+                      ),
+                      const SizedBox(width: 10),
+                      _SummaryChip(
+                        label: 'Pending',
+                        value:
+                            '${vm.selectedTerm!.modules.length - vm.selectedTerm!.publishedCount}',
+                        icon: Icons.hourglass_top_rounded,
+                      ),
+                    ],
+                  )
+                else if (vm.isLoading)
+                  const SizedBox(
+                    height: 60,
+                    child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                  )
+                else
+                  const SizedBox(height: 60),
               ],
             ),
           ),
+
           // ── Results list ───────────────────────────────────────────────────
           Expanded(
-            child: SlideTransition(
-              position: _slideAnim,
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: ListView.separated(
-                  padding: EdgeInsets.fromLTRB(
-                      16, 20, 16, 20 + bottomInset),
-                  itemCount: _kResults.length,
-                  separatorBuilder: (context, idx) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) =>
-                      _ResultCard(result: _kResults[index]),
+            child: RefreshIndicator(
+              onRefresh: vm.refresh,
+              color: AppColors.primary,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: vm.isLoading
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                      : vm.error != null
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(vm.error!, style: const TextStyle(color: Colors.red)),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => vm.loadResults(),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : vm.selectedTerm == null
+                              ? const Center(child: Text('No results found.'))
+                              : ListView.separated(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.fromLTRB(
+                                      16, 20, 16, 20 + bottomInset),
+                                  itemCount: vm.selectedTerm!.modules.length,
+                                  separatorBuilder: (context, idx) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (context, index) =>
+                                      _ResultCard(module: vm.selectedTerm!.modules[index]),
+                                ),
                 ),
               ),
             ),
@@ -297,15 +248,16 @@ class _SummaryChip extends StatelessWidget {
 // ─── Result card ──────────────────────────────────────────────────────────────
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.result});
+  const _ResultCard({required this.module});
 
-  final _ModuleResult result;
+  final ResultModuleModel module;
 
   Color get _gradeColor {
-    if (!result.isPublished || result.grade == null) {
+    if (module.score == null) {
       return const Color(0xFF9CA3AF);
     }
-    switch (result.grade) {
+    final grade = module.grade;
+    switch (grade) {
       case 'A+':
       case 'A':
         return const Color(0xFF16A34A);
@@ -327,6 +279,8 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPublished = module.score != null;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -348,17 +302,17 @@ class _ResultCard extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: result.isPublished
+                color: isPublished
                     ? AppColors.primary.withValues(alpha: 0.08)
                     : const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                result.isPublished
+                isPublished
                     ? Icons.menu_book_rounded
                     : Icons.lock_clock_rounded,
                 size: 22,
-                color: result.isPublished
+                color: isPublished
                     ? AppColors.primary
                     : const Color(0xFF9CA3AF),
               ),
@@ -370,7 +324,7 @@ class _ResultCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    result.code,
+                    'MODULE',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 11,
@@ -381,7 +335,7 @@ class _ResultCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    result.name,
+                    module.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -392,32 +346,12 @@ class _ResultCard extends StatelessWidget {
                       height: 1.3,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.stars_rounded,
-                        size: 12,
-                        color: const Color(0xFF6B7280),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${result.credits} Credits',
-                        style: const TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
             // Grade / marks or N/A
-            if (result.isPublished) ...<Widget>[
+            if (isPublished) ...<Widget>[
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
@@ -429,7 +363,7 @@ class _ResultCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      result.grade ?? '-',
+                      module.grade,
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 15,
@@ -440,7 +374,7 @@ class _ResultCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${result.marks?.toStringAsFixed(1) ?? '-'}%',
+                    '${module.score!.toStringAsFixed(1)}%',
                     style: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 12,
