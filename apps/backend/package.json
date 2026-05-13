@@ -8,7 +8,7 @@
     "lint": "echo 'No linting yet'",
     "postinstall": "prisma generate",
     "dev": "npm run prisma:generate && nodemon src/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "jest",
     "test:unit": "jest tests/unit",
