@@ -260,20 +260,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
-      Positioned(
-        top: 10,
-        right: 10,
-        child: TextButton(
-          onPressed: () => context.go(AppRoutes.profileSetup),
-          child: const Text(
-            'Skip (Dev)',
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
     ],
   ),
 ),
