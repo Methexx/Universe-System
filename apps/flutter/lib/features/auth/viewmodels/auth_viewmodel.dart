@@ -270,11 +270,14 @@ class AuthViewModel extends BaseViewModel {
     notifyListeners();
   }
 
-  void onAppLifecycleChanged(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // If screen locks or app goes background, clear the current user state 
-      // to force a re-login when the user returns, as per security requirements.
-      if (_currentUser != null) {
+  void onAppLifecycleChanged(AppLifecycleState state) async {
+    if (state == AppLifecycleState.paused) {
+      // If app goes to background, clear the current user state 
+      // only if the user has NOT opted into "keep me signed in".
+      // We avoid clearing on 'inactive' because system overlays like 
+      // biometric prompts trigger that state.
+      final keepSignedIn = await _localStorage.getKeepMeSignedIn();
+      if (!keepSignedIn && _currentUser != null) {
         _currentUser = null;
         notifyListeners();
       }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
-import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/di/service_locator.dart';
 
 // ─── Bot Constants ───────────────────────────────────────────────────────────
@@ -27,25 +26,12 @@ class _ChatMessage {
   final bool isBot;
 }
 
-const List<_ChatMessage> _kInitialMessages = <_ChatMessage>[
-  _ChatMessage(
-    text: 'Hello! I am Universe AI, your virtual assistant. How can I help you today?',
-    isMine: false,
-    time: '09:00 AM',
-    isBot: true,
-  ),
-  _ChatMessage(
-    text: 'Can you tell me about the upcoming events?',
-    isMine: true,
-    time: '09:01 AM',
-  ),
-  _ChatMessage(
-    text: 'Certainly! We have a Hackathon starting this Friday and a Career Fair on Wednesday. Would you like more details on either of these?',
-    isMine: false,
-    time: '09:01 AM',
-    isBot: true,
-  ),
-];
+const _ChatMessage _kWelcomeMessage = _ChatMessage(
+  text: 'Hello! I am Universe AI, your school assistant. Ask me anything about school policies, schedules, or procedures.',
+  isMine: false,
+  time: '',
+  isBot: true,
+);
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -68,7 +54,14 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   @override
   void initState() {
     super.initState();
-    _messages = List<_ChatMessage>.from(_kInitialMessages);
+    _messages = <_ChatMessage>[
+      _ChatMessage(
+        text: _kWelcomeMessage.text,
+        isMine: false,
+        time: _formatTime(),
+        isBot: true,
+      ),
+    ];
     _entryCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),

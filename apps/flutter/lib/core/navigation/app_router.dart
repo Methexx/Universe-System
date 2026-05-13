@@ -8,6 +8,8 @@ import 'package:universe_app/features/auth/views/registration_otp_screen.dart';
 import 'package:universe_app/features/dashboard/views/dashboard_screen.dart';
 import 'package:universe_app/features/attendance/views/attendance_screen.dart';
 import 'package:universe_app/features/support/views/support_screen.dart';
+import 'package:universe_app/features/support/views/submit_complaint_screen.dart';
+import 'package:universe_app/features/support/views/complaint_detail_screen.dart';
 import 'package:universe_app/features/gate/views/gate_status_screen.dart';
 import 'package:universe_app/features/splash/views/splash_screen.dart';
 import 'package:universe_app/features/splash/views/welcome_screen.dart';
@@ -117,6 +119,20 @@ class AppRouter {
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
           child: const SupportScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.submitComplaint,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: SubmitComplaintScreen(isSuggestion: state.extra as bool? ?? false),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.complaintDetail,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: ComplaintDetailScreen(complaintId: state.extra as String? ?? ''),
         ),
       ),
       GoRoute(

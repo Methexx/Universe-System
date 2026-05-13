@@ -89,9 +89,8 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
   void _startPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      if (_targetTeacher != null) {
-        await context.read<MessagesViewModel>().fetchThread(_targetTeacher!.id, userId: _userId);
-      }
+      if (!mounted || _targetTeacher == null) return;
+      await context.read<MessagesViewModel>().fetchThread(_targetTeacher!.id, userId: _userId);
     });
   }
 

@@ -7,6 +7,7 @@ import {
   submitSession,
   getSessionDates,
   getAttendanceSummary,
+  getMyChildAttendance,
 } from './attendance.controller';
 import { authenticate } from '../../common/middleware/authenticate';
 import { authorize } from '../../common/middleware/rbac';
@@ -41,4 +42,7 @@ export default async function attendanceRoutes(fastify: FastifyInstance) {
   // ── Summary route ──────────────────────────────────────────────────────────
   // Get student attendance summary
   fastify.get('/summary', { preHandler: [authorize(['admin', 'teacher'])] }, getAttendanceSummary);
-}
+
+  // Parent: get their child's attendance history
+  fastify.get('/my-child', { preHandler: [authorize(['parent'])] }, getMyChildAttendance);
+}

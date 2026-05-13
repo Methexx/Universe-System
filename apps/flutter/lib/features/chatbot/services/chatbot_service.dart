@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:universe_app/core/api/api_endpoints.dart';
 import 'package:universe_app/core/storage/secure_storage.dart';
 
 class ChatbotQueryResult {
@@ -26,7 +27,7 @@ class ChatbotService {
     final token = await _storage.getAccessToken();
 
     final response = await _dio.post<Map<String, dynamic>>(
-      '/api/rag/query',
+      ApiEndpoints.ragQuery,
       data: {'question': question, 'top_k': 5},
       options: Options(
         headers: {

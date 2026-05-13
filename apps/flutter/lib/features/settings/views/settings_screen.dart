@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -9,6 +11,17 @@ import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/di/service_locator.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+
+ImageProvider? _resolveImage(String? url) {
+  if (url == null) return null;
+  if (url.startsWith('data:image')) {
+    final int comma = url.indexOf(',');
+    if (comma == -1) return null;
+    final Uint8List bytes = base64Decode(url.substring(comma + 1));
+    return MemoryImage(bytes);
+  }
+  return NetworkImage(url);
+}
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _darkMode = false;
   bool _biometric = false;
   bool _autoLock = true;
+  String _selectedLanguage = 'English';
 
   // ── Entry animation ────────────────────────────────────────────────────────
   late final AnimationController _entryCtrl;
@@ -61,6 +75,21 @@ class _SettingsScreenState extends State<SettingsScreen>
   void dispose() {
     _entryCtrl.dispose();
     super.dispose();
+  }
+
+  void _showLanguageSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (context) => _LanguageSheet(
+        selected: _selectedLanguage,
+        onSelect: (lang) {
+          setState(() => _selectedLanguage = lang);
+          Navigator.pop(context);
+        },
+      ),
+    );
   }
 
   void _showLogoutSheet() {
@@ -125,24 +154,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 value: _pushNotifications,
                                 onChanged: (v) =>
                                     setState(() => _pushNotifications = v),
-                              ),
-                              _Divider(),
-                              _ToggleRow(
-                                label: 'Email Notifications',
-                                subtitle: 'Get updates via email',
-                                icon: Icons.mail_outline_rounded,
-                                value: _emailNotifications,
-                                onChanged: (v) =>
-                                    setState(() => _emailNotifications = v),
-                              ),
-                              _Divider(),
-                              _ToggleRow(
-                                label: 'SMS Alerts',
-                                subtitle: 'Urgent messages by SMS',
-                                icon: Icons.sms_outlined,
-                                value: _smsAlerts,
-                                onChanged: (v) =>
-                                    setState(() => _smsAlerts = v),
                               ),
                             ],
                           ),
@@ -209,6 +220,24 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 activeColor: const Color(0xFF374151),
                                 onChanged: (v) =>
                                     setState(() => _darkMode = v),
+                              ),
+                              _Divider(),
+                              _TapRow(
+                                label: 'Theme Color',
+                                subtitle: 'Customize app accent',
+                                icon: Icons.color_lens_outlined,
+                                iconColor: const Color(0xFFD47A2E),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _ColorDot(color: AppColors.primary, isSelected: true),
+                                    const SizedBox(width: 8),
+                                    _ColorDot(color: const Color(0xFF5C3D8F)),
+                                    const SizedBox(width: 8),
+                                    _ColorDot(color: const Color(0xFF1A6B4A)),
+                                  ],
+                                ),
+                                onTap: () {},
                               ),
                             ],
                           ),
@@ -295,11 +324,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                             children: [
                               _TapRow(
                                 label: 'Language',
-                                subtitle: 'English (US)',
+                                subtitle: _selectedLanguage,
                                 icon: Icons.language_rounded,
                                 iconColor: const Color(0xFF2E6B7F),
-                                trailing: _ChipLabel('EN'),
-                                onTap: () {},
+                                trailing: _ChipLabel(_selectedLanguage == 'English' ? 'EN' : _selectedLanguage == 'Sinhala' ? 'SI' : 'TA'),
+                                onTap: _showLanguageSheet,
                               ),
                               _Divider(),
                               _TapRow(
@@ -394,7 +423,23 @@ class _SettingsScreenState extends State<SettingsScreen>
 
 // ─── Account card ─────────────────────────────────────────────────────────────
 
-class _AccountCard extends StatelessWidget {
+class _AccountCard extends StatefulWidget {
+  @override
+  State<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<_AccountCard> {
+  ImageProvider? _cachedProvider;
+  String? _lastUrl;
+
+  ImageProvider? _getProvider(String? url) {
+    if (url == null) return null;
+    if (url == _lastUrl) return _cachedProvider;
+    _lastUrl = url;
+    _cachedProvider = _resolveImage(url);
+    return _cachedProvider;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
@@ -434,9 +479,7 @@ class _AccountCard extends StatelessWidget {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: const Color(0xFFE3C091),
-                backgroundImage: student?.photoUrl != null
-                    ? NetworkImage(student!.photoUrl!)
-                    : null,
+                backgroundImage: _getProvider(student?.photoUrl),
                 child: student?.photoUrl == null
                     ? const Icon(Icons.person, color: Color(0xFF374151), size: 30)
                     : null,
@@ -1133,3 +1176,138 @@ class _LogoutSheet extends StatelessWidget {
     );
   }
 }
+
+class _ColorDot extends StatelessWidget {
+  const _ColorDot({required this.color, this.isSelected = false});
+  final Color color;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.4),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                )
+              ]
+            : null,
+      ),
+    );
+  }
+}
+
+class _LanguageSheet extends StatelessWidget {
+  const _LanguageSheet({required this.selected, required this.onSelect});
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Select Language',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
+              fontFamily: 'Plus Jakarta Sans',
+            ),
+          ),
+          const SizedBox(height: 24),
+          _LanguageOption(
+            label: 'English',
+            isSelected: selected == 'English',
+            onTap: () => onSelect('English'),
+          ),
+          _LanguageOption(
+            label: 'Sinhala',
+            isSelected: selected == 'Sinhala',
+            onTap: () => onSelect('Sinhala'),
+          ),
+          _LanguageOption(
+            label: 'Tamil',
+            isSelected: selected == 'Tamil',
+            onTap: () => onSelect('Tamil'),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _LanguageOption extends StatelessWidget {
+  const _LanguageOption({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE0F4FA) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF2E6B7F) : const Color(0xFFF3F4F6),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF2E6B7F) : const Color(0xFF4B5563),
+                fontFamily: 'Plus Jakarta Sans',
+              ),
+            ),
+            const Spacer(),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF2E6B7F)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
