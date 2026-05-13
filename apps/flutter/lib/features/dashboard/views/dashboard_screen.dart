@@ -10,6 +10,7 @@ import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/notifications/views/notifications_screen.dart';
+import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 import 'package:universe_app/shared/widgets/action_card.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
@@ -111,10 +112,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     _entryController.forward();
 
-    // Fetch fresh profile data
+    // Fetch fresh profile data and gate status
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ProfileViewModel>().loadProfile();
+        context.read<GateViewModel>().loadGateStatus();
       }
     });
   }
@@ -176,6 +178,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     final String? userEmail = context.select<AuthViewModel, String?>(
       (AuthViewModel vm) => vm.currentUser?.email,
     );
+    final bool? isInsideSchool = context.select<GateViewModel, bool?>(
+      (GateViewModel vm) => vm.isInsideSchool,
+    );
     final String displayName = studentName ?? _displayNameFromEmail(userEmail);
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -193,6 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 _TopHeader(
                   displayName: displayName,
                   photoUrl: photoUrl,
+                  isInsideSchool: isInsideSchool,
                   topInset: topInset,
                   onBellTap: _showBellPopup,
                 ),
@@ -289,10 +295,12 @@ class _TopHeader extends StatefulWidget {
     required this.topInset,
     required this.onBellTap,
     this.photoUrl,
+    this.isInsideSchool,
   });
 
   final String displayName;
   final String? photoUrl;
+  final bool? isInsideSchool;
   final double topInset;
   final VoidCallback onBellTap;
 
@@ -300,21 +308,36 @@ class _TopHeader extends StatefulWidget {
   State<_TopHeader> createState() => _TopHeaderState();
 }
 
-class _TopHeaderState extends State<_TopHeader> {
-  DateTime _now = DateTime.now();
+class _TopHeaderState extends State<_TopHeader> with TickerProviderStateMixin {
+  late DateTime _now;
   late Timer _timer;
+  late AnimationController _blinkController;
+  late Animation<double> _blinkAnim;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _now = DateTime.now();
+    // Tick every minute instead of every second for the greeting 
+    // to prevent unnecessary rebuilds that cause avatar flickering.
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _blinkAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _timer.cancel();
+    _blinkController.dispose();
     super.dispose();
   }
 
@@ -323,6 +346,17 @@ class _TopHeaderState extends State<_TopHeader> {
     if (h < 12) return 'Good Morning !';
     if (h < 17) return 'Good Afternoon !';
     return 'Good Evening !';
+  }
+
+  ImageProvider? _cachedProvider;
+  String? _lastUrl;
+
+  ImageProvider? _getProvider(String? url) {
+    if (url == null) return null;
+    if (url == _lastUrl) return _cachedProvider;
+    _lastUrl = url;
+    _cachedProvider = _resolveImage(url);
+    return _cachedProvider;
   }
 
   @override
@@ -346,7 +380,7 @@ class _TopHeaderState extends State<_TopHeader> {
                   child: CircleAvatar(
                     radius: 24,
                     backgroundColor: const Color(0xFFE3C091),
-                    backgroundImage: _resolveImage(widget.photoUrl),
+                    backgroundImage: _getProvider(widget.photoUrl),
                     child: widget.photoUrl == null
                         ? const Icon(Icons.person, color: Color(0xFF374151), size: 24)
                         : null,
@@ -432,13 +466,31 @@ class _TopHeaderState extends State<_TopHeader> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4ADE80),
-                        shape: BoxShape.circle,
-                      ),
+                    AnimatedBuilder(
+                      animation: _blinkAnim,
+                      builder: (context, child) {
+                        final bool isInside = widget.isInsideSchool ?? false;
+                        final Color baseColor =
+                            isInside ? const Color(0xFF4ADE80) : const Color(0xFFDF5B6D);
+                        return Opacity(
+                          opacity: _blinkAnim.value,
+                          child: Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: baseColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: baseColor.withValues(alpha: 0.4),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

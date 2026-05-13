@@ -37,9 +37,14 @@ class ProfileViewModel extends BaseViewModel {
 
     try {
       final ParentProfileModel fresh = await _repository.fetchProfile();
-      _profile = fresh;
-      await _localStorage.saveProfileCache(fresh.toJsonString());
-      notifyListeners();
+      final String freshJson = fresh.toJsonString();
+      
+      // Only update and notify if the data has actually changed
+      if (cached != freshJson) {
+        _profile = fresh;
+        await _localStorage.saveProfileCache(freshJson);
+        notifyListeners();
+      }
     } catch (e) {
       // If we already have cached data, swallow the error silently
       if (_profile == null) {
