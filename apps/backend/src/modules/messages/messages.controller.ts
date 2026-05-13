@@ -83,14 +83,49 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
           select: userSelect,
         }) as any[];
 
-        const myClasses = await prisma.class.findMany({
-          where: { teacher_id: userId },
-          select: { id: true },
-        });
-        const classIds = myClasses.map((c: { id: string }) => c.id);
+        // 1. Discovery: Find all student IDs the teacher is "assigned" to or has interacted with
+        const [studentsViaMainClass, studentsViaAttendance, studentsViaGrades, previousMessages] = await Promise.all([
+          // Students in classes where this teacher is the main teacher
+          prisma.student.findMany({ 
+            where: { class: { teacher_id: userId }, is_active: true }, 
+            select: { id: true } 
+          }),
+          // Students where this teacher has marked attendance
+          prisma.attendanceRecord.findMany({ 
+            where: { marked_by_id: userId }, 
+            select: { student_id: true }, 
+            distinct: ['student_id'] 
+          }),
+          // Students where this teacher has entered grades
+          prisma.studentGrade.findMany({ 
+            where: { result_set: { teacher_id: userId } }, 
+            select: { student_id: true }, 
+            distinct: ['student_id'] 
+          }),
+          // Parents this teacher has already messaged
+          prisma.message.findMany({
+            where: {
+              OR: [{ sender_id: userId }, { receiver_id: userId }],
+            },
+            include: {
+              sender: { select: userSelect },
+              receiver: { select: userSelect },
+              student: { select: { id: true, full_name: true } },
+            },
+          }),
+        ]);
 
-        const parents = await prisma.parentStudent.findMany({
-          where: { student: { class_id: { in: classIds } } },
+        const studentIdSet = new Set<string>();
+        studentsViaMainClass.forEach((s: any) => studentIdSet.add(s.id));
+        studentsViaAttendance.forEach((s: any) => studentIdSet.add(s.student_id));
+        studentsViaGrades.forEach((s: any) => studentIdSet.add(s.student_id));
+
+        // 2. Fetch parents linked to these students
+        const parentLinks = await prisma.parentStudent.findMany({
+          where: { 
+            student_id: { in: Array.from(studentIdSet) },
+            parent: { is_active: true }
+          },
           include: {
             parent: { select: userSelect },
             student: { select: { id: true, full_name: true } as any },
@@ -98,12 +133,54 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
         }) as any[];
 
         const parentMap = new Map();
-        parents.forEach((ps) => {
-          if (!parentMap.has(ps.parent.id)) {
+        
+        // Add parents from links
+        parentLinks.forEach((ps: any) => {
+          if (ps.parent && !parentMap.has(ps.parent.id)) {
             parentMap.set(ps.parent.id, {
               ...ps.parent,
               student_name: ps.student.full_name,
               student_id: ps.student.id,
+            });
+          }
+        });
+
+        // 3. Email-based Discovery: Find registered parents by matching Student.parent_email
+        const students = await prisma.student.findMany({
+          where: { id: { in: Array.from(studentIdSet) }, is_active: true },
+          select: { parent_email: true, full_name: true, id: true }
+        });
+        
+        const parentEmails = students
+          .map(s => s.parent_email?.trim().toLowerCase())
+          .filter(e => !!e) as string[];
+
+        if (parentEmails.length > 0) {
+          const registeredParents = await prisma.user.findMany({
+            where: { email: { in: parentEmails }, role: 'parent', is_active: true },
+            select: userSelect
+          }) as any[];
+
+          registeredParents.forEach(p => {
+            if (!parentMap.has(p.id)) {
+              const student = students.find(s => s.parent_email?.trim().toLowerCase() === p.email.toLowerCase());
+              parentMap.set(p.id, {
+                ...p,
+                student_name: student?.full_name,
+                student_id: student?.id
+              });
+            }
+          });
+        }
+
+        // 4. Add parents from previous messages
+        previousMessages.forEach((msg: any) => {
+          const otherUser = msg.sender_id === userId ? msg.receiver : msg.sender;
+          if (otherUser && otherUser.role === 'parent' && !parentMap.has(otherUser.id)) {
+            parentMap.set(otherUser.id, {
+              ...otherUser,
+              student_name: msg.student?.full_name,
+              student_id: msg.student_id,
             });
           }
         });
@@ -121,17 +198,38 @@ export const getContacts = async (request: FastifyRequest, reply: FastifyReply) 
         });
         const studentIds = myStudents.map((s: { student_id: string }) => s.student_id);
 
-        const classes = await prisma.class.findMany({
-          where: { students: { some: { id: { in: studentIds } } } },
-          include: { teacher: { select: userSelect } },
-        }) as any[];
+        const students = await prisma.student.findMany({
+          where: { id: { in: studentIds } },
+          select: { class_id: true }
+        });
+        const classIds = students.map(s => s.class_id).filter(id => !!id) as string[];
+
+        // Find all teachers involved with these classes (Main teacher, Attendance, or Results)
+        const [classesWithMain, sessions, results] = await Promise.all([
+          prisma.class.findMany({ 
+            where: { id: { in: classIds } }, 
+            include: { teacher: { select: userSelect } } 
+          }),
+          prisma.attendanceSession.findMany({ 
+            where: { class_id: { in: classIds } }, 
+            include: { teacher: { select: userSelect } } 
+          }),
+          prisma.resultSet.findMany({ 
+            where: { class_id: { in: classIds } }, 
+            include: { teacher: { select: userSelect } } 
+          }),
+        ]);
 
         const teacherMap = new Map();
-        classes.forEach((c) => {
-          if (c.teacher && !teacherMap.has(c.teacher.id)) {
-            teacherMap.set(c.teacher.id, { ...c.teacher, class_name: c.name });
+        const addTeacher = (t: any, className?: string) => {
+          if (t && !teacherMap.has(t.id)) {
+            teacherMap.set(t.id, { ...t, class_name: className });
           }
-        });
+        };
+
+        classesWithMain.forEach((c: any) => addTeacher(c.teacher, c.name));
+        sessions.forEach((s: any) => addTeacher(s.teacher));
+        results.forEach((r: any) => addTeacher(r.teacher));
 
         raw = Array.from(teacherMap.values());
       }

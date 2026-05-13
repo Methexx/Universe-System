@@ -1,7 +1,14 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  // Only picks up *.test.js / *.spec.js / *.test.ts / *.spec.ts — NOT the existing integration scripts in tests/
-  testMatch: ['**/*.test.js', '**/*.spec.js', '**/*.test.ts', '**/*.spec.ts'],
-  passWithNoTests: true,
+  testMatch: ['**/tests/**/*.test.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  collectCoverageFrom: [
+    'src/common/utils/**/*.ts',
+    'src/modules/auth/**/*.ts',
+  ],
+  coverageThreshold: {
+    global: { lines: 70 },
+  },
 };
