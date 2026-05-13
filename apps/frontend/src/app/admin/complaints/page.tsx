@@ -51,6 +51,7 @@ export default function AdminComplaintsPage() {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState({ assigned_to_id: '', reply_note: '' });
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
 
   const fetchComplaints = useCallback(async () => {
     try {
@@ -75,8 +76,12 @@ export default function AdminComplaintsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getTeachers();
-        setTeachers(Array.isArray(data) ? data : []);
+        const result = await getTeachers();
+        if (result.ok) {
+          setTeachers(result.data);
+        } else {
+          console.error('Failed to fetch teachers:', result.error);
+        }
       } catch (err) {
         console.error('Failed to fetch teachers:', err);
       }
@@ -118,9 +123,11 @@ export default function AdminComplaintsPage() {
   };
 
   const handleStatusChange = async (complaintId: string, newStatus: string) => {
+    const notes = editingNotes[complaintId] || '';
     try {
       setError(null);
-      await updateComplaintStatus(complaintId, { status: newStatus });
+      await updateComplaintStatus(complaintId, { status: newStatus, reply_note: notes });
+      setEditingNotes({ ...editingNotes, [complaintId]: '' });
       await fetchComplaints();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
@@ -285,10 +292,13 @@ export default function AdminComplaintsPage() {
                         <div className="bg-white border border-indigo-200 rounded-lg p-4 space-y-3">
                           <SelectInput
                             label="Assign to Teacher"
-                            options={teachers.map((t) => ({
-                              label: t.full_name || t.email || 'Unknown',
-                              value: t.id,
-                            }))}
+                            options={[
+                              { label: 'Select a teacher...', value: '' },
+                              ...teachers.map((t) => ({
+                                label: t.full_name || t.email || 'Unknown',
+                                value: t.id,
+                              }))
+                            ]}
                             value={assignForm.assigned_to_id}
                             onChange={(e) =>
                               setAssignForm({ ...assignForm, assigned_to_id: e.target.value })
@@ -334,6 +344,26 @@ export default function AdminComplaintsPage() {
                         >
                           + Assign to Teacher
                         </button>
+                      )}
+
+                      {/* Resolution Notes for Direct Admin Action */}
+                      {complaint.status !== 'resolved' && complaint.status !== 'rejected' && assigningId !== complaint.id && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wide block mb-2">
+                              Resolution/Update Notes
+                            </label>
+                            <textarea
+                              placeholder="Add a note for the parent..."
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none text-[13px] resize-none bg-white"
+                              rows={2}
+                              value={editingNotes[complaint.id] || complaint.reply_note || ''}
+                              onChange={(e) =>
+                                setEditingNotes({ ...editingNotes, [complaint.id]: e.target.value })
+                              }
+                            />
+                          </div>
+                        </div>
                       )}
 
                       {/* Status Actions */}

@@ -63,6 +63,7 @@ export default function TeacherComplaintsPage() {
 
   const stats = {
     total: complaints.length,
+    assigned: complaints.filter((c) => c.status === 'assigned').length,
     in_progress: complaints.filter((c) => c.status === 'in_progress').length,
     resolved: complaints.filter((c) => c.status === 'resolved').length,
   };
@@ -95,9 +96,10 @@ export default function TeacherComplaintsPage() {
       )}
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Assigned', value: stats.total, color: 'slate' },
+          { label: 'Total', value: stats.total, color: 'slate' },
+          { label: 'New Assigned', value: stats.assigned, color: 'blue' },
           { label: 'In Progress', value: stats.in_progress, color: 'indigo' },
           { label: 'Resolved', value: stats.resolved, color: 'green' },
         ].map((stat) => (
@@ -113,7 +115,7 @@ export default function TeacherComplaintsPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2">
-        {['all', 'in_progress', 'resolved'].map((tab) => (
+        {['all', 'assigned', 'in_progress', 'resolved'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
