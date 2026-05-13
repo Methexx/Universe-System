@@ -15,6 +15,8 @@ import 'package:universe_app/features/attendance/repositories/attendance_reposit
 import 'package:universe_app/features/attendance/viewmodels/attendance_viewmodel.dart';
 import 'package:universe_app/features/results/repositories/results_repository.dart';
 import 'package:universe_app/features/results/viewmodels/results_viewmodel.dart';
+import 'package:universe_app/features/support/repositories/support_repository.dart';
+import 'package:universe_app/features/support/viewmodels/support_viewmodel.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -36,6 +38,8 @@ class ServiceLocator {
   late AttendanceViewModel attendanceViewModel;
   late ResultsRepository resultsRepository;
   late ResultsViewModel resultsViewModel;
+  late SupportRepository supportRepository;
+  late SupportViewModel supportViewModel;
 
   Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -69,5 +73,10 @@ class ServiceLocator {
       secureStorage: secureStorageService,
     );
     resultsViewModel = ResultsViewModel(repository: resultsRepository);
+    supportRepository = SupportRepository(
+      dio: apiClient.dio,
+      secureStorage: secureStorageService,
+    );
+    supportViewModel = SupportViewModel(repository: supportRepository);
   }
 }

@@ -38,5 +38,6 @@ void main() async {
     gateViewModel: sl.gateViewModel,
     attendanceViewModel: sl.attendanceViewModel,
     resultsViewModel: sl.resultsViewModel,
+    supportViewModel: sl.supportViewModel,
   ));
 }
