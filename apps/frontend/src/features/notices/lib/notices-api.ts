@@ -26,7 +26,6 @@ export async function getAnnouncements(params: GetAnnouncementsParams = {}) {
   const res = await fetch(`${API_URL}/api/announcements?${searchParams}`, {
     method: 'GET',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) throw new Error(`Failed to fetch announcements: ${res.statusText}`);
@@ -54,7 +53,6 @@ export async function deleteAnnouncement(id: string) {
   const res = await fetch(`${API_URL}/api/announcements/${id}`, {
     method: 'DELETE',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!res.ok) throw new Error(`Failed to delete announcement: ${res.statusText}`);
