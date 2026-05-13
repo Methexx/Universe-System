@@ -25,6 +25,9 @@ class ApiEndpoints {
   static const String complaintsMyList = '$basePath/complaints/my';
   static String complaintById(String id) => '$basePath/complaints/$id';
 
+  // Announcements / Notices
+  static const String announcements = '$basePath/announcements';
+
   // RAG / Chatbot
   static const String ragQuery = '$basePath/rag/query';
 }

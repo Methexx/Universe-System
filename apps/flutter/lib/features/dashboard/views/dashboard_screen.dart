@@ -12,6 +12,8 @@ import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/notifications/views/notifications_screen.dart';
 import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+import 'package:universe_app/features/notices/models/announcement_model.dart';
+import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
 import 'package:universe_app/shared/widgets/action_card.dart';
 import 'package:universe_app/shared/widgets/live_clock_widget.dart';
 
@@ -25,55 +27,6 @@ ImageProvider? _resolveImage(String? url) {
   }
   return NetworkImage(url);
 }
-
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-class _Announcement {
-  const _Announcement({
-    required this.title,
-    required this.subtitle,
-    required this.buttonText,
-    required this.gradientColors,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final String buttonText;
-  final List<Color> gradientColors;
-  final IconData icon;
-}
-
-const List<_Announcement> _kAnnouncements = <_Announcement>[
-  _Announcement(
-    title: 'We have cancel today\nlectures',
-    subtitle: 'Module Code SE1095',
-    buttonText: 'Sign Up',
-    gradientColors: [Color(0xFF64C4E6), Color(0xFF3EA8D8)],
-    icon: Icons.school_rounded,
-  ),
-  _Announcement(
-    title: 'Library extended\nopening hours',
-    subtitle: 'Open till 10:00 PM',
-    buttonText: 'Read More',
-    gradientColors: [Color(0xFF77C8A8), Color(0xFF3DAA82)],
-    icon: Icons.menu_book_rounded,
-  ),
-  _Announcement(
-    title: 'Hackathon 2026\nregistration open',
-    subtitle: 'Starts this Friday',
-    buttonText: 'Join Now',
-    gradientColors: [Color(0xFF8CB2FF), Color(0xFF5B82F0)],
-    icon: Icons.code_rounded,
-  ),
-  _Announcement(
-    title: 'Career fair this\nWednesday',
-    subtitle: 'Hall B – 9:00 AM',
-    buttonText: 'Reserve',
-    gradientColors: [Color(0xFFFFB38A), Color(0xFFE8845A)],
-    icon: Icons.work_rounded,
-  ),
-];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -523,20 +476,26 @@ class _NoticesSectionState extends State<_NoticesSection> {
   @override
   void initState() {
     super.initState();
-    // Start at a page that is a multiple of the actual items count
-    final int initialPage = (_kLargeItemCount ~/ 2) - ((_kLargeItemCount ~/ 2) % _kAnnouncements.length);
     _pageController = PageController(
       viewportFraction: 0.92,
-      initialPage: initialPage,
+      initialPage: 0,
     );
-    _active = initialPage % _kAnnouncements.length;
 
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!_pageController.hasClients) return;
+      final List<AnnouncementModel> items =
+          context.read<NoticesViewModel>().dashboardAnnouncements;
+      if (items.isEmpty) return;
       _pageController.nextPage(
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
       );
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<NoticesViewModel>().loadAnnouncements();
+      }
     });
   }
 
@@ -549,6 +508,9 @@ class _NoticesSectionState extends State<_NoticesSection> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<NoticesViewModel>();
+    final List<AnnouncementModel> announcements = vm.dashboardAnnouncements;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -581,40 +543,58 @@ class _NoticesSectionState extends State<_NoticesSection> {
         const SizedBox(height: 12),
         SizedBox(
           height: 162,
-          child: PageView.builder(
-            controller: _pageController,
-            clipBehavior: Clip.none,
-            itemCount: _kLargeItemCount,
-            onPageChanged: (int v) =>
-                setState(() => _active = v % _kAnnouncements.length),
-            itemBuilder: (BuildContext ctx, int i) {
-              final int index = i % _kAnnouncements.length;
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
-                child: _NoticeCard(announcement: _kAnnouncements[index]),
-              );
-            },
-          ),
+          child: vm.isLoading || announcements.isEmpty
+              ? Center(
+                  child: vm.error != null
+                      ? const Icon(Icons.wifi_off_rounded,
+                          color: Color(0xFFCDD9DC), size: 36)
+                      : const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                )
+              : PageView.builder(
+                  controller: _pageController,
+                  clipBehavior: Clip.none,
+                  itemCount: _kLargeItemCount,
+                  onPageChanged: (int v) => setState(
+                    () => _active = announcements.isEmpty
+                        ? 0
+                        : v % announcements.length,
+                  ),
+                  itemBuilder: (BuildContext ctx, int i) {
+                    final int index = i % announcements.length;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
+                      child: _NoticeCard(announcement: announcements[index]),
+                    );
+                  },
+                ),
         ),
         const SizedBox(height: 10),
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List<Widget>.generate(_kAnnouncements.length, (int i) {
-              final bool isActive = i == _active;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: isActive ? 18 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : const Color(0xFFCDD9DC),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              );
-            }),
+        if (announcements.isNotEmpty)
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  List<Widget>.generate(announcements.length, (int i) {
+                final bool isActive = i == _active;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: isActive ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.primary
+                        : const Color(0xFFCDD9DC),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -623,10 +603,14 @@ class _NoticesSectionState extends State<_NoticesSection> {
 class _NoticeCard extends StatelessWidget {
   const _NoticeCard({required this.announcement});
 
-  final _Announcement announcement;
+  final AnnouncementModel announcement;
 
   @override
   Widget build(BuildContext context) {
+    final String subtitle = announcement.content.length > 50
+        ? '${announcement.content.substring(0, 50)}…'
+        : announcement.content;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       decoration: BoxDecoration(
@@ -668,7 +652,7 @@ class _NoticeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      announcement.subtitle,
+                      subtitle,
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 11,
@@ -685,7 +669,7 @@ class _NoticeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    announcement.buttonText,
+                    'Read More',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 12,

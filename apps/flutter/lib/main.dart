@@ -39,5 +39,6 @@ void main() async {
     attendanceViewModel: sl.attendanceViewModel,
     resultsViewModel: sl.resultsViewModel,
     supportViewModel: sl.supportViewModel,
+    noticesViewModel: sl.noticesViewModel,
   ));
 }

@@ -1,101 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
-
-// ─── Shared model ─────────────────────────────────────────────────────────────
-
-class NoticeItem {
-  const NoticeItem({
-    required this.title,
-    required this.subtitle,
-    required this.tag,
-    required this.date,
-    required this.gradientColors,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final String tag;
-  final String date;
-  final List<Color> gradientColors;
-  final IconData icon;
-}
-
-const List<NoticeItem> kAllNotices = <NoticeItem>[
-  NoticeItem(
-    title: 'We have cancelled today\'s lectures',
-    subtitle:
-        'All lectures for Module Code SE1095 have been cancelled today due to a staff meeting. Students are advised to self-study.',
-    tag: 'Academic',
-    date: 'Today · 8:00 AM',
-    gradientColors: [Color(0xFF64C4E6), Color(0xFF3EA8D8)],
-    icon: Icons.school_rounded,
-  ),
-  NoticeItem(
-    title: 'Library extended opening hours',
-    subtitle:
-        'The school library will remain open until 10:00 PM this week to support upcoming exams. Please carry your student ID.',
-    tag: 'Facility',
-    date: 'Today · 9:30 AM',
-    gradientColors: [Color(0xFF77C8A8), Color(0xFF3DAA82)],
-    icon: Icons.menu_book_rounded,
-  ),
-  NoticeItem(
-    title: 'Hackathon 2026 registration open',
-    subtitle:
-        'Register now for the annual school Hackathon starting this Friday. Teams of 2–4. Registration closes Thursday midnight.',
-    tag: 'Event',
-    date: 'Yesterday · 3:00 PM',
-    gradientColors: [Color(0xFF8CB2FF), Color(0xFF5B82F0)],
-    icon: Icons.code_rounded,
-  ),
-  NoticeItem(
-    title: 'Career fair this Wednesday',
-    subtitle:
-        'Over 20 companies will attend the Career Fair at Hall B starting 9:00 AM. Smart casual attire is required.',
-    tag: 'Event',
-    date: 'Yesterday · 11:00 AM',
-    gradientColors: [Color(0xFFFFB38A), Color(0xFFE8845A)],
-    icon: Icons.work_rounded,
-  ),
-  NoticeItem(
-    title: 'Term exam timetable released',
-    subtitle:
-        'The term examination timetable for May 2026 has been published. Check the school portal for your individual schedule.',
-    tag: 'Exam',
-    date: '29 Apr · 2:00 PM',
-    gradientColors: [Color(0xFFFF8FAB), Color(0xFFD94F72)],
-    icon: Icons.event_note_rounded,
-  ),
-  NoticeItem(
-    title: 'Sports day postponed',
-    subtitle:
-        'Annual sports day originally scheduled for May 3rd has been postponed to May 17th due to weather forecasts.',
-    tag: 'Sports',
-    date: '28 Apr · 10:00 AM',
-    gradientColors: [Color(0xFFFFCC80), Color(0xFFD47A2E)],
-    icon: Icons.sports_soccer_rounded,
-  ),
-  NoticeItem(
-    title: 'New canteen menu available',
-    subtitle:
-        'The school canteen has updated its weekly menu with healthier options. Vegetarian meals are now available every day.',
-    tag: 'General',
-    date: '27 Apr · 7:30 AM',
-    gradientColors: [Color(0xFF80E8B8), Color(0xFF2EAA75)],
-    icon: Icons.restaurant_rounded,
-  ),
-  NoticeItem(
-    title: 'Parent-teacher meeting',
-    subtitle:
-        'Parent-teacher meetings are scheduled for May 10th from 9:00 AM to 1:00 PM. Appointments can be booked online.',
-    tag: 'Meeting',
-    date: '26 Apr · 1:00 PM',
-    gradientColors: [Color(0xFFD4AAFF), Color(0xFF9067C6)],
-    icon: Icons.groups_rounded,
-  ),
-];
+import 'package:universe_app/features/notices/models/announcement_model.dart';
+import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -116,13 +24,8 @@ class _NoticesScreenState extends State<NoticesScreen>
 
   static const List<String> _filters = [
     'All',
-    'Academic',
-    'Event',
-    'Exam',
-    'Sports',
-    'General',
-    'Meeting',
-    'Facility',
+    'School Wide',
+    'Class',
   ];
 
   @override
@@ -135,9 +38,14 @@ class _NoticesScreenState extends State<NoticesScreen>
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
         .animate(
             CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
-    _fadeAnim =
-        CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+    _fadeAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entryCtrl.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<NoticesViewModel>().loadAnnouncements();
+      }
+    });
   }
 
   @override
@@ -146,20 +54,25 @@ class _NoticesScreenState extends State<NoticesScreen>
     super.dispose();
   }
 
-  List<NoticeItem> get _filtered => _activeFilter == 'All'
-      ? kAllNotices
-      : kAllNotices.where((n) => n.tag == _activeFilter).toList();
+  List<AnnouncementModel> _filtered(List<AnnouncementModel> all) {
+    if (_activeFilter == 'All') return all;
+    final String scopeKey =
+        _activeFilter == 'School Wide' ? 'school_wide' : 'class';
+    return all.where((n) => n.scope == scopeKey).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final vm = context.watch<NoticesViewModel>();
+    final List<AnnouncementModel> filtered = _filtered(vm.announcements);
 
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: Column(
         children: [
-          _buildHeader(topInset),
+          _buildHeader(topInset, vm.announcements.length),
           Expanded(
             child: SlideTransition(
               position: _slideAnim,
@@ -181,22 +94,9 @@ class _NoticesScreenState extends State<NoticesScreen>
                         active: _activeFilter,
                         onSelected: (f) => setState(() => _activeFilter = f),
                       ),
-                      // ── Notice list ──────────────────────────────────────
+                      // ── Content ──────────────────────────────────────────
                       Expanded(
-                        child: _filtered.isEmpty
-                            ? _EmptyState(filter: _activeFilter)
-                            : ListView.builder(
-                                physics: const BouncingScrollPhysics(),
-                                padding: EdgeInsets.fromLTRB(
-                                    18, 4, 18, bottomInset + 24),
-                                itemCount: _filtered.length,
-                                itemBuilder: (context, i) =>
-                                    _NoticeListCard(
-                                  notice: _filtered[i],
-                                  index: i,
-                                  controller: _entryCtrl,
-                                ),
-                              ),
+                        child: _buildBody(vm, filtered, bottomInset),
                       ),
                     ],
                   ),
@@ -209,7 +109,81 @@ class _NoticesScreenState extends State<NoticesScreen>
     );
   }
 
-  Widget _buildHeader(double topInset) {
+  Widget _buildBody(
+    NoticesViewModel vm,
+    List<AnnouncementModel> filtered,
+    double bottomInset,
+  ) {
+    if (vm.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (vm.error != null && vm.announcements.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded,
+                  size: 56, color: Color(0xFFCDD9DC)),
+              const SizedBox(height: 14),
+              Text(
+                vm.error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF90A4AE),
+                ),
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () => context.read<NoticesViewModel>().loadAnnouncements(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Retry',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return _EmptyState(filter: _activeFilter);
+    }
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(18, 4, 18, bottomInset + 24),
+      itemCount: filtered.length,
+      itemBuilder: (context, i) => _NoticeListCard(
+        notice: filtered[i],
+        index: i,
+        controller: _entryCtrl,
+      ),
+    );
+  }
+
+  Widget _buildHeader(double topInset, int count) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(18, 14 + topInset, 18, 28),
@@ -267,7 +241,7 @@ class _NoticesScreenState extends State<NoticesScreen>
                 const Icon(Icons.circle, color: Color(0xFF4ADE80), size: 8),
                 const SizedBox(width: 6),
                 Text(
-                  '${kAllNotices.length} notices',
+                  '$count notices',
                   style: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 12,
@@ -359,7 +333,7 @@ class _NoticeListCard extends StatefulWidget {
     required this.controller,
   });
 
-  final NoticeItem notice;
+  final AnnouncementModel notice;
   final int index;
   final AnimationController controller;
 
@@ -442,7 +416,7 @@ class _NoticeListCardState extends State<_NoticeListCard> {
                           children: [
                             Row(
                               children: [
-                                // Tag chip
+                                // Scope tag chip
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),
@@ -452,7 +426,7 @@ class _NoticeListCardState extends State<_NoticeListCard> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    widget.notice.tag,
+                                    widget.notice.scopeLabel,
                                     style: TextStyle(
                                       fontFamily: 'Plus Jakarta Sans',
                                       fontSize: 10,
@@ -464,7 +438,7 @@ class _NoticeListCardState extends State<_NoticeListCard> {
                                 ),
                                 const Spacer(),
                                 Text(
-                                  widget.notice.date,
+                                  widget.notice.formattedDate,
                                   style: const TextStyle(
                                     fontFamily: 'Plus Jakarta Sans',
                                     fontSize: 10,
@@ -527,7 +501,7 @@ class _NoticeListCardState extends State<_NoticeListCard> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                widget.notice.subtitle,
+                                widget.notice.content,
                                 style: const TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
                                   fontSize: 13,
