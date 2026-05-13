@@ -18,4 +18,6 @@ class ApiEndpoints {
 
   // Gate
   static const String gateMyChildEvents = '$basePath/gate/my-child-events';
+  static const String attendanceMyChild = '$basePath/attendance/my-child';
+  static const String resultsMyChild = '$basePath/results/my-child';
 }

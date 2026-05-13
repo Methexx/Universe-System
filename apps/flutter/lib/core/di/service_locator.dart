@@ -11,6 +11,10 @@ import 'package:universe_app/features/gate/repositories/gate_repository.dart';
 import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/messages/repositories/messages_repository.dart';
 import 'package:universe_app/features/profile/repositories/profile_repository.dart';
+import 'package:universe_app/features/attendance/repositories/attendance_repository.dart';
+import 'package:universe_app/features/attendance/viewmodels/attendance_viewmodel.dart';
+import 'package:universe_app/features/results/repositories/results_repository.dart';
+import 'package:universe_app/features/results/viewmodels/results_viewmodel.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -28,6 +32,10 @@ class ServiceLocator {
   late ChatbotService chatbotService;
   late FirebaseService firebaseService;
   late BiometricService biometricService;
+  late AttendanceRepository attendanceRepository;
+  late AttendanceViewModel attendanceViewModel;
+  late ResultsRepository resultsRepository;
+  late ResultsViewModel resultsViewModel;
 
   Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -51,5 +59,15 @@ class ServiceLocator {
     firebaseService = FirebaseService(secureStorage: secureStorageService);
     await firebaseService.initialize();
     biometricService = BiometricService();
+    attendanceRepository = AttendanceRepository(
+      dio: apiClient.dio,
+      secureStorage: secureStorageService,
+    );
+    attendanceViewModel = AttendanceViewModel(repository: attendanceRepository);
+    resultsRepository = ResultsRepository(
+      dio: apiClient.dio,
+      secureStorage: secureStorageService,
+    );
+    resultsViewModel = ResultsViewModel(repository: resultsRepository);
   }
 }

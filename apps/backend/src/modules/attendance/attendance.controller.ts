@@ -11,6 +11,84 @@ import {
 } from './attendance.schema';
 import { delCacheByPattern, getOrSetCache, getCache, setCache, delCache } from '../../common/utils/cache';
 
+export const getMyChildAttendance = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const user = (request as any).user as { userId: string };
+    const { page = '1', limit = '20' } = request.query as any;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+
+    // 1. Find the child linked to this parent
+    const parentLink = await prisma.parentStudent.findFirst({
+      where: { parent_id: user.userId },
+      select: { student_id: true },
+    });
+
+    if (!parentLink) {
+      return reply.status(404).send({ success: false, message: 'No child linked to this account' });
+    }
+
+    const studentId = parentLink.student_id;
+
+    // 2. Fetch paginated attendance records
+    const total = await prisma.attendanceRecord.count({ where: { student_id: studentId } });
+    const records = await prisma.attendanceRecord.findMany({
+      where: { student_id: studentId },
+      orderBy: { date: 'desc' },
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+    });
+
+    // 3. For each record, check if there was a Gate IN event on that day
+    const recordsWithGate = await Promise.all(records.map(async (record) => {
+      const dateStart = new Date(record.date);
+      dateStart.setUTCHours(0, 0, 0, 0);
+      const dateEnd = new Date(dateStart);
+      dateEnd.setUTCDate(dateEnd.getUTCDate() + 1);
+
+      const gateInEvent = await prisma.gateEvent.findFirst({
+        where: {
+          student_id: studentId,
+          direction: 'IN',
+          timestamp: {
+            gte: dateStart,
+            lt: dateEnd,
+          },
+        },
+      });
+
+      return {
+        ...record,
+        gateIn: !!gateInEvent,
+      };
+    }));
+
+    // 4. Get current gate status
+    const latestGateEvent = await prisma.gateEvent.findFirst({
+      where: { student_id: studentId },
+      orderBy: { timestamp: 'desc' },
+      select: { direction: true },
+    });
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        isInsideSchool: latestGateEvent?.direction === 'IN',
+        records: recordsWithGate,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          hasMore: pageNum * limitNum < total,
+        },
+      },
+    });
+  } catch (error) {
+    request.log.error(error);
+    reply.status(500).send({ success: false, message: 'An error occurred while fetching child attendance.' });
+  }
+};
+
 export const markAttendance = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     const data = markAttendanceSchema.parse(request.body);

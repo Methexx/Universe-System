@@ -7,6 +7,8 @@ import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/messages/viewmodels/messages_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+import 'package:universe_app/features/attendance/viewmodels/attendance_viewmodel.dart';
+import 'package:universe_app/features/results/viewmodels/results_viewmodel.dart';
 import 'package:universe_app/shared/themes/app_theme.dart';
 
 class UniverseApp extends StatefulWidget {
@@ -16,12 +18,16 @@ class UniverseApp extends StatefulWidget {
     required this.messagesViewModel,
     required this.profileViewModel,
     required this.gateViewModel,
+    required this.attendanceViewModel,
+    required this.resultsViewModel,
   });
 
   final AuthViewModel authViewModel;
   final MessagesViewModel messagesViewModel;
   final ProfileViewModel profileViewModel;
   final GateViewModel gateViewModel;
+  final AttendanceViewModel attendanceViewModel;
+  final ResultsViewModel resultsViewModel;
 
   @override
   State<UniverseApp> createState() => _UniverseAppState();
@@ -56,6 +62,8 @@ class _UniverseAppState extends State<UniverseApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<MessagesViewModel>.value(value: widget.messagesViewModel),
         ChangeNotifierProvider<ProfileViewModel>.value(value: widget.profileViewModel),
         ChangeNotifierProvider<GateViewModel>.value(value: widget.gateViewModel),
+        ChangeNotifierProvider<AttendanceViewModel>.value(value: widget.attendanceViewModel),
+        ChangeNotifierProvider<ResultsViewModel>.value(value: widget.resultsViewModel),
       ],
       child: MaterialApp.router(
         title: AppStrings.appName,
