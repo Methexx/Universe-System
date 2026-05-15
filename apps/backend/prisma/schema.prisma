@@ -48,6 +48,7 @@ model User {
   policy_documents      PolicyDocument[]   @relation("PolicyDocuments")
   result_sets           ResultSet[]
   terms                 Term[]
+  events_created        CalendarEvent[]    @relation("EventsCreated")
 
   @@index([email])
   @@index([role])
@@ -440,4 +441,25 @@ model StudentGrade {
   @@index([result_set_id])
   @@index([student_id])
   @@map("student_grades")
+}
+// ==========================================
+// PHASE 8: CALENDAR
+// ==========================================
+
+model CalendarEvent {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String
+  description String?  @db.Text
+  start_time  DateTime @db.Timestamptz()
+  end_time    DateTime @db.Timestamptz()
+  location    String?
+  type        String   @default("event") // 'event' | 'holiday' | 'exam' | 'meeting'
+  created_by  String   @db.Uuid
+  creator     User     @relation("EventsCreated", fields: [created_by], references: [id])
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([start_time])
+  @@index([created_by])
+  @@map("calendar_events")
 }

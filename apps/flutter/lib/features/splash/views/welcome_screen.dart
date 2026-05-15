@@ -115,21 +115,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 50),
               ],
             ),
-            Positioned(
-              top: 20,
-              right: 20,
-              child: TextButton(
-                onPressed: () => context.go(AppRoutes.profileSetup),
-                child: const Text(
-                  'Skip (Dev)',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
             Listener(
               onPointerDown: (_) => _stopAutoPlay(),
               child: PageView.builder(
