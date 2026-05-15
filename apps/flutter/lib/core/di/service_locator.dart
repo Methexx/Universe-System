@@ -19,6 +19,8 @@ import 'package:universe_app/features/support/repositories/support_repository.da
 import 'package:universe_app/features/support/viewmodels/support_viewmodel.dart';
 import 'package:universe_app/features/notices/repositories/notices_repository.dart';
 import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
+import 'package:universe_app/features/settings/repositories/settings_repository.dart';
+import 'package:universe_app/features/settings/viewmodels/settings_viewmodel.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -44,6 +46,8 @@ class ServiceLocator {
   late SupportViewModel supportViewModel;
   late NoticesRepository noticesRepository;
   late NoticesViewModel noticesViewModel;
+  late SettingsRepository settingsRepository;
+  late SettingsViewModel settingsViewModel;
 
   Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -87,5 +91,7 @@ class ServiceLocator {
       secureStorage: secureStorageService,
     );
     noticesViewModel = NoticesViewModel(repository: noticesRepository);
+    settingsRepository = SettingsRepository(apiClient.dio, secureStorageService);
+    settingsViewModel = SettingsViewModel(settingsRepository);
   }
 }

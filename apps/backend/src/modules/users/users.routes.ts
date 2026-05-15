@@ -19,6 +19,8 @@ export default async function usersRoutes(fastify: FastifyInstance) {
   fastify.delete('/me', UsersController.deleteMe);
 
   fastify.put('/fcm-token', UsersController.updateFcmToken);
+  fastify.get('/settings', UsersController.getSettings);
+  fastify.patch('/settings', UsersController.updateSettings);
 
   // 2. ADMIN-ONLY ROUTES
   // We use the `authorize` RBAC middleware in the preHandler array

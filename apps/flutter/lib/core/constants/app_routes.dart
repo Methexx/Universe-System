@@ -20,6 +20,8 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String notices = '/notices';
   static const String notifications = '/notifications';
+  static const String privacyPolicy = '/settings/privacy';
+  static const String termsOfService = '/settings/terms';
 
   // Support sub-routes
   static const String submitComplaint = '/support/submit';

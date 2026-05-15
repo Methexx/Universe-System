@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { z } from 'zod';
 import { UsersService } from './users.service';
+import { updateSettingsSchema } from './settings.schema';
 
 const updateFcmTokenSchema = z.object({
   fcm_token: z.string().min(1),
@@ -112,6 +113,45 @@ export const UsersController = {
       }
       request.log.error(error);
       reply.status(500).send({ success: false, message: 'Failed to update FCM token' });
+    }
+  },
+
+  async getSettings(request: FastifyRequest, reply: FastifyReply) {
+    const user = (request as any).user;
+    let settings = await (prisma as any).userSettings.findUnique({
+      where: { userId: user.userId },
+    });
+
+    if (!settings) {
+      settings = await (prisma as any).userSettings.create({
+        data: { userId: user.userId },
+      });
+    }
+
+    return reply.status(200).send({ success: true, data: settings });
+  },
+
+  async updateSettings(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const user = (request as any).user;
+      const body = updateSettingsSchema.parse(request.body);
+
+      const settings = await (prisma as any).userSettings.upsert({
+        where: { userId: user.userId },
+        update: body,
+        create: {
+          ...body,
+          userId: user.userId,
+        },
+      });
+
+      return reply.status(200).send({ success: true, data: settings });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ success: false, message: 'Invalid input' });
+      }
+      request.log.error(error);
+      reply.status(500).send({ success: false, message: 'Failed to update settings' });
     }
   }
 };
