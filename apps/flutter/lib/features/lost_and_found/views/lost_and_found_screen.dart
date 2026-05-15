@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:universe_app/features/lost_and_found/models/lost_found_model.dart';
+import 'package:universe_app/features/lost_and_found/viewmodels/lost_found_viewmodel.dart';
+import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
 
 // ─── Role ─────────────────────────────────────────────────────────────────────
 
@@ -234,6 +238,10 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
     ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
     _entryController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LostFoundViewModel>().loadBoard();
+    });
   }
 
   @override
@@ -242,9 +250,16 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
     super.dispose();
   }
 
-  List<_Post> get _filtered => _filter == null
-      ? _kPosts
-      : _kPosts.where((p) => p.status == _filter).toList();
+  List<LFPostModel> get _filtered {
+    final posts = context.watch<LostFoundViewModel>().posts;
+    if (_filter == null) return posts;
+    return posts.where((p) {
+      if (_filter == _Status.open) return p.status == LFStatus.open || p.status == LFStatus.unclaimed;
+      if (_filter == _Status.found) return p.type == LFPostType.found;
+      if (_filter == _Status.closed) return p.status == LFStatus.collected || p.status == LFStatus.recovered;
+      return true;
+    }).toList();
+  }
 
   void _setFilter(_Status? f) {
     if (_filter == f) return;
@@ -261,8 +276,18 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => _NewPostSheet(
-        onSubmit: (post) {
-          setState(() => _kPosts.insert(0, post));
+        onSubmit: (itemName, description, isFound, foundAt) async {
+          final vm = context.read<LostFoundViewModel>();
+          bool success;
+          if (isFound) {
+            success = await vm.createFoundItem(itemName: itemName, description: description, foundAt: foundAt ?? 'School');
+          } else {
+            // Get student ID from profile if parent
+            final profile = context.read<ProfileViewModel>().profile;
+            final studentId = profile?.students?.first.id ?? ''; 
+            success = await vm.createLostReport(itemName: itemName, description: description, studentId: studentId);
+          }
+          if (success && mounted) Navigator.pop(context);
         },
       ),
     );
@@ -385,8 +410,7 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
                             const SizedBox(height: 16),
                         itemBuilder: (ctx, i) => _PostCard(
                           post: _filtered[i],
-                          onStatusChanged: (s) =>
-                              setState(() => _filtered[i].status = s),
+                          onStatusChanged: (s) {}, // Disable for now or implement update
                         ),
                       ),
               ),
@@ -508,7 +532,7 @@ class _FilterChip extends StatelessWidget {
 
 class _PostCard extends StatefulWidget {
   const _PostCard({required this.post, required this.onStatusChanged});
-  final _Post post;
+  final LFPostModel post;
   final ValueChanged<_Status> onStatusChanged;
 
   @override
@@ -528,24 +552,23 @@ class _PostCardState extends State<_PostCard> {
   void _addComment() {
     final String text = _commentCtrl.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      widget.post.comments.add(
-        _Comment(
-          authorName: 'You',
-          role: _Role.parent,
-          classOrDept: 'Parent · Grade 8C',
-          text: text,
-          timeAgo: 'Just now',
-        ),
-      );
-    });
+    context.read<LostFoundViewModel>().addComment(content: text, post: widget.post);
     _commentCtrl.clear();
     FocusScope.of(context).unfocus();
   }
 
+  String _formatTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hrs ago';
+    return '${diff.inDays} days ago';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final _Post p = widget.post;
+    final p = widget.post;
+    final roleColor = p.role == 'teacher' ? const Color(0xFF2E6B7F) : p.role == 'parent' ? const Color(0xFF7A3D1A) : const Color(0xFF1A3A44);
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -561,25 +584,22 @@ class _PostCardState extends State<_PostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // ── Card body ────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // Author row
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Avatar
                     Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: p.role.color.withValues(alpha: 0.12),
+                        color: roleColor.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(p.role.icon, size: 20, color: p.role.color),
+                      child: Icon(p.role == 'teacher' ? Icons.school_rounded : p.role == 'parent' ? Icons.family_restroom_rounded : Icons.admin_panel_settings_rounded, size: 20, color: roleColor),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -608,31 +628,29 @@ class _PostCardState extends State<_PostCard> {
                         ],
                       ),
                     ),
-                    // Role badge + time
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: p.role.bgColor,
+                            color: roleColor.withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            p.role.label,
+                            p.role.toUpperCase(),
                             style: TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: p.role.color,
+                              color: roleColor,
                               letterSpacing: 0.5,
                             ),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          p.timeAgo,
+                          _formatTime(p.timeAgo),
                           style: const TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
                             fontSize: 10,
@@ -644,10 +662,7 @@ class _PostCardState extends State<_PostCard> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 14),
-
-                // Title + status
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -664,10 +679,9 @@ class _PostCardState extends State<_PostCard> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
-                        color: p.status.bgColor,
+                        color: p.status.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -683,10 +697,7 @@ class _PostCardState extends State<_PostCard> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 8),
-
-                // Description
                 Text(
                   p.description,
                   style: const TextStyle(
@@ -697,17 +708,10 @@ class _PostCardState extends State<_PostCard> {
                     height: 1.55,
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
-                // Location chip
                 Row(
                   children: <Widget>[
-                    Icon(
-                      Icons.location_on_rounded,
-                      size: 13,
-                      color: const Color(0xFFD47A2E),
-                    ),
+                    const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFFD47A2E)),
                     const SizedBox(width: 4),
                     Text(
                       p.location,
@@ -720,19 +724,12 @@ class _PostCardState extends State<_PostCard> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 14),
                 Container(height: 1, color: const Color(0xFFEBF3F6)),
                 const SizedBox(height: 12),
-
-                // Footer: comments count + expand toggle
                 Row(
                   children: <Widget>[
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 14,
-                      color: const Color(0xFF94A3B0),
-                    ),
+                    const Icon(Icons.chat_bubble_outline_rounded, size: 14, color: Color(0xFF94A3B0)),
                     const SizedBox(width: 5),
                     Text(
                       '${p.comments.length} comment${p.comments.length == 1 ? '' : 's'}',
@@ -758,13 +755,7 @@ class _PostCardState extends State<_PostCard> {
                             ),
                           ),
                           const SizedBox(width: 2),
-                          Icon(
-                            _expanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            size: 16,
-                            color: const Color(0xFF7A3D1A),
-                          ),
+                          Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, size: 16, color: const Color(0xFF7A3D1A)),
                         ],
                       ),
                     ),
@@ -773,24 +764,18 @@ class _PostCardState extends State<_PostCard> {
               ],
             ),
           ),
-
-          // ── Thread (expandable) ──────────────────────────────────────
           if (_expanded) ...<Widget>[
             Container(height: 1, color: const Color(0xFFF0F5F7)),
-            // Existing comments
             if (p.comments.isNotEmpty)
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 itemCount: p.comments.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (ctx, i) =>
-                    _CommentTile(comment: p.comments[i]),
+                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _CommentTile(comment: p.comments[i]),
               ),
             const SizedBox(height: 12),
-            // Comment input
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Row(
@@ -805,21 +790,12 @@ class _PostCardState extends State<_PostCard> {
                       ),
                       child: TextField(
                         controller: _commentCtrl,
-                        style: const TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: 13,
-                          color: Color(0xFF16212A),
-                        ),
+                        style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF16212A)),
                         decoration: const InputDecoration(
                           hintText: 'Add a comment…',
-                          hintStyle: TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 13,
-                            color: Color(0xFF94A3B0),
-                          ),
+                          hintStyle: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF94A3B0)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _addComment(),
@@ -833,21 +809,10 @@ class _PostCardState extends State<_PostCard> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: <Color>[
-                            Color(0xFF7A3D1A),
-                            Color(0xFFD47A2E),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        gradient: const LinearGradient(colors: <Color>[Color(0xFF7A3D1A), Color(0xFFD47A2E)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                     ),
                   ),
                 ],
@@ -864,21 +829,26 @@ class _PostCardState extends State<_PostCard> {
 
 class _CommentTile extends StatelessWidget {
   const _CommentTile({required this.comment});
-  final _Comment comment;
+  final LFCommentModel comment;
+
+  String _formatTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    return '${diff.inDays}d';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final roleColor = comment.role == 'teacher' ? const Color(0xFF2E6B7F) : comment.role == 'parent' ? const Color(0xFF7A3D1A) : const Color(0xFF1A3A44);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Container(
           width: 32,
           height: 32,
-          decoration: BoxDecoration(
-            color: comment.role.color.withValues(alpha: 0.10),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(comment.role.icon, size: 16, color: comment.role.color),
+          decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.10), shape: BoxShape.circle),
+          child: Icon(comment.role == 'teacher' ? Icons.school_rounded : comment.role == 'parent' ? Icons.family_restroom_rounded : Icons.admin_panel_settings_rounded, size: 16, color: roleColor),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -887,77 +857,28 @@ class _CommentTile extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Text(
-                    comment.authorName,
-                    style: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF16212A),
-                    ),
-                  ),
+                  Text(comment.authorName, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF16212A))),
                   const SizedBox(width: 6),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: comment.role.bgColor,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      comment.role.label,
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        color: comment.role.color,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(5)),
+                    child: Text(comment.role.toUpperCase(), style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 8, fontWeight: FontWeight.w800, color: roleColor, letterSpacing: 0.4)),
                   ),
                   const Spacer(),
-                  Text(
-                    comment.timeAgo,
-                    style: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 10,
-                      color: Color(0xFF94A3B0),
-                    ),
-                  ),
+                  Text(_formatTime(comment.timeAgo), style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 10, color: Color(0xFF94A3B0))),
                 ],
               ),
               const SizedBox(height: 2),
-              Text(
-                comment.classOrDept,
-                style: const TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF94A3B0),
-                ),
-              ),
+              Text(comment.classOrDept, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF94A3B0))),
               const SizedBox(height: 5),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4FAFB),
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF4FAFB),
+                  borderRadius: BorderRadius.only(topRight: Radius.circular(12), bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
                 ),
-                child: Text(
-                  comment.text,
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF4A6572),
-                    height: 1.5,
-                  ),
-                ),
+                child: Text(comment.text, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, fontWeight: FontWeight.w400, color: Color(0xFF4A6572), height: 1.5)),
               ),
             ],
           ),
@@ -971,7 +892,7 @@ class _CommentTile extends StatelessWidget {
 
 class _NewPostSheet extends StatefulWidget {
   const _NewPostSheet({required this.onSubmit});
-  final ValueChanged<_Post> onSubmit;
+  final Function(String, String, bool, String?) onSubmit;
 
   @override
   State<_NewPostSheet> createState() => _NewPostSheetState();
@@ -981,7 +902,7 @@ class _NewPostSheetState extends State<_NewPostSheet> {
   final TextEditingController _titleCtrl = TextEditingController();
   final TextEditingController _descCtrl = TextEditingController();
   final TextEditingController _locationCtrl = TextEditingController();
-  _Role _selectedRole = _Role.parent;
+  bool _isFound = false;
 
   @override
   void dispose() {
@@ -993,27 +914,7 @@ class _NewPostSheetState extends State<_NewPostSheet> {
 
   void _submit() {
     if (_titleCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) return;
-    final String classOrDept = switch (_selectedRole) {
-      _Role.teacher => 'Grade 8 · Class Teacher',
-      _Role.parent => 'Parent · Grade 8C',
-      _Role.admin => 'Administration',
-    };
-    final _Post post = _Post(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      authorName: 'You',
-      role: _selectedRole,
-      classOrDept: classOrDept,
-      title: _titleCtrl.text.trim(),
-      description: _descCtrl.text.trim(),
-      location: _locationCtrl.text.trim().isEmpty
-          ? 'Unknown'
-          : _locationCtrl.text.trim(),
-      timeAgo: 'Just now',
-      status: _Status.open,
-      comments: <_Comment>[],
-    );
-    widget.onSubmit(post);
-    Navigator.of(context).pop();
+    widget.onSubmit(_titleCtrl.text.trim(), _descCtrl.text.trim(), _isFound, _locationCtrl.text.trim().isEmpty ? null : _locationCtrl.text.trim());
   }
 
   @override
@@ -1026,137 +927,38 @@ class _NewPostSheetState extends State<_NewPostSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0E0E0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE0E0E0), borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            const Text(
-              'New Post',
-              style: TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF16212A),
-              ),
-            ),
+            const Text('New Post', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF16212A))),
             const SizedBox(height: 4),
-            const Text(
-              'Let the community know what you lost or found',
-              style: TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 13,
-                color: Color(0xFF94A3B0),
-              ),
-            ),
+            const Text('Let the community know what you lost or found', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF94A3B0))),
             const SizedBox(height: 20),
-
-            // Posted as (role)
-            const Text(
-              'Posting as',
-              style: TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF4A6572),
-              ),
-            ),
+            const Text('Post type', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4A6572))),
             const SizedBox(height: 8),
             Row(
-              children: _Role.values
-                  .map(
-                    (r) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedRole = r),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: _selectedRole == r
-                                ? r.color
-                                : r.color.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            r.label,
-                            style: TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: _selectedRole == r
-                                  ? Colors.white
-                                  : r.color,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                _TypeButton(label: 'I LOST SOMETHING', isActive: !_isFound, onTap: () => setState(() => _isFound = false), color: const Color(0xFF7A3D1A)),
+                const SizedBox(width: 10),
+                _TypeButton(label: 'I FOUND SOMETHING', isActive: _isFound, onTap: () => setState(() => _isFound = true), color: const Color(0xFF2E6B7F)),
+              ],
             ),
-
             const SizedBox(height: 18),
-            _FormField(
-              controller: _titleCtrl,
-              label: 'Title',
-              hint: 'e.g. Blue water bottle found near library',
-            ),
+            _FormField(controller: _titleCtrl, label: 'Item Name', hint: 'e.g. Blue water bottle'),
             const SizedBox(height: 12),
-            _FormField(
-              controller: _descCtrl,
-              label: 'Description',
-              hint: 'Describe the item and any identifying details…',
-              maxLines: 3,
-            ),
+            _FormField(controller: _descCtrl, label: 'Description', hint: 'Identifying details…', maxLines: 3),
             const SizedBox(height: 12),
-            _FormField(
-              controller: _locationCtrl,
-              label: 'Location (optional)',
-              hint: 'e.g. Canteen, Science Lab, Main Gate',
-            ),
+            _FormField(controller: _locationCtrl, label: _isFound ? 'Where did you find it?' : 'Where did you lose it? (Optional)', hint: 'e.g. Canteen, Science Lab'),
             const SizedBox(height: 24),
-
-            // Submit
             GestureDetector(
               onTap: _submit,
               child: Container(
                 height: 52,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: <Color>[Color(0xFF7A3D1A), Color(0xFFD47A2E)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
+                  gradient: const LinearGradient(colors: <Color>[Color(0xFF7A3D1A), Color(0xFFD47A2E)], begin: Alignment.centerLeft, end: Alignment.centerRight),
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: const Color(0xFF7A3D1A).withValues(alpha: 0.30),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  boxShadow: <BoxShadow>[BoxShadow(color: const Color(0xFF7A3D1A).withValues(alpha: 0.30), blurRadius: 14, offset: const Offset(0, 5))],
                 ),
-                child: const Center(
-                  child: Text(
-                    'Post to Thread',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+                child: const Center(child: Text('Post to Thread', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white))),
               ),
             ),
           ],
@@ -1166,13 +968,29 @@ class _NewPostSheetState extends State<_NewPostSheet> {
   }
 }
 
+class _TypeButton extends StatelessWidget {
+  const _TypeButton({required this.label, required this.isActive, required this.onTap, required this.color});
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(color: isActive ? color : color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+        child: Text(label, style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 10, fontWeight: FontWeight.w800, color: isActive ? Colors.white : color, letterSpacing: 0.4)),
+      ),
+    );
+  }
+}
+
 class _FormField extends StatelessWidget {
-  const _FormField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    this.maxLines = 1,
-  });
+  const _FormField({required this.controller, required this.label, required this.hint, this.maxLines = 1});
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -1183,41 +1001,15 @@ class _FormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF4A6572),
-          ),
-        ),
+        Text(label, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4A6572))),
         const SizedBox(height: 6),
         Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF4FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFDDE8ED)),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFFF4FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFDDE8ED))),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
-            style: const TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
-              fontSize: 13,
-              color: Color(0xFF16212A),
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 13,
-                color: Color(0xFF94A3B0),
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
-            ),
+            style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF16212A)),
+            decoration: InputDecoration(hintText: hint, hintStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF94A3B0)), border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12)),
           ),
         ),
       ],

@@ -19,6 +19,9 @@ import 'package:universe_app/features/support/repositories/support_repository.da
 import 'package:universe_app/features/support/viewmodels/support_viewmodel.dart';
 import 'package:universe_app/features/notices/repositories/notices_repository.dart';
 import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
+import 'package:universe_app/features/notifications/viewmodels/notifications_viewmodel.dart';
+import 'package:universe_app/features/lost_and_found/repositories/lost_found_repository.dart';
+import 'package:universe_app/features/lost_and_found/viewmodels/lost_found_viewmodel.dart';
 import 'package:universe_app/features/settings/repositories/settings_repository.dart';
 import 'package:universe_app/features/settings/viewmodels/settings_viewmodel.dart';
 
@@ -48,6 +51,8 @@ class ServiceLocator {
   late NoticesViewModel noticesViewModel;
   late SettingsRepository settingsRepository;
   late SettingsViewModel settingsViewModel;
+  late LostFoundRepository lostFoundRepository;
+  late LostFoundViewModel lostFoundViewModel;
 
   Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -93,5 +98,7 @@ class ServiceLocator {
     noticesViewModel = NoticesViewModel(repository: noticesRepository);
     settingsRepository = SettingsRepository(apiClient.dio, secureStorageService);
     settingsViewModel = SettingsViewModel(settingsRepository);
+    lostFoundRepository = LostFoundRepository(apiClient.dio, secureStorageService);
+    lostFoundViewModel = LostFoundViewModel(lostFoundRepository);
   }
 }

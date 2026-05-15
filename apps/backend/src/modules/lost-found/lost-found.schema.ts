@@ -38,9 +38,18 @@ export const getReportsSchema = z.object({
   page: z.coerce.number().min(1).default(1)
 });
 
+export const createCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty"),
+  item_id: z.string().uuid().optional(),
+  report_id: z.string().uuid().optional()
+}).refine(data => data.item_id || data.report_id, {
+  message: "Either item_id or report_id must be provided"
+});
+
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type CreateReportInput = z.infer<typeof createReportSchema>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UpdateReportStatusInput = z.infer<typeof updateReportStatusSchema>;
 export type GetItemsInput = z.infer<typeof getItemsSchema>;
 export type GetReportsInput = z.infer<typeof getReportsSchema>;
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;

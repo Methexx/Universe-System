@@ -41,5 +41,6 @@ void main() async {
     supportViewModel: sl.supportViewModel,
     noticesViewModel: sl.noticesViewModel,
     settingsViewModel: sl.settingsViewModel,
+    lostFoundViewModel: sl.lostFoundViewModel,
   ));
 }

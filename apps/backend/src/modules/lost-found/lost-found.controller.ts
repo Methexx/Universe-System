@@ -6,7 +6,8 @@ import {
   updateStatusSchema,
   updateReportStatusSchema,
   getItemsSchema,
-  getReportsSchema
+  getReportsSchema,
+  createCommentSchema
 } from './lost-found.schema';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
 
@@ -339,5 +340,122 @@ export const getAllReports = async (request: FastifyRequest, reply: FastifyReply
     if (error instanceof Error && error.name === 'ZodError') throw error;
     request.log.error(error);
     reply.status(500).send({ success: false, message: 'Failed to fetch reports' });
+  }
+};
+
+export const getCommunityBoard = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const query = getItemsSchema.parse(request.query); // Reusing getItemsSchema for pagination
+    const skip = (query.page - 1) * query.limit;
+
+    // Fetch Found Items (unclaimed)
+    const foundItems = await prisma.lostFoundItem.findMany({
+      where: { status: 'unclaimed' },
+      include: {
+        poster: { select: { id: true, full_name: true, role: true, avatar_url: true } },
+        comments: {
+          include: { author: { select: { id: true, full_name: true, role: true, avatar_url: true } } },
+          orderBy: { created_at: 'asc' }
+        }
+      },
+      orderBy: { created_at: 'desc' },
+      take: query.limit
+    });
+
+    // Fetch Lost Reports (open)
+    const lostReports = await prisma.lostFoundReport.findMany({
+      where: { status: 'open' },
+      include: {
+        parent: { select: { id: true, full_name: true, avatar_url: true } },
+        student: { select: { id: true, full_name: true, student_id_no: true } },
+        comments: {
+          include: { author: { select: { id: true, full_name: true, role: true, avatar_url: true } } },
+          orderBy: { created_at: 'asc' }
+        }
+      },
+      orderBy: { created_at: 'desc' },
+      take: query.limit
+    });
+
+    // Map to a unified structure
+    const boardPosts = [
+      ...foundItems.map(item => ({
+        id: item.id,
+        type: 'found',
+        title: item.item_name,
+        description: item.description,
+        location: item.found_at,
+        timeAgo: item.created_at,
+        status: item.status,
+        authorName: item.poster.full_name || 'Staff',
+        role: item.poster.role,
+        classOrDept: item.poster.role === 'teacher' ? 'Staff' : 'Administration',
+        photo_url: item.photo_url,
+        comments: item.comments.map(c => ({
+          authorName: c.author.full_name,
+          role: c.author.role,
+          classOrDept: c.author.role === 'teacher' ? 'Staff' : 'Administration',
+          text: c.content,
+          timeAgo: c.created_at
+        }))
+      })),
+      ...lostReports.map(report => ({
+        id: report.id,
+        type: 'lost',
+        title: `LOST: ${report.item_name}`,
+        description: report.description,
+        location: 'Unknown',
+        timeAgo: report.created_at,
+        status: report.status,
+        authorName: report.parent.full_name || 'Parent',
+        role: 'parent',
+        classOrDept: `Parent · Student: ${report.student.full_name}`,
+        photo_url: report.photo_url,
+        comments: report.comments.map(c => ({
+          authorName: c.author.full_name,
+          role: c.author.role,
+          classOrDept: c.author.role === 'parent' ? 'Parent' : 'Staff',
+          text: c.content,
+          timeAgo: c.created_at
+        }))
+      }))
+    ].sort((a, b) => new Date(b.timeAgo).getTime() - new Date(a.timeAgo).getTime());
+
+    return reply.status(200).send({
+      success: true,
+      data: boardPosts.slice(0, query.limit),
+    });
+  } catch (error) {
+    request.log.error(error);
+    reply.status(500).send({ success: false, message: 'Failed to fetch community board' });
+  }
+};
+
+export const postComment = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const data = createCommentSchema.parse(request.body);
+    const user = (request as any).user;
+
+    const comment = await prisma.lostFoundComment.create({
+      data: {
+        content: data.content,
+        author_id: user.userId,
+        item_id: data.item_id,
+        report_id: data.report_id
+      },
+      include: {
+        author: { select: { id: true, full_name: true, role: true, avatar_url: true } }
+      }
+    });
+
+    return reply.status(201).send({
+      success: true,
+      message: 'Comment posted successfully',
+      data: comment
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'ZodError') throw error;
+    request.log.error(error);
+    reply.status(500).send({ success: false, message: 'Failed to post comment' });
   }
 };

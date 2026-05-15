@@ -118,12 +118,12 @@ export const UsersController = {
 
   async getSettings(request: FastifyRequest, reply: FastifyReply) {
     const user = (request as any).user;
-    let settings = await (prisma as any).userSettings.findUnique({
+    let settings = await prisma.userSettings.findUnique({
       where: { userId: user.userId },
     });
 
     if (!settings) {
-      settings = await (prisma as any).userSettings.create({
+      settings = await prisma.userSettings.create({
         data: { userId: user.userId },
       });
     }

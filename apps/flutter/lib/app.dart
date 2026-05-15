@@ -12,6 +12,7 @@ import 'package:universe_app/features/results/viewmodels/results_viewmodel.dart'
 import 'package:universe_app/features/support/viewmodels/support_viewmodel.dart';
 import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
 import 'package:universe_app/features/settings/viewmodels/settings_viewmodel.dart';
+import 'package:universe_app/features/lost_and_found/viewmodels/lost_found_viewmodel.dart';
 import 'package:universe_app/shared/themes/app_theme.dart';
 
 class UniverseApp extends StatefulWidget {
@@ -26,6 +27,7 @@ class UniverseApp extends StatefulWidget {
     required this.supportViewModel,
     required this.noticesViewModel,
     required this.settingsViewModel,
+    required this.lostFoundViewModel,
   });
 
   final AuthViewModel authViewModel;
@@ -37,6 +39,7 @@ class UniverseApp extends StatefulWidget {
   final SupportViewModel supportViewModel;
   final NoticesViewModel noticesViewModel;
   final SettingsViewModel settingsViewModel;
+  final LostFoundViewModel lostFoundViewModel;
 
   @override
   State<UniverseApp> createState() => _UniverseAppState();
@@ -76,6 +79,7 @@ class _UniverseAppState extends State<UniverseApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<SupportViewModel>.value(value: widget.supportViewModel),
         ChangeNotifierProvider<NoticesViewModel>.value(value: widget.noticesViewModel),
         ChangeNotifierProvider<SettingsViewModel>.value(value: widget.settingsViewModel),
+        ChangeNotifierProvider<LostFoundViewModel>.value(value: widget.lostFoundViewModel),
       ],
       child: MaterialApp.router(
         title: AppStrings.appName,
