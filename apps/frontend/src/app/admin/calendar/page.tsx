@@ -182,6 +182,7 @@ export default function CalendarPage() {
       <PageHeader 
         title="Calendar"
         subtitle="Manage your schedules and events"
+        onRefresh={fetchEvents}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-start">

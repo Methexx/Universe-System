@@ -27,13 +27,30 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Inject google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/flutter/android/app/google-services.json
+
+      - name: Decode and write release keystore
+        run: |
+          echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 --decode > apps/flutter/android/app/universe-release.jks
+          cat > apps/flutter/android/key.properties <<EOF
+          storeFile=../app/universe-release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
       - name: Get dependencies
         working-directory: apps/flutter
         run: flutter pub get
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: apps/flutter
-        run: flutter build apk --debug --dart-define=API_BASE_URL=${{ secrets.RAILWAY_BACKEND_URL }}
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE_URL=${{ secrets.RAILWAY_BACKEND_URL }} \
+            --dart-define=FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY_ANDROID }} \
+            --dart-define=FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_ANDROID }}
 
       - name: Get next version tag
         id: tag
@@ -52,7 +69,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "Release ${{ steps.tag.outputs.tag }}"
           body: |
-            Debug APK — built from `release/development`
+            Release APK — built from `release/development`
             Commit: ${{ github.sha }}
-          files: apps/flutter/build/app/outputs/flutter-apk/app-debug.apk
+          files: apps/flutter/build/app/outputs/flutter-apk/app-release.apk
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -2,114 +2,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
-
-// ─── Model ────────────────────────────────────────────────────────────────────
-
-class NotificationItem {
-  NotificationItem({
-    required this.id,
-    required this.category,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.icon,
-    required this.gradientColors,
-    this.isRead = false,
-  });
-
-  final String id;
-  final String category;
-  final String title;
-  final String body;
-  final String time;
-  final IconData icon;
-  final List<Color> gradientColors;
-  bool isRead;
-}
-
-List<NotificationItem> kNotifications = [
-  NotificationItem(
-    id: '1',
-    category: 'Payment',
-    title: 'Canteen balance low',
-    body: 'Your canteen balance is below Rs. 200. Top up now to avoid disruption during lunch.',
-    time: '5 min ago',
-    icon: Icons.account_balance_wallet_rounded,
-    gradientColors: const [Color(0xFF64C4E6), Color(0xFF3EA8D8)],
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '2',
-    category: 'Academic',
-    title: 'Assignment deadline today',
-    body: 'SE2045 – Software Architecture assignment is due at 11:59 PM tonight. Submit via the portal.',
-    time: '18 min ago',
-    icon: Icons.assignment_rounded,
-    gradientColors: const [Color(0xFF8CB2FF), Color(0xFF5B82F0)],
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '3',
-    category: 'Security',
-    title: 'New login detected',
-    body: "A new login to your account was detected from a new device. If this wasn't you, contact support immediately.",
-    time: '52 min ago',
-    icon: Icons.security_rounded,
-    gradientColors: const [Color(0xFFFF8FAB), Color(0xFFD94F72)],
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '4',
-    category: 'Gate',
-    title: 'Gate out recorded',
-    body: 'Your gate-out was recorded at 12:34 PM today. If this is incorrect, please contact the front office.',
-    time: '2 h ago',
-    icon: Icons.sensor_door_rounded,
-    gradientColors: const [Color(0xFF77C8A8), Color(0xFF3DAA82)],
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '5',
-    category: 'Reminder',
-    title: 'Library book due tomorrow',
-    body: '"Clean Code" borrowed on 24 Apr is due for return tomorrow. Renew online to avoid fines.',
-    time: '3 h ago',
-    icon: Icons.menu_book_rounded,
-    gradientColors: const [Color(0xFFFFB38A), Color(0xFFE8845A)],
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '6',
-    category: 'Event',
-    title: 'Hackathon registration confirmed',
-    body: 'You have successfully registered for Hackathon 2026. Check your email for team details and venue info.',
-    time: 'Yesterday',
-    icon: Icons.code_rounded,
-    gradientColors: const [Color(0xFFD4AAFF), Color(0xFF9067C6)],
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '7',
-    category: 'Result',
-    title: 'Mid-term results published',
-    body: 'Your mid-term results for Semester 2 are now available. Log in to the portal to view your grades.',
-    time: 'Yesterday',
-    icon: Icons.bar_chart_rounded,
-    gradientColors: const [Color(0xFF80E8B8), Color(0xFF2EAA75)],
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '8',
-    category: 'Reminder',
-    title: 'Attendance below threshold',
-    body: 'Your attendance for SE1095 has dropped to 74%, below the 75% requirement. Please attend upcoming classes.',
-    time: '2 days ago',
-    icon: Icons.warning_amber_rounded,
-    gradientColors: const [Color(0xFFFFCC80), Color(0xFFD47A2E)],
-    isRead: true,
-  ),
-];
+import 'package:universe_app/features/notifications/models/notification_model.dart';
+import 'package:universe_app/features/notifications/viewmodels/notifications_viewmodel.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -139,6 +35,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     _fadeAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _tabCtrl = TabController(length: 2, vsync: this);
     _entryCtrl.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationsViewModel>().load();
+    });
   }
 
   @override
@@ -148,35 +48,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     super.dispose();
   }
 
-  List<NotificationItem> get _unread =>
-      kNotifications.where((n) => !n.isRead).toList();
-  List<NotificationItem> get _read =>
-      kNotifications.where((n) => n.isRead).toList();
-
-  void _markAllRead() {
-    setState(() {
-      for (final n in kNotifications) {
-        n.isRead = true;
-      }
-    });
-  }
-
-  void _markRead(String id) {
-    setState(() {
-      kNotifications.firstWhere((n) => n.id == id).isRead = true;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final NotificationsViewModel vm = context.watch<NotificationsViewModel>();
+
+    final List<NotificationModel> unread = vm.unread;
+    final List<NotificationModel> read = vm.read;
 
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: Column(
         children: [
-          _buildHeader(topInset),
+          _buildHeader(topInset, vm, unread.length),
           Expanded(
             child: SlideTransition(
               position: _slideAnim,
@@ -192,29 +77,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
                   child: Column(
                     children: [
-                      _buildTabBar(),
+                      _buildTabBar(unread.length),
                       Expanded(
-                        child: TabBarView(
-                          controller: _tabCtrl,
-                          children: [
-                            _NotificationList(
-                              items: _unread,
-                              emptyMessage: 'You\'re all caught up!',
-                              emptyIcon: Icons.done_all_rounded,
-                              controller: _entryCtrl,
-                              onMarkRead: _markRead,
-                              bottomInset: bottomInset,
-                            ),
-                            _NotificationList(
-                              items: _read,
-                              emptyMessage: 'No read notifications',
-                              emptyIcon: Icons.notifications_off_rounded,
-                              controller: _entryCtrl,
-                              onMarkRead: _markRead,
-                              bottomInset: bottomInset,
-                            ),
-                          ],
-                        ),
+                        child: _buildBody(vm, unread, read, bottomInset),
                       ),
                     ],
                   ),
@@ -227,8 +92,98 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _buildHeader(double topInset) {
-    final int unreadCount = _unread.length;
+  Widget _buildBody(
+    NotificationsViewModel vm,
+    List<NotificationModel> unread,
+    List<NotificationModel> read,
+    double bottomInset,
+  ) {
+    if (vm.isLoading && vm.notifications.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (vm.error != null && vm.notifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded,
+                size: 56, color: Color(0xFFCDD9DC)),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                vm.error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF90A4AE),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: () => vm.load(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return TabBarView(
+      controller: _tabCtrl,
+      children: [
+        RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: vm.refresh,
+          child: _NotificationList(
+            items: unread,
+            emptyMessage: 'You\'re all caught up!',
+            emptyIcon: Icons.done_all_rounded,
+            controller: _entryCtrl,
+            onMarkRead: vm.markRead,
+            bottomInset: bottomInset,
+          ),
+        ),
+        RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: vm.refresh,
+          child: _NotificationList(
+            items: read,
+            emptyMessage: 'No read notifications',
+            emptyIcon: Icons.notifications_off_rounded,
+            controller: _entryCtrl,
+            onMarkRead: vm.markRead,
+            bottomInset: bottomInset,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(
+      double topInset, NotificationsViewModel vm, int unreadCount) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(18, 14 + topInset, 18, 24),
@@ -289,7 +244,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 const SizedBox(height: 2),
                 Text(
                   unreadCount > 0
-                      ? '$unreadCount unread messages'
+                      ? '$unreadCount unread notification${unreadCount > 1 ? 's' : ''}'
                       : 'All caught up',
                   style: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -301,9 +256,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ],
             ),
           ),
-          if (_unread.isNotEmpty)
+          if (unreadCount > 0)
             GestureDetector(
-              onTap: _markAllRead,
+              onTap: () => vm.markAllRead(),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -327,7 +282,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(int unreadCount) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
       child: Container(
@@ -362,7 +317,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Unread'),
-                  if (_unread.isNotEmpty) ...[
+                  if (unreadCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -372,7 +327,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${_unread.length}',
+                        '$unreadCount',
                         style: const TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 10,
@@ -405,7 +360,7 @@ class _NotificationList extends StatelessWidget {
     required this.bottomInset,
   });
 
-  final List<NotificationItem> items;
+  final List<NotificationModel> items;
   final String emptyMessage;
   final IconData emptyIcon;
   final AnimationController controller;
@@ -415,28 +370,37 @@ class _NotificationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(emptyIcon, size: 56, color: const Color(0xFFCDD9DC)),
-            const SizedBox(height: 14),
-            Text(
-              emptyMessage,
-              style: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF90A4AE),
+      // ListView keeps RefreshIndicator pull-to-refresh working when empty.
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.5,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(emptyIcon, size: 56, color: const Color(0xFFCDD9DC)),
+                  const SizedBox(height: 14),
+                  Text(
+                    emptyMessage,
+                    style: const TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF90A4AE),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       padding: EdgeInsets.fromLTRB(18, 10, 18, bottomInset + 100),
       itemCount: items.length,
       itemBuilder: (context, i) => _NotificationCard(
@@ -459,7 +423,7 @@ class _NotificationCard extends StatefulWidget {
     required this.onMarkRead,
   });
 
-  final NotificationItem item;
+  final NotificationModel item;
   final int index;
   final AnimationController controller;
   final ValueChanged<String> onMarkRead;
@@ -470,6 +434,19 @@ class _NotificationCard extends StatefulWidget {
 
 class _NotificationCardState extends State<_NotificationCard> {
   bool _expanded = false;
+
+  void _handleTap() {
+    if (!widget.item.isRead) {
+      widget.onMarkRead(widget.item.id);
+    }
+    final String? route = widget.item.route;
+    if (route != null) {
+      // Deep-link to the relevant screen.
+      context.push(route);
+    } else {
+      setState(() => _expanded = !_expanded);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -488,18 +465,11 @@ class _NotificationCardState extends State<_NotificationCard> {
         position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
             .animate(stagger),
         child: GestureDetector(
-          onTap: () {
-            setState(() => _expanded = !_expanded);
-            if (!widget.item.isRead) {
-              widget.onMarkRead(widget.item.id);
-            }
-          },
+          onTap: _handleTap,
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: widget.item.isRead
-                  ? Colors.white
-                  : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
@@ -640,16 +610,19 @@ class _NotificationCardState extends State<_NotificationCard> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        AnimatedRotation(
-                          turns: _expanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 260),
-                          child: const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFFB0BEC5), size: 20),
+                        Icon(
+                          widget.item.route != null
+                              ? Icons.chevron_right_rounded
+                              : (_expanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded),
+                          color: const Color(0xFFB0BEC5),
+                          size: 20,
                         ),
                       ],
                     ),
                   ),
-                  // Expanded body
+                  // Expanded body (only for notifications without a deep link)
                   AnimatedCrossFade(
                     firstChild: const SizedBox(width: double.infinity),
                     secondChild: Column(
@@ -714,10 +687,12 @@ class _NotificationCardState extends State<_NotificationCard> {
 class UnreadNotificationPopup extends StatefulWidget {
   const UnreadNotificationPopup({
     super.key,
+    required this.unread,
     required this.onViewAll,
     required this.onDismiss,
   });
 
+  final List<NotificationModel> unread;
   final VoidCallback onViewAll;
   final VoidCallback onDismiss;
 
@@ -755,9 +730,9 @@ class _UnreadNotificationPopupState extends State<UnreadNotificationPopup>
 
   @override
   Widget build(BuildContext context) {
-    final unread = kNotifications.where((n) => !n.isRead).toList();
+    final List<NotificationModel> unread = widget.unread;
     if (unread.isEmpty) return const SizedBox.shrink();
-    final latest = unread.first;
+    final NotificationModel latest = unread.first;
 
     return FadeTransition(
       opacity: _fade,

@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { prisma } from '../../config/prisma';
+import { notifyUser } from '../notifications/notifications.service';
 
 /**
  * Runs every day at 18:00 (6 PM server local time).
@@ -57,6 +58,20 @@ export function startGateScheduler() {
       });
 
       console.log(`[GateScheduler] Auto-checked out ${stillInside.length} student(s) at 6 PM.`);
+
+      // Notify the linked parent of each auto-checked-out student
+      const parentLinks = await prisma.parentStudent.findMany({
+        where: { student_id: { in: stillInside } },
+        select: { parent_id: true, student_id: true, student: { select: { full_name: true } } },
+      });
+      for (const link of parentLinks) {
+        await notifyUser(link.parent_id, {
+          type: 'gate',
+          title: '🚶 Student Auto-Checked Out',
+          body: `${link.student?.full_name ?? 'Your child'} was automatically checked out at 6 PM.`,
+          data: { route: '/gate-status', direction: 'OUT', studentId: link.student_id },
+        });
+      }
     } catch (err) {
       console.error('[GateScheduler] Auto-checkout failed:', err);
     }

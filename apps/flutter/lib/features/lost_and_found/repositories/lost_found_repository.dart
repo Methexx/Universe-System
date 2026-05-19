@@ -42,8 +42,8 @@ class LostFoundRepository {
           'item_name': itemName,
           'description': description,
           'student_id': studentId,
-          'photo_url': photoUrl,
-          'date_lost': dateLost,
+          if (photoUrl != null) 'photo_url': photoUrl,
+          if (dateLost != null) 'date_lost': dateLost,
         },
         options: Options(headers: await _getAuthHeaders()),
       );
@@ -67,7 +67,7 @@ class LostFoundRepository {
           'description': description,
           'found_at': foundAt,
           'found_date': foundDate,
-          'photo_url': photoUrl,
+          if (photoUrl != null) 'photo_url': photoUrl,
         },
         options: Options(headers: await _getAuthHeaders()),
       );
@@ -86,8 +86,8 @@ class LostFoundRepository {
         '/api/lost-found/comments',
         data: {
           'content': content,
-          'item_id': itemId,
-          'report_id': reportId,
+          if (itemId != null) 'item_id': itemId,
+          if (reportId != null) 'report_id': reportId,
         },
         options: Options(headers: await _getAuthHeaders()),
       );

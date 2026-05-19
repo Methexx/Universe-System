@@ -42,5 +42,7 @@ void main() async {
     noticesViewModel: sl.noticesViewModel,
     settingsViewModel: sl.settingsViewModel,
     lostFoundViewModel: sl.lostFoundViewModel,
+    notificationsViewModel: sl.notificationsViewModel,
+    firebaseService: sl.firebaseService,
   ));
 }

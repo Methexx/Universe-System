@@ -30,4 +30,10 @@ class ApiEndpoints {
 
   // RAG / Chatbot
   static const String ragQuery = '$basePath/rag/query';
+
+  // Notifications
+  static const String notifications = '$basePath/notifications';
+  static const String notificationsUnreadCount = '$basePath/notifications/unread-count';
+  static const String notificationsReadAll = '$basePath/notifications/read-all';
+  static String notificationRead(String id) => '$basePath/notifications/$id/read';
 }

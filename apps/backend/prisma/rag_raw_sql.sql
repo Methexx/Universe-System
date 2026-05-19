@@ -77,3 +77,19 @@ CREATE POLICY "admins_full_access_eval_logs" ON evaluation_logs
   USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid()::uuid AND role = 'admin')
   );
+
+-- 4. Table & function privileges for Supabase API roles.
+--    These tables are created by Prisma migrations and do NOT inherit Supabase's
+--    default GRANTs, so service_role (used by supabaseAdmin via PostgREST) gets
+--    "permission denied for table" despite having BYPASSRLS. Grant explicitly.
+GRANT SELECT, INSERT, UPDATE, DELETE ON policy_documents TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_chunks  TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON evaluation_logs  TO service_role;
+
+-- authenticated users only read (matches the RLS SELECT policies above)
+GRANT SELECT ON policy_documents TO authenticated;
+GRANT SELECT ON document_chunks  TO authenticated;
+
+-- hybrid_search runs with caller privileges (plain SQL, not SECURITY DEFINER)
+GRANT EXECUTE ON FUNCTION hybrid_search(vector, text, integer)
+  TO service_role, authenticated;

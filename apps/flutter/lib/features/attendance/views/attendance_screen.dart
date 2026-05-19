@@ -480,9 +480,19 @@ class _TableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = record.isPresent
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFDC2626);
+    final String normalizedStatus = record.status.toLowerCase();
+    
+    Color statusColor;
+    if (normalizedStatus == 'present') {
+      statusColor = const Color(0xFF16A34A);
+    } else if (normalizedStatus == 'absent') {
+      statusColor = const Color(0xFFDC2626);
+    } else if (normalizedStatus == 'late') {
+      statusColor = const Color(0xFFF59E0B);
+    } else {
+      statusColor = const Color(0xFF94A3B8); // unmarked / pending
+    }
+
     final String statusText = record.status[0].toUpperCase() + record.status.substring(1);
     final Color dotColor = record.gateIn
         ? const Color(0xFF22C55E)

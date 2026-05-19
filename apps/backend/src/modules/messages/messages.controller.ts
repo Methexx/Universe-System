@@ -3,7 +3,7 @@ import { prisma } from '../../config/prisma';
 import { sendSchema, aiDraftSchema } from './messages.schema';
 import { z } from 'zod';
 import { delCacheByPattern, getOrSetCache } from '../../common/utils/cache';
-import { sendFcmNotification } from '../../config/firebase';
+import { notifyUser } from '../notifications/notifications.service';
 import { redis } from '../../config/redis';
 
 async function isOnline(userId: string): Promise<boolean> {
@@ -338,28 +338,13 @@ export const sendMessage = async (request: FastifyRequest, reply: FastifyReply) 
       },
     });
 
-    // Send FCM notification to receiver
-    try {
-      const receiverUser = await prisma.user.findUnique({
-        where: { id: data.receiver_id },
-        select: { fcm_token: true, full_name: true },
-      });
-
-      if (receiverUser?.fcm_token) {
-        await sendFcmNotification(
-          receiverUser.fcm_token,
-          `New Message from ${user.full_name}`,
-          data.content.length > 50 ? data.content.substring(0, 47) + '...' : data.content,
-          { 
-            type: 'message', 
-            sender_id: senderId, 
-            message_id: message.id 
-          }
-        );
-      }
-    } catch (fcmErr) {
-      console.error('Failed to send FCM message notification:', fcmErr);
-    }
+    // Notify the receiver — persists an in-app notification + FCM push.
+    await notifyUser(data.receiver_id, {
+      type: 'message',
+      title: `New Message from ${user.full_name ?? 'Someone'}`,
+      body: data.content.length > 50 ? data.content.substring(0, 47) + '...' : data.content,
+      data: { route: '/messages', senderId, messageId: message.id },
+    });
 
     await delCacheByPattern(`messages:inbox:${senderId}`);
     await delCacheByPattern(`messages:inbox:${data.receiver_id}`);

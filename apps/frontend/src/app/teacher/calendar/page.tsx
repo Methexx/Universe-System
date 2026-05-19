@@ -178,6 +178,7 @@ export default function TeacherCalendarPage() {
       <PageHeader
         title="Calendar"
         subtitle="Track school events, principal meetings, and your own schedule."
+        onRefresh={fetchEvents}
       />
 
       {/* ── Main two-panel area ──────────────────────────────────────────────── */}

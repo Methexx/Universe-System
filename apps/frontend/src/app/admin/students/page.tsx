@@ -62,7 +62,7 @@ export default function StudentsPage() {
     const cached = cacheGet<Student[]>('students');
     if (cached && cached.length > 0) {
       setStudents(cached);
-      setSelectedStudentId(cached[0].id);
+      setSelectedStudentId(prev => prev || cached[0].id);
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -74,10 +74,10 @@ export default function StudentsPage() {
       const mapped = res.data.map(mapApiStudentToStudent);
       setStudents(mapped);
       cacheSet('students', mapped, 300);
-      if (mapped.length > 0 && !selectedStudentId) setSelectedStudentId(mapped[0].id);
+      if (mapped.length > 0) setSelectedStudentId(prev => prev || mapped[0].id);
     }
     setIsLoading(false);
-  }, [selectedStudentId]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchData(); }, [fetchData]);

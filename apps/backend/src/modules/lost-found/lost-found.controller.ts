@@ -96,7 +96,7 @@ export const getItems = async (request: FastifyRequest, reply: FastifyReply) => 
 export const markCollected = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     const { id } = request.params as { id: string };
-    const data = updateStatusSchema.parse(request.body);
+    const data = updateStatusSchema.parse(request.body || { status: 'collected' });
     const user = (request as any).user;
 
     const item = await prisma.lostFoundItem.findUnique({ where: { id } });
@@ -255,7 +255,7 @@ export const getMyReports = async (request: FastifyRequest, reply: FastifyReply)
 export const markRecovered = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     const { id } = request.params as { id: string };
-    const data = updateReportStatusSchema.parse(request.body);
+    const data = updateReportStatusSchema.parse(request.body || { status: 'recovered' });
     const user = (request as any).user;
 
     const report = await prisma.lostFoundReport.findUnique({ where: { id } });

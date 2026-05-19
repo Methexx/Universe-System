@@ -207,6 +207,11 @@ class AppRouter {
           child: const NoticesScreen(),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
         ),
       ),
       GoRoute(

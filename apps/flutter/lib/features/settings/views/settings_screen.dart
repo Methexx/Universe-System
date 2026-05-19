@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -132,7 +133,63 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 subtitle: 'Receive app alerts',
                                 icon: Icons.notifications_none_rounded,
                                 value: context.watch<SettingsViewModel>().settings?.pushNotifications ?? true,
-                                onChanged: (v) => context.read<SettingsViewModel>().updatePushNotifications(v),
+                                onChanged: (v) async {
+                                  final vm = context.read<SettingsViewModel>();
+                                  await vm.updatePushNotifications(v);
+                                  if (vm.permissionDenied && context.mounted) {
+                                    vm.clearPermissionDenied();
+                                    await showDialog<void>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        title: const Text(
+                                          'Notifications Blocked',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        content: const Text(
+                                          'To receive push notifications, go to your device Settings → App → Notifications and enable them for Universe.',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 13,
+                                            color: Color(0xFF546E7A),
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                fontFamily: 'Plus Jakarta Sans',
+                                                color: Color(0xFF90A4AE),
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                              AppSettings.openAppSettings();
+                                            },
+                                            child: Text(
+                                              'Open Settings',
+                                              style: TextStyle(
+                                                fontFamily: 'Plus Jakarta Sans',
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -613,7 +670,7 @@ class _ToggleRow extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final Function(bool) onChanged;
   final Color? activeColor;
 
   @override
@@ -694,7 +751,7 @@ class _AnimatedToggle extends StatefulWidget {
   });
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final Function(bool) onChanged;
   final Color? activeColor;
 
   @override

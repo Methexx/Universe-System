@@ -19,11 +19,13 @@ class _ChatMessage {
     required this.isMine,
     required this.time,
     this.isBot = false,
+    this.isThinking = false,
   });
   final String text;
   final bool isMine;
   final String time;
   final bool isBot;
+  final bool isThinking;
 }
 
 const _ChatMessage _kWelcomeMessage = _ChatMessage(
@@ -93,7 +95,8 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     setState(() {
       _isLoading = true;
       _messages = List<_ChatMessage>.from(_messages)
-        ..add(_ChatMessage(text: text, isMine: true, time: time));
+        ..add(_ChatMessage(text: text, isMine: true, time: time))
+        ..add(const _ChatMessage(text: '', isMine: false, time: '', isBot: true, isThinking: true));
     });
     _inputController.clear();
     _scrollToBottom();
@@ -111,12 +114,14 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
       setState(() {
         _messages = List<_ChatMessage>.from(_messages)
+          ..removeLast() // remove thinking placeholder
           ..add(_ChatMessage(text: replyText, isMine: false, time: _formatTime(), isBot: true));
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _messages = List<_ChatMessage>.from(_messages)
+          ..removeLast() // remove thinking placeholder
           ..add(_ChatMessage(
             text: 'Sorry, I couldn\'t reach the server. Please check your connection and try again.',
             isMine: false,
@@ -400,16 +405,18 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    message.text,
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: mine ? Colors.white : const Color(0xFF16212A),
-                      height: 1.5,
-                    ),
-                  ),
+                  child: message.isThinking 
+                    ? const _ThinkingIndicator()
+                    : Text(
+                        message.text,
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: mine ? Colors.white : const Color(0xFF16212A),
+                          height: 1.5,
+                        ),
+                      ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -530,13 +537,50 @@ class _InputBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: isLoading
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Thinking Indicator ───────────────────────────────────────────────────────
+
+class _ThinkingIndicator extends StatefulWidget {
+  const _ThinkingIndicator();
+  @override
+  State<_ThinkingIndicator> createState() => _ThinkingIndicatorState();
+}
+
+class _ThinkingIndicatorState extends State<_ThinkingIndicator> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat();
+  
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final i = (_ctrl.value * 4).floor();
+        final dots = '.' * i;
+        return Text(
+          'Thinking${dots.padRight(3, '\u00A0')}',
+          style: const TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF16212A),
+            height: 1.5,
+          ),
+        );
+      },
     );
   }
 }

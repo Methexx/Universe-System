@@ -1,11 +1,13 @@
+import 'package:universe_app/core/services/firebase_service.dart';
 import 'package:universe_app/core/viewmodels/base_viewmodel.dart';
 import 'package:universe_app/features/settings/models/settings_model.dart';
 import 'package:universe_app/features/settings/repositories/settings_repository.dart';
 
 class SettingsViewModel extends BaseViewModel {
   final SettingsRepository _repository;
+  final FirebaseService _firebaseService;
 
-  SettingsViewModel(this._repository) {
+  SettingsViewModel(this._repository, this._firebaseService) {
     // Initialize with defaults to allow interaction immediately
     _settings = UserSettingsModel(
       id: '',
@@ -19,6 +21,16 @@ class SettingsViewModel extends BaseViewModel {
 
   UserSettingsModel? _settings;
   UserSettingsModel? get settings => _settings;
+
+  /// Set to `true` after the user tries to enable push notifications but
+  /// device-level permission is permanently denied. The UI checks this to
+  /// show a "Go to device Settings" dialog, then clears it.
+  bool _permissionDenied = false;
+  bool get permissionDenied => _permissionDenied;
+
+  void clearPermissionDenied() {
+    _permissionDenied = false;
+  }
 
   Future<void> loadSettings() async {
     setLoading(true);
@@ -48,6 +60,18 @@ class SettingsViewModel extends BaseViewModel {
 
   Future<void> updatePushNotifications(bool value) async {
     if (_settings == null) return;
+
+    if (value) {
+      final granted = await _firebaseService.requestOrCheckPermission();
+      if (!granted) {
+        _permissionDenied = true;
+        notifyListeners();
+        return;
+      }
+      // Ensure FCM token is registered now that permission is confirmed.
+      await _firebaseService.uploadTokenIfLoggedIn();
+    }
+
     _settings = _settings!.copyWith(pushNotifications: value);
     notifyListeners();
     await _updateRemote();

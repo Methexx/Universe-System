@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/features/lost_and_found/models/lost_found_model.dart';
 import 'package:universe_app/features/lost_and_found/viewmodels/lost_found_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 
 // ─── Role ─────────────────────────────────────────────────────────────────────
 
@@ -268,6 +269,8 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
   }
 
   void _openNewPost() {
+    final role = context.read<AuthViewModel>().currentUser?.role ?? '';
+    
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -276,6 +279,7 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => _NewPostSheet(
+        role: role,
         onSubmit: (itemName, description, isFound, foundAt) async {
           final vm = context.read<LostFoundViewModel>();
           bool success;
@@ -284,10 +288,30 @@ class _LostAndFoundScreenState extends State<LostAndFoundScreen>
           } else {
             // Get student ID from profile if parent
             final profile = context.read<ProfileViewModel>().profile;
-            final studentId = profile?.students?.first.id ?? ''; 
+            final studentId = profile?.student?.id ?? '';
+            
+            if (studentId.isEmpty) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Your child profile is still loading — try again')),
+                );
+              }
+              return false;
+            }
+            
             success = await vm.createLostReport(itemName: itemName, description: description, studentId: studentId);
           }
-          if (success && mounted) Navigator.pop(context);
+          
+          if (mounted) {
+            if (success) {
+              Navigator.pop(context);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(vm.errorMessage ?? 'Failed to post')),
+              );
+            }
+          }
+          return success;
         },
       ),
     );
@@ -891,8 +915,9 @@ class _CommentTile extends StatelessWidget {
 // ─── New post bottom sheet ────────────────────────────────────────────────────
 
 class _NewPostSheet extends StatefulWidget {
-  const _NewPostSheet({required this.onSubmit});
-  final Function(String, String, bool, String?) onSubmit;
+  const _NewPostSheet({required this.onSubmit, required this.role});
+  final Future<bool> Function(String, String, bool, String?) onSubmit;
+  final String role;
 
   @override
   State<_NewPostSheet> createState() => _NewPostSheetState();
@@ -902,7 +927,15 @@ class _NewPostSheetState extends State<_NewPostSheet> {
   final TextEditingController _titleCtrl = TextEditingController();
   final TextEditingController _descCtrl = TextEditingController();
   final TextEditingController _locationCtrl = TextEditingController();
-  bool _isFound = false;
+  late bool _isFound;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to 'I FOUND' if not a parent
+    _isFound = widget.role != 'parent';
+  }
 
   @override
   void dispose() {
@@ -912,9 +945,16 @@ class _NewPostSheetState extends State<_NewPostSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_titleCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) return;
-    widget.onSubmit(_titleCtrl.text.trim(), _descCtrl.text.trim(), _isFound, _locationCtrl.text.trim().isEmpty ? null : _locationCtrl.text.trim());
+    setState(() => _isSubmitting = true);
+    await widget.onSubmit(
+      _titleCtrl.text.trim(),
+      _descCtrl.text.trim(),
+      _isFound,
+      _locationCtrl.text.trim().isEmpty ? null : _locationCtrl.text.trim(),
+    );
+    if (mounted) setState(() => _isSubmitting = false);
   }
 
   @override
@@ -937,9 +977,12 @@ class _NewPostSheetState extends State<_NewPostSheet> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _TypeButton(label: 'I LOST SOMETHING', isActive: !_isFound, onTap: () => setState(() => _isFound = false), color: const Color(0xFF7A3D1A)),
-                const SizedBox(width: 10),
-                _TypeButton(label: 'I FOUND SOMETHING', isActive: _isFound, onTap: () => setState(() => _isFound = true), color: const Color(0xFF2E6B7F)),
+                if (widget.role == 'parent')
+                  _TypeButton(label: 'I LOST SOMETHING', isActive: !_isFound, onTap: () => setState(() => _isFound = false), color: const Color(0xFF7A3D1A)),
+                if (widget.role == 'parent' && widget.role != 'parent') // Just spacing if multiple exist, but only one will show per role
+                  const SizedBox(width: 10),
+                if (widget.role != 'parent')
+                  _TypeButton(label: 'I FOUND SOMETHING', isActive: _isFound, onTap: () => setState(() => _isFound = true), color: const Color(0xFF2E6B7F)),
               ],
             ),
             const SizedBox(height: 18),
@@ -950,15 +993,28 @@ class _NewPostSheetState extends State<_NewPostSheet> {
             _FormField(controller: _locationCtrl, label: _isFound ? 'Where did you find it?' : 'Where did you lose it? (Optional)', hint: 'e.g. Canteen, Science Lab'),
             const SizedBox(height: 24),
             GestureDetector(
-              onTap: _submit,
+              onTap: _isSubmitting ? null : () {
+                if (_titleCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill in the item name and description')),
+                  );
+                  return;
+                }
+                _submit();
+              },
               child: Container(
                 height: 52,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: <Color>[Color(0xFF7A3D1A), Color(0xFFD47A2E)], begin: Alignment.centerLeft, end: Alignment.centerRight),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: <BoxShadow>[BoxShadow(color: const Color(0xFF7A3D1A).withValues(alpha: 0.30), blurRadius: 14, offset: const Offset(0, 5))],
                 ),
-                child: const Center(child: Text('Post to Thread', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white))),
+                child: Center(
+                  child: _isSubmitting 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                    : const Text('Post to Thread', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
               ),
             ),
           ],

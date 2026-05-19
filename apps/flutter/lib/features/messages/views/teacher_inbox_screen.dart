@@ -90,6 +90,9 @@ class _TeacherInboxScreenState extends State<TeacherInboxScreen> {
     if (text.isEmpty || _activeContact == null || _isSending) return;
     setState(() => _isSending = true);
 
+    _inputCtrl.clear();
+    _scrollToBottom();
+
     final success = await context.read<MessagesViewModel>().sendMessage(
           receiverId: _activeContact!.id,
           content: text,
@@ -99,9 +102,10 @@ class _TeacherInboxScreenState extends State<TeacherInboxScreen> {
 
     if (mounted) {
       setState(() => _isSending = false);
-      if (success) {
-        _inputCtrl.clear();
-        _scrollToBottom();
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.read<MessagesViewModel>().error ?? 'Failed to send message')),
+        );
       }
     }
   }
@@ -761,13 +765,20 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     if (mine) ...[
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.done_all_rounded,
-                        size: 14,
-                        color: message.isRead
-                            ? const Color(0xFF3EA8D8)
-                            : const Color(0xFF94A3B0),
-                      ),
+                      if (message.isPending)
+                        const Icon(
+                          Icons.schedule_rounded,
+                          size: 12,
+                          color: Color(0xFF94A3B0),
+                        )
+                      else
+                        Icon(
+                          Icons.done_all_rounded,
+                          size: 14,
+                          color: message.isRead
+                              ? const Color(0xFF3EA8D8)
+                              : const Color(0xFF94A3B0),
+                        ),
                     ],
                   ],
                 ),
