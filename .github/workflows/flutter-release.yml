@@ -34,11 +34,11 @@ jobs:
         run: |
           echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 --decode > apps/flutter/android/app/universe-release.jks
           cat > apps/flutter/android/key.properties <<EOF
-          storeFile=../app/universe-release.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          EOF
+storeFile=../app/universe-release.jks
+storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+keyAlias=${{ secrets.KEY_ALIAS }}
+keyPassword=${{ secrets.KEY_PASSWORD }}
+EOF
 
       - name: Get dependencies
         working-directory: apps/flutter
