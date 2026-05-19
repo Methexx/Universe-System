@@ -6,6 +6,13 @@ import { TextInput } from '@/shared/components/ui/forms/TextInput';
 import { SelectInput } from '@/shared/components/ui/forms/SelectInput';
 import { ChevronLeft, ChevronRight, Clock, Plus, Trash2, Edit2, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
+import { 
+  getCalendarEvents, 
+  createCalendarEvent, 
+  updateCalendarEvent, 
+  deleteCalendarEvent,
+  CalendarEvent as ApiEvent 
+} from '@/features/calendar/lib/calendar-api';
 
 interface CalendarEvent {
   id: string;
@@ -25,17 +32,48 @@ const EVENT_COLORS = [
   { label: 'Pink', value: 'bg-pink-500' },
 ];
 
-const INITIAL_EVENTS: CalendarEvent[] = [
-  { id: '1', title: 'Teacher Meeting', date: new Date().toISOString().split('T')[0], time: '10:00 AM', color: 'bg-purple-500', description: 'Monthly staff synchronization' },
-  { id: '2', title: 'Science Fair', date: new Date().toISOString().split('T')[0], time: '02:00 PM', color: 'bg-blue-500', description: 'Annual science fair in the main hall' },
-];
+const TYPE_TO_COLOR: Record<string, string> = {
+  meeting: 'bg-purple-500',
+  event: 'bg-blue-500',
+  holiday: 'bg-emerald-500',
+  exam: 'bg-red-500',
+};
+
+const COLOR_TO_TYPE: Record<string, string> = {
+  'bg-purple-500': 'meeting',
+  'bg-blue-500': 'event',
+  'bg-emerald-500': 'holiday',
+  'bg-red-500': 'exam',
+  'bg-orange-500': 'event',
+  'bg-pink-500': 'event',
+};
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
+  const fetchEvents = React.useCallback(async () => {
+    const res = await getCalendarEvents();
+    if (res.ok) {
+      const mapped = res.data.map((ev: ApiEvent) => ({
+        id: ev.id,
+        title: ev.title,
+        date: ev.start_time.split('T')[0],
+        time: new Date(ev.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        color: TYPE_TO_COLOR[ev.type] || 'bg-blue-500',
+        description: ev.description || '',
+      }));
+      setEvents(mapped);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchEvents();
+  }, [fetchEvents]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -75,18 +113,36 @@ export default function CalendarPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveEvent = () => {
+  const handleSaveEvent = async () => {
     if (!formData.title || !formData.time) return;
 
+    // Parse time to ISO
+    const [timeStr, modifier] = formData.time.split(' ');
+    const [hoursStr, minutesStr] = timeStr.split(':');
+    let hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    
+    const start = new Date(selectedDate);
+    start.setHours(hours, minutes, 0, 0);
+    const end = new Date(start);
+    end.setHours(start.getHours() + 1);
+
+    const payload = {
+      title: formData.title,
+      description: formData.description,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      type: COLOR_TO_TYPE[formData.color] || 'event',
+    };
+
     if (editingEventId) {
-      setEvents(prev => prev.map(ev => ev.id === editingEventId ? { ...ev, ...formData, date: selectedDate } : ev));
+      const res = await updateCalendarEvent(editingEventId, payload);
+      if (res.ok) await fetchEvents();
     } else {
-      const newEvent: CalendarEvent = {
-        id: Date.now().toString(),
-        date: selectedDate,
-        ...formData
-      };
-      setEvents(prev => [...prev, newEvent]);
+      const res = await createCalendarEvent(payload);
+      if (res.ok) await fetchEvents();
     }
     
     setIsFormOpen(false);
@@ -105,8 +161,11 @@ export default function CalendarPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(prev => prev.filter(ev => ev.id !== id));
+  const handleDeleteEvent = async (id: string) => {
+    const res = await deleteCalendarEvent(id);
+    if (res.ok) {
+      await fetchEvents();
+    }
   };
 
   const openNewEventForm = () => {
@@ -123,6 +182,7 @@ export default function CalendarPage() {
       <PageHeader 
         title="Calendar"
         subtitle="Manage your schedules and events"
+        onRefresh={fetchEvents}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-start">

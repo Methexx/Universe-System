@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -14,7 +15,12 @@ class FirebaseService {
   FirebaseMessaging? _messaging;
   late FlutterLocalNotificationsPlugin _localNotifications;
 
+  /// Called when the app opens from a tapped notification (background/terminated).
   void Function(RemoteMessage)? onNotificationTap;
+
+  /// Called for every foreground message — lets the UI refresh live (e.g. the
+  /// in-app notification list and unread badge).
+  void Function(RemoteMessage)? onMessageReceived;
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'high_importance_channel',
@@ -43,7 +49,17 @@ class FirebaseService {
         const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
         const iosInit = DarwinInitializationSettings();
         const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
-        await _localNotifications.initialize(settings: initSettings);
+        await _localNotifications.initialize(
+          settings: initSettings,
+          onDidReceiveNotificationResponse: (details) {
+            if (details.payload != null) {
+              try {
+                final message = RemoteMessage.fromMap(jsonDecode(details.payload!));
+                onNotificationTap?.call(message);
+              } catch (_) {}
+            }
+          },
+        );
 
         await _localNotifications
             .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -86,6 +102,9 @@ class FirebaseService {
   void _handleForegroundMessage(RemoteMessage message) {
     print('Gate notification: ${message.notification?.title} — ${message.notification?.body}');
 
+    // Let the UI update the in-app list / unread badge live.
+    onMessageReceived?.call(message);
+
     final notification = message.notification;
     if (notification == null) return;
 
@@ -93,6 +112,7 @@ class FirebaseService {
       id: notification.hashCode,
       title: notification.title,
       body: notification.body,
+      payload: jsonEncode(message.toMap()),
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,
@@ -133,5 +153,36 @@ class FirebaseService {
 
   Future<String?> getFcmToken() async {
     return _messaging?.getToken();
+  }
+
+  /// Checks the current OS notification permission and requests it if not yet
+  /// determined. Returns `true` if permission is granted or provisional,
+  /// `false` if permanently denied (caller should show "open device settings" UI).
+  Future<bool> requestOrCheckPermission() async {
+    try {
+      final messaging = _messaging ?? FirebaseMessaging.instance;
+      final settings = await messaging.getNotificationSettings();
+      final status = settings.authorizationStatus;
+
+      if (status == AuthorizationStatus.authorized ||
+          status == AuthorizationStatus.provisional) {
+        return true;
+      }
+
+      if (status == AuthorizationStatus.notDetermined) {
+        final result = await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return result.authorizationStatus == AuthorizationStatus.authorized ||
+            result.authorizationStatus == AuthorizationStatus.provisional;
+      }
+
+      // AuthorizationStatus.denied — permanently denied by user.
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 }

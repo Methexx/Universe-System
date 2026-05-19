@@ -19,6 +19,12 @@ import 'package:universe_app/features/support/repositories/support_repository.da
 import 'package:universe_app/features/support/viewmodels/support_viewmodel.dart';
 import 'package:universe_app/features/notices/repositories/notices_repository.dart';
 import 'package:universe_app/features/notices/viewmodels/notices_viewmodel.dart';
+import 'package:universe_app/features/lost_and_found/repositories/lost_found_repository.dart';
+import 'package:universe_app/features/lost_and_found/viewmodels/lost_found_viewmodel.dart';
+import 'package:universe_app/features/settings/repositories/settings_repository.dart';
+import 'package:universe_app/features/settings/viewmodels/settings_viewmodel.dart';
+import 'package:universe_app/features/notifications/repositories/notifications_repository.dart';
+import 'package:universe_app/features/notifications/viewmodels/notifications_viewmodel.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -44,6 +50,12 @@ class ServiceLocator {
   late SupportViewModel supportViewModel;
   late NoticesRepository noticesRepository;
   late NoticesViewModel noticesViewModel;
+  late SettingsRepository settingsRepository;
+  late SettingsViewModel settingsViewModel;
+  late LostFoundRepository lostFoundRepository;
+  late LostFoundViewModel lostFoundViewModel;
+  late NotificationsRepository notificationsRepository;
+  late NotificationsViewModel notificationsViewModel;
 
   Future<void> setup() async {
     apiClient = ApiClient(baseUrl: ApiConfig.baseUrl);
@@ -87,5 +99,14 @@ class ServiceLocator {
       secureStorage: secureStorageService,
     );
     noticesViewModel = NoticesViewModel(repository: noticesRepository);
+    settingsRepository = SettingsRepository(apiClient.dio, secureStorageService);
+    settingsViewModel = SettingsViewModel(settingsRepository, firebaseService);
+    lostFoundRepository = LostFoundRepository(apiClient.dio, secureStorageService);
+    lostFoundViewModel = LostFoundViewModel(lostFoundRepository);
+    notificationsRepository = NotificationsRepository(
+      dio: apiClient.dio,
+      secureStorage: secureStorageService,
+    );
+    notificationsViewModel = NotificationsViewModel(notificationsRepository);
   }
 }

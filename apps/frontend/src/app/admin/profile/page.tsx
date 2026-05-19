@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TextInput } from '@/shared/components/ui/forms/TextInput';
-import { Eye, Edit2, Loader2, Check } from 'lucide-react';
+import { Edit2, Loader2, Check } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { updateProfile, changePassword, deleteMe } from '@/features/auth/lib/auth-api';
 
@@ -26,10 +26,6 @@ export default function ProfilePage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const [preferences, setPreferences] = useState({
-    darkMode: false,
-    emailNotifications: false,
-  });
 
   // Modals state
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
@@ -69,10 +65,6 @@ export default function ProfilePage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleToggle = (key: keyof typeof preferences) => {
-    setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,52 +195,6 @@ export default function ProfilePage() {
               {formData.firstName || formData.lastName ? `${formData.firstName} ${formData.lastName}` : 'No Name'}
             </h2>
             <p className="text-[13px] font-medium text-[var(--muted)]">{user.email}</p>
-          </div>
-
-          {/* Preferences Card */}
-          <div className="bg-[var(--surface)] border border-[var(--line)] rounded-[20px] p-6 w-full shadow-sm">
-            <h3 className="text-[16px] font-bold text-[#0f172a] mb-1">Preferences</h3>
-            <p className="text-[12px] font-medium text-[var(--muted)] mb-6">Customize ur web experience</p>
-
-            <div className="flex flex-col gap-6">
-              {/* Dark Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[var(--muted)]">
-                    <Eye className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-[14px] font-bold text-[#0f172a]">Dark Mode</h4>
-                    <p className="text-[12px] font-medium text-[var(--muted)]">Customize ur web experience</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleToggle('darkMode')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.darkMode ? 'bg-[#3b82f6]' : 'bg-gray-200'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.darkMode ? 'left-[22px]' : 'left-[2px]'}`} />
-                </button>
-              </div>
-
-              {/* Email Notifications Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[var(--muted)]">
-                    <Eye className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-[14px] font-bold text-[#0f172a]">Email Notifications</h4>
-                    <p className="text-[12px] font-medium text-[var(--muted)]">Customize ur web experience</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleToggle('emailNotifications')}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${preferences.emailNotifications ? 'bg-[#3b82f6]' : 'bg-gray-200'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${preferences.emailNotifications ? 'left-[22px]' : 'left-[2px]'}`} />
-                </button>
-              </div>
-            </div>
           </div>
 
         </div>

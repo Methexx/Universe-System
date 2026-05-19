@@ -6,11 +6,8 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { TabSelector } from '@/shared/components/ui/TabSelector';
 import { FilterBar } from '@/shared/components/ui/FilterBar';
 import { DirectoryTable } from '@/shared/components/ui/DirectoryTable';
-import { Calendar as CalendarIcon, CheckCircle2, XCircle } from 'lucide-react';
-import clsx from 'clsx';
 import { StudentProfileCard } from './components/StudentProfileCard';
 import { AddStudentButton } from './components/AddStudentButton';
-import { GradesHistory } from './components/GradesHistory';
 import { EditStudentModal, Student } from './components/EditStudentModal';
 import { getStudents, type StudentRecord, updateStudent, deleteStudent as deleteStudentApi } from '@/features/school/lib/school-api';
 import { cacheGet, cacheSet } from '@/shared/lib/local-cache';
@@ -48,7 +45,7 @@ function mapApiStudentToStudent(s: StudentRecord): Student {
 
 export default function StudentsPage() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'general' | 'attendance' | 'grades'>('general');
+  const [activeTab, setActiveTab] = useState<'general'>('general');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -65,7 +62,7 @@ export default function StudentsPage() {
     const cached = cacheGet<Student[]>('students');
     if (cached && cached.length > 0) {
       setStudents(cached);
-      setSelectedStudentId(cached[0].id);
+      setSelectedStudentId(prev => prev || cached[0].id);
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -77,10 +74,10 @@ export default function StudentsPage() {
       const mapped = res.data.map(mapApiStudentToStudent);
       setStudents(mapped);
       cacheSet('students', mapped, 300);
-      if (mapped.length > 0 && !selectedStudentId) setSelectedStudentId(mapped[0].id);
+      if (mapped.length > 0) setSelectedStudentId(prev => prev || mapped[0].id);
     }
     setIsLoading(false);
-  }, [selectedStudentId]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchData(); }, [fetchData]);
@@ -159,12 +156,10 @@ export default function StudentsPage() {
             <h2 className="text-xl font-bold text-[#0f172a]">Directory</h2>
             <TabSelector
               options={[
-                { id: 'general', label: 'General' },
-                { id: 'attendance', label: 'Attendance' },
-                { id: 'grades', label: 'Grades' }
+                { id: 'general', label: 'General' }
               ]}
               activeTab={activeTab}
-              onTabChange={(id) => setActiveTab(id as 'general' | 'attendance' | 'grades')}
+              onTabChange={(id) => setActiveTab(id as 'general')}
             />
           </div>
 
@@ -248,70 +243,6 @@ export default function StudentsPage() {
   </div>
 )}
 
-{activeTab === 'attendance' && (
-   <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full">
-     <div className="flex pl-1 pr-1 w-full">
-        <FilterBar
-            searchPlaceholder="Search Student by ID or Name"
-            searchValue={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={[
-              { id: 'month', label: 'Month', icon: <CalendarIcon className="h-4 w-4 text-gray-400" />, options: [{label: 'April 2024', value: 'apr'}], value: '', onChange: () => {} },
-              { id: 'week', label: 'Week', options: [{label: 'Week 1', value: 'w1'}], value: '', onChange: () => {} },
-              { id: 'class', label: 'Class', options: [{label: '10-A', value: '10a'}], value: '', onChange: () => {} }
-            ]}
-        />
-     </div>
-
-     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto w-full">
-        <table className="w-full text-left text-sm whitespace-nowrap min-w-[1000px]">
-              <thead className="bg-[#fafafa] border-b border-gray-100 text-gray-700 font-bold text-[13px] tracking-wider">
-                <tr>
-                  <th className="py-4 px-6 font-bold">Student ID</th>
-                  {[8,9,10,11,12,13,14,15,16,17,18,19,20,21].map(day => (
-                    <th key={day} className="py-4 px-2 text-center text-[13px] font-bold">
-                      {String(day).padStart(2, '0')}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700 font-medium bg-white">
-                {filteredStudents.length > 0 ? filteredStudents.map((student, rowIndex) => {
-                  const isSelected = student.id === selectedStudentId;
-                  return (
-                  <tr key={student.id} onClick={() => setSelectedStudentId(student.id)} className={clsx("cursor-pointer transition-colors hover:bg-gray-50/50", isSelected && "bg-blue-50/50")}>
-                    <td className="py-4 px-6 text-[13px] text-[#475569]">
-                      {student.name} {student.id}
-                    </td>
-                    {[8,9,10,11,12,13,14,15,16,17,18,19,20,21].map((day) => (
-                      <td key={day} className="py-4 px-2">
-                         <div className="flex justify-center">
-                            {(day + rowIndex) % 5 === 0 || (day === 10 && rowIndex % 2 !== 0) ?
-                              <XCircle className="w-[18px] h-[18px] text-red-500 fill-red-100" /> :
-                              <CheckCircle2 className="w-[18px] h-[18px] text-green-500 fill-green-100" />
-                            }
-                         </div>
-                      </td>
-                    ))}
-                  </tr>
-                )}) : (
-                  <tr>
-                    <td colSpan={15} className="py-8 text-center text-gray-500">
-                      No logs found matching your criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-        </table>
-     </div>
-   </div>
-)}
-
-{activeTab === 'grades' && (
-   <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full">
-      <GradesHistory />
-   </div>
-)}
 
 </div>
 

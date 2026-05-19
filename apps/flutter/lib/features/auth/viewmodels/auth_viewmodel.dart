@@ -64,20 +64,25 @@ class AuthViewModel extends BaseViewModel {
     final availableAndEnabled = await isBiometricAvailableAndEnabled();
     if (!availableAndEnabled) return false;
 
-    final authenticated = await _biometricService.authenticate(
-      reason: 'Please authenticate to log in automatically',
-    );
+    try {
+      final authenticated = await _biometricService.authenticate(
+        reason: 'Please authenticate to log in automatically',
+      );
 
-    if (!authenticated) return false;
+      if (!authenticated) return false;
 
-    final creds = await _secureStorage.getBiometricCredentials();
-    if (creds == null) return false;
+      final creds = await _secureStorage.getBiometricCredentials();
+      if (creds == null) return false;
 
-    return login(
-      email: creds['email']!,
-      password: creds['password']!,
-      keepMeSignedIn: await _localStorage.getKeepMeSignedIn(),
-    );
+      return login(
+        email: creds['email']!,
+        password: creds['password']!,
+        keepMeSignedIn: await _localStorage.getKeepMeSignedIn(),
+      );
+    } catch (e) {
+      setError('Biometric authentication failed or was canceled.');
+      return false;
+    }
   }
 
   Future<bool> login({

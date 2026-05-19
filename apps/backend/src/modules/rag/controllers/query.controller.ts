@@ -2,8 +2,8 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { redis } from '../../../config/redis';
 import { embedText } from '../services/embedder.service';
-import { hybridSearch, rerankChunks } from '../services/retrieval.service';
-import { generateAnswer } from '../services/generation.service';
+import { hybridSearch, rerankChunks, type RetrievedChunk } from '../services/retrieval.service';
+import { generateAnswer, generateGeneralAnswer, type GenerationResult } from '../services/generation.service';
 import { logEvaluation } from '../services/eval.service';
 
 const CACHE_TTL_SECONDS = 3600; // 1 hour — school policy answers are stable
@@ -46,23 +46,20 @@ export async function queryRag(
   // Step 2: hybrid search (pgvector + tsvector)
   const rawChunks = await hybridSearch(queryEmbedding, normalised, top_k);
 
+  // Step 3: generate an answer.
+  // When retrieval finds no relevant policy chunks, fall back to general
+  // knowledge instead of refusing — still helpful for school-related questions.
+  let result: GenerationResult;
+  let loggedChunks: RetrievedChunk[] = [];
   if (rawChunks.length === 0) {
-    return reply.send({
-      answer: "I don't have enough information in the school policy documents to answer that.",
-      sources: [],
-      confidence: 0,
-      cached: false,
-    });
+    result = await generateGeneralAnswer(question);
+  } else {
+    loggedChunks = rerankChunks(rawChunks, normalised);
+    result = await generateAnswer(loggedChunks, question);
   }
 
-  // Step 3: re-rank by term frequency boost
-  const chunks = rerankChunks(rawChunks, normalised);
-
-  // Step 4: generate answer with Claude Haiku
-  const result = await generateAnswer(chunks, question);
-
-  // Step 5: log to evaluation_logs (non-blocking — don't await)
-  logEvaluation(question, chunks, result).catch((err) =>
+  // Step 4: log to evaluation_logs (non-blocking — don't await)
+  logEvaluation(question, loggedChunks, result).catch((err) =>
     request.log.error({ err }, 'Eval logging failed')
   );
 

@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
+import { PDFParse } from 'pdf-parse';
 
 export interface TextChunk {
   text: string;
@@ -70,9 +69,16 @@ function buildChunks(sentences: string[]): string[] {
  * Cleans up hyphenation artifacts and extra whitespace common in PDF-extracted text.
  */
 export async function chunkPdf(buffer: Buffer): Promise<TextChunk[]> {
-  const data = await pdfParse(buffer);
+  const parser = new PDFParse({ data: buffer });
+  let rawText: string;
+  try {
+    const result = await parser.getText();
+    rawText = result.text;
+  } finally {
+    await parser.destroy(); // always release the pdf.js worker
+  }
 
-  const cleaned = data.text
+  const cleaned = rawText
     .replace(/-\n/g, '')     // rejoin hyphenated line breaks
     .replace(/\n+/g, ' ')   // flatten newlines to spaces
     .replace(/\s{2,}/g, ' ') // collapse multiple spaces

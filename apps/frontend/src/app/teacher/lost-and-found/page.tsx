@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
-import { Search, Plus, MapPin, Calendar, Tag, Package, X, ImagePlus, CheckCircle, RotateCcw } from "lucide-react";
+import { Search, Plus, MapPin, Calendar, Tag, Package, X, ImagePlus, CheckCircle, RotateCcw, Loader2 } from "lucide-react";
 import clsx from "clsx";
+import { request } from "@/shared/lib/api-client";
+import { toast } from "react-hot-toast";
 
 type ItemType = "lost" | "found";
 type ItemStatus = "active" | "claimed";
@@ -23,31 +25,6 @@ interface LostFoundItem {
   bgColor: string;
   tags: string[];
 }
-
-const INITIAL_ITEMS: LostFoundItem[] = [
-  {
-    id: "1", type: "lost", title: "Black School Bag", description: "A black Jansport backpack with a broken zipper on the front pocket. Has a keychain attached.", location: "Grade 10-A Classroom", date: "2026-04-22", postedBy: "Samantha Perera", postedByRole: "teacher", status: "active", bgColor: "bg-slate-200", tags: ["bag", "uniform"],
-  },
-  {
-    id: "2", type: "found", title: "Water Bottle (Blue)", description: "Blue metal water bottle found near the canteen. Has stickers on the side.", location: "Canteen", date: "2026-04-21", postedBy: "Samantha Perera", postedByRole: "teacher", status: "active", bgColor: "bg-blue-100", tags: ["bottle"],
-  },
-  {
-    id: "3", type: "lost", title: "Scientific Calculator", description: "Casio fx-991EX scientific calculator. Student name written on the back.", location: "Library", date: "2026-04-20", postedBy: "Mr. De Silva", postedByRole: "principal", status: "active", bgColor: "bg-yellow-100", tags: ["stationery", "electronics"],
-  },
-  {
-    id: "4", type: "found", title: "Glasses Case", description: "Brown leather glasses case with a pair of prescription glasses inside.", location: "School Office", date: "2026-04-19", postedBy: "Mr. De Silva", postedByRole: "principal", status: "claimed", bgColor: "bg-amber-100", tags: ["accessories"],
-  },
-  {
-    id: "5", type: "found", title: "ID Card — Nimal Bandara", description: "Student ID card found near the sports ground. Grade 9 student.", location: "Sports Ground", date: "2026-04-18", postedBy: "Samantha Perera", postedByRole: "teacher", status: "active", bgColor: "bg-green-100", tags: ["id", "documents"],
-  },
-  {
-    id: "6", type: "lost", title: "PE Kit Bag", description: "White drawstring PE kit bag with red stripes. Contains shorts and a t-shirt.", location: "Changing Room", date: "2026-04-17", postedBy: "Samantha Perera", postedByRole: "teacher", status: "claimed", bgColor: "bg-red-100", tags: ["bag", "uniform"],
-  },
-  {
-    id: "7", type: "found", title: "Geometry Box", description: "Blue plastic geometry box containing compass, protractor, and rulers.", location: "Grade 8-B Classroom", date: "2026-04-16", postedBy: "Mr. De Silva", postedByRole: "principal", status: "active", bgColor: "bg-purple-100", tags: ["stationery"],
-  },
-];
-
 interface PostForm {
   type: ItemType;
   title: string;
@@ -56,14 +33,62 @@ interface PostForm {
   description: string;
 }
 
-const EMPTY_FORM: PostForm = { type: "lost", title: "", location: "", date: "", description: "" };
+const EMPTY_FORM: PostForm = { type: "found", title: "", location: "", date: "", description: "" };
+
+interface BoardPost {
+  id: string;
+  type: ItemType;
+  title: string;
+  description: string;
+  location: string;
+  timeAgo: string;
+  authorName: string;
+  role: string;
+  status: string;
+  photo_url?: string;
+}
 
 export default function TeacherLostAndFoundPage() {
-  const [items, setItems] = useState<LostFoundItem[]>(INITIAL_ITEMS);
+  const [items, setItems] = useState<LostFoundItem[]>([]);
   const [tab, setTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<PostForm>(EMPTY_FORM);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const mountedRef = useRef(false);
+
+  const fetchItems = useCallback(async () => {
+    const res = await request<BoardPost[]>("/api/lost-found/board");
+    if (res.ok && mountedRef.current) {
+      const mapped: LostFoundItem[] = res.data.map((item) => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        location: item.location,
+        date: item.timeAgo,
+        postedBy: item.authorName,
+        postedByRole: item.role as PostedByRole,
+        status: item.status === "unclaimed" || item.status === "open" ? "active" : "claimed",
+        bgColor: item.type === "lost" ? "bg-red-50" : "bg-emerald-50",
+        tags: []
+      }));
+      setItems(mapped);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) void fetchItems();
+    }, 0);
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timeout);
+    };
+  }, [fetchItems]);
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -82,29 +107,48 @@ export default function TeacherLostAndFoundPage() {
     found: items.filter((i) => i.type === "found" && i.status === "active").length,
   };
 
-  const handleToggleStatus = (id: string) => {
-    setItems((prev) => prev.map((item) => item.id === id ? { ...item, status: item.status === "active" ? "claimed" : "active" } : item));
+  const handleToggleStatus = async (id: string, currentStatus: ItemStatus, type: ItemType) => {
+    const endpoint = type === 'found' ? `/api/lost-found/items/${id}/collected` : `/api/lost-found/reports/${id}/recovered`;
+    const res = await request(endpoint, { method: 'PUT' });
+    if (res.ok) {
+      toast.success("Status updated");
+      fetchItems();
+    } else {
+      toast.error("Failed to update status");
+    }
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!form.title || !form.location) return;
-    const newItem: LostFoundItem = {
-      id: Date.now().toString(),
-      type: form.type,
-      title: form.title,
+    const endpoint = form.type === 'found' ? '/api/lost-found/items' : '/api/lost-found/reports';
+    const body = form.type === 'found' ? {
+      item_name: form.title,
       description: form.description,
-      location: form.location,
-      date: form.date || new Date().toISOString().split("T")[0],
-      postedBy: "Samantha Perera",
-      postedByRole: "teacher",
-      status: "active",
-      bgColor: form.type === "lost" ? "bg-orange-100" : "bg-teal-100",
-      tags: [],
+      found_at: form.location,
+      found_date: form.date || new Date().toISOString()
+    } : {
+      item_name: form.title,
+      description: form.description,
+      student_id: "", // Teacher posting lost report needs a student ID? Maybe only for parents.
+      date_lost: form.date || new Date().toISOString()
     };
-    setItems((prev) => [newItem, ...prev]);
-    setShowModal(false);
-    setForm(EMPTY_FORM);
-    setTab("all");
+
+    // Note: Teacher posting LOST might not work if backend strictly requires student_id for reports.
+    // However, teachers usually post FOUND items.
+    
+    const res = await request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      toast.success("Posted successfully");
+      setShowModal(false);
+      setForm(EMPTY_FORM);
+      fetchItems();
+    } else {
+      toast.error(res.error || "Failed to post");
+    }
   };
 
   const TABS: { key: TabFilter; label: string }[] = [
@@ -187,8 +231,12 @@ export default function TeacherLostAndFoundPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((item) => (
-            <ItemCard key={item.id} item={item} onToggleStatus={handleToggleStatus} />
+          {isLoading ? (
+            <div className="col-span-full py-20 flex justify-center">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            </div>
+          ) : filtered.map((item) => (
+            <ItemCard key={item.id} item={item} onToggleStatus={() => handleToggleStatus(item.id, item.status, item.type)} />
           ))}
         </div>
       )}

@@ -10,6 +10,7 @@ import {
   getAttendanceSummarySchema,
 } from './attendance.schema';
 import { delCacheByPattern, getOrSetCache, getCache, setCache, delCache } from '../../common/utils/cache';
+import { notifyUser } from '../notifications/notifications.service';
 
 export const getMyChildAttendance = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -30,35 +31,57 @@ export const getMyChildAttendance = async (request: FastifyRequest, reply: Fasti
 
     const studentId = parentLink.student_id;
 
-    // 2. Fetch paginated attendance records
-    const total = await prisma.attendanceRecord.count({ where: { student_id: studentId } });
-    const records = await prisma.attendanceRecord.findMany({
-      where: { student_id: studentId },
-      orderBy: { date: 'desc' },
-      skip: (pageNum - 1) * limitNum,
-      take: limitNum,
-    });
+    // 2. Fetch paginated distinct dates from both tables
+    const countQuery = await prisma.$queryRaw<{count: bigint}[]>`
+      SELECT COUNT(*) as count FROM (
+        SELECT DATE(date) as d FROM attendance_records WHERE student_id = ${studentId}::uuid
+        UNION
+        SELECT DATE(timestamp) as d FROM gate_events WHERE student_id = ${studentId}::uuid
+      ) as sub
+    `;
+    const total = Number(countQuery[0]?.count || 0);
 
-    // 3. For each record, check if there was a Gate IN event on that day
-    const recordsWithGate = await Promise.all(records.map(async (record) => {
-      const dateStart = new Date(record.date);
+    const datesQuery = await prisma.$queryRaw<{d: Date}[]>`
+      SELECT d FROM (
+        SELECT DATE(date) as d FROM attendance_records WHERE student_id = ${studentId}::uuid
+        UNION
+        SELECT DATE(timestamp) as d FROM gate_events WHERE student_id = ${studentId}::uuid
+      ) as sub
+      ORDER BY d DESC
+      LIMIT ${limitNum} OFFSET ${(pageNum - 1) * limitNum}
+    `;
+
+    // 3. For each date, fetch the attendance record and gate event status
+    const recordsWithGate = await Promise.all(datesQuery.map(async (row) => {
+      // row.d is the date (midnight). We query between start and end of that day.
+      const dateStart = new Date(row.d);
       dateStart.setUTCHours(0, 0, 0, 0);
       const dateEnd = new Date(dateStart);
       dateEnd.setUTCDate(dateEnd.getUTCDate() + 1);
 
+      // Check attendance record
+      const attRecord = await prisma.attendanceRecord.findFirst({
+        where: {
+          student_id: studentId,
+          date: { gte: dateStart, lt: dateEnd },
+        },
+      });
+
+      // Check gate in event
       const gateInEvent = await prisma.gateEvent.findFirst({
         where: {
           student_id: studentId,
           direction: 'IN',
-          timestamp: {
-            gte: dateStart,
-            lt: dateEnd,
-          },
+          timestamp: { gte: dateStart, lt: dateEnd },
         },
       });
 
       return {
-        ...record,
+        id: attRecord?.id || `gate_${dateStart.getTime()}`,
+        student_id: studentId,
+        date: dateStart.toISOString(),
+        status: attRecord?.status || (gateInEvent ? 'unmarked' : 'absent'),
+        remarks: attRecord?.remarks || null,
         gateIn: !!gateInEvent,
       };
     }));
@@ -118,6 +141,24 @@ export const markAttendance = async (request: FastifyRequest, reply: FastifyRepl
     });
 
     await delCacheByPattern('attendance:*');
+
+    // Notify the linked parent (in-app notification + push)
+    try {
+      const link = await prisma.parentStudent.findFirst({
+        where: { student_id: data.student_id },
+        select: { parent_id: true, student: { select: { full_name: true } } },
+      });
+      if (link?.parent_id) {
+        await notifyUser(link.parent_id, {
+          type: 'attendance',
+          title: 'Attendance Updated',
+          body: `${link.student?.full_name ?? 'Your child'} was marked ${data.status} today.`,
+          data: { route: '/attendance' },
+        });
+      }
+    } catch (notifyErr) {
+      request.log.error(notifyErr);
+    }
 
     return reply.status(200).send({
       success: true,
@@ -303,6 +344,26 @@ export const submitSession = async (request: FastifyRequest, reply: FastifyReply
       delCacheByPattern(`attendance:${sessionDateStr}:${session.class_id}`),
       delCacheByPattern(`attendance-summary:${session.class_id}:*`),
     ]);
+
+    // Notify the linked parent of each marked student (in-app notification + push)
+    try {
+      const studentIds = marks.map((m) => m.student_id);
+      const links = await prisma.parentStudent.findMany({
+        where: { student_id: { in: studentIds } },
+        select: { parent_id: true, student_id: true, student: { select: { full_name: true } } },
+      });
+      const statusByStudent = new Map(marks.map((m) => [m.student_id, m.status]));
+      for (const link of links) {
+        await notifyUser(link.parent_id, {
+          type: 'attendance',
+          title: 'Attendance Updated',
+          body: `${link.student?.full_name ?? 'Your child'} was marked ${statusByStudent.get(link.student_id)} today.`,
+          data: { route: '/attendance' },
+        });
+      }
+    } catch (notifyErr) {
+      request.log.error(notifyErr);
+    }
 
     return reply.status(200).send({
       success: true,

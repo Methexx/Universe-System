@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/di/service_locator.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
+import 'package:universe_app/features/settings/viewmodels/settings_viewmodel.dart';
 
 ImageProvider? _resolveImage(String? url) {
   if (url == null) return null;
@@ -32,17 +34,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen>
     with SingleTickerProviderStateMixin {
-  // ── Toggle states ──────────────────────────────────────────────────────────
-  bool _pushNotifications = true;
-  bool _emailNotifications = false;
-  bool _smsAlerts = true;
-  bool _attendanceAlerts = true;
-  bool _gateAlerts = true;
-  bool _resultAlerts = false;
-  bool _darkMode = false;
   bool _biometric = false;
   bool _autoLock = true;
-  String _selectedLanguage = 'English';
 
   // ── Entry animation ────────────────────────────────────────────────────────
   late final AnimationController _entryCtrl;
@@ -68,6 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profileVm = context.read<ProfileViewModel>();
       if (profileVm.profile == null) profileVm.loadProfile();
+      
+      context.read<SettingsViewModel>().loadSettings();
     });
   }
 
@@ -77,20 +72,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     super.dispose();
   }
 
-  void _showLanguageSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      builder: (context) => _LanguageSheet(
-        selected: _selectedLanguage,
-        onSelect: (lang) {
-          setState(() => _selectedLanguage = lang);
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
 
   void _showLogoutSheet() {
     showModalBottomSheet<void>(
@@ -151,9 +132,64 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 label: 'Push Notifications',
                                 subtitle: 'Receive app alerts',
                                 icon: Icons.notifications_none_rounded,
-                                value: _pushNotifications,
-                                onChanged: (v) =>
-                                    setState(() => _pushNotifications = v),
+                                value: context.watch<SettingsViewModel>().settings?.pushNotifications ?? true,
+                                onChanged: (v) async {
+                                  final vm = context.read<SettingsViewModel>();
+                                  await vm.updatePushNotifications(v);
+                                  if (vm.permissionDenied && context.mounted) {
+                                    vm.clearPermissionDenied();
+                                    await showDialog<void>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        title: const Text(
+                                          'Notifications Blocked',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        content: const Text(
+                                          'To receive push notifications, go to your device Settings → App → Notifications and enable them for Universe.',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 13,
+                                            color: Color(0xFF546E7A),
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                fontFamily: 'Plus Jakarta Sans',
+                                                color: Color(0xFF90A4AE),
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                              AppSettings.openAppSettings();
+                                            },
+                                            child: Text(
+                                              'Open Settings',
+                                              style: TextStyle(
+                                                fontFamily: 'Plus Jakarta Sans',
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -173,30 +209,27 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 label: 'Attendance Alerts',
                                 subtitle: 'Absence & late marks',
                                 icon: Icons.qr_code_scanner_rounded,
-                                value: _attendanceAlerts,
+                                value: context.watch<SettingsViewModel>().settings?.attendanceAlerts ?? true,
                                 activeColor: const Color(0xFF4A90D9),
-                                onChanged: (v) =>
-                                    setState(() => _attendanceAlerts = v),
+                                onChanged: (v) => context.read<SettingsViewModel>().updateAttendanceAlerts(v),
                               ),
                               _Divider(),
                               _ToggleRow(
                                 label: 'Gate Alerts',
                                 subtitle: 'Entry & exit notifications',
                                 icon: Icons.sensor_door_rounded,
-                                value: _gateAlerts,
+                                value: context.watch<SettingsViewModel>().settings?.gateAlerts ?? true,
                                 activeColor: const Color(0xFF64C4E6),
-                                onChanged: (v) =>
-                                    setState(() => _gateAlerts = v),
+                                onChanged: (v) => context.read<SettingsViewModel>().updateGateAlerts(v),
                               ),
                               _Divider(),
                               _ToggleRow(
                                 label: 'Result Alerts',
                                 subtitle: 'New results published',
                                 icon: Icons.bar_chart_rounded,
-                                value: _resultAlerts,
+                                value: context.watch<SettingsViewModel>().settings?.resultAlerts ?? true,
                                 activeColor: const Color(0xFF2EAA75),
-                                onChanged: (v) =>
-                                    setState(() => _resultAlerts = v),
+                                onChanged: (v) => context.read<SettingsViewModel>().updateResultAlerts(v),
                               ),
                             ],
                           ),
@@ -212,16 +245,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                           const SizedBox(height: 10),
                           _SettingsCard(
                             children: [
-                              _ToggleRow(
-                                label: 'Dark Mode',
-                                subtitle: 'Switch to dark theme',
-                                icon: Icons.dark_mode_rounded,
-                                value: _darkMode,
-                                activeColor: const Color(0xFF374151),
-                                onChanged: (v) =>
-                                    setState(() => _darkMode = v),
-                              ),
-                              _Divider(),
                               _TapRow(
                                 label: 'Theme Color',
                                 subtitle: 'Customize app accent',
@@ -323,20 +346,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                           _SettingsCard(
                             children: [
                               _TapRow(
-                                label: 'Language',
-                                subtitle: _selectedLanguage,
-                                icon: Icons.language_rounded,
-                                iconColor: const Color(0xFF2E6B7F),
-                                trailing: _ChipLabel(_selectedLanguage == 'English' ? 'EN' : _selectedLanguage == 'Sinhala' ? 'SI' : 'TA'),
-                                onTap: _showLanguageSheet,
-                              ),
-                              _Divider(),
-                              _TapRow(
                                 label: 'Privacy Policy',
                                 subtitle: 'Read our privacy terms',
                                 icon: Icons.policy_outlined,
                                 iconColor: const Color(0xFF78909C),
-                                onTap: () {},
+                                onTap: () => context.push(AppRoutes.privacyPolicy),
                               ),
                               _Divider(),
                               _TapRow(
@@ -344,7 +358,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 subtitle: 'Usage terms & conditions',
                                 icon: Icons.article_outlined,
                                 iconColor: const Color(0xFF78909C),
-                                onTap: () {},
+                                onTap: () => context.push(AppRoutes.termsOfService),
                               ),
                               _Divider(),
                               _TapRow(
@@ -656,7 +670,7 @@ class _ToggleRow extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final Function(bool) onChanged;
   final Color? activeColor;
 
   @override
@@ -737,7 +751,7 @@ class _AnimatedToggle extends StatefulWidget {
   });
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final Function(bool) onChanged;
   final Color? activeColor;
 
   @override
@@ -1205,109 +1219,4 @@ class _ColorDot extends StatelessWidget {
   }
 }
 
-class _LanguageSheet extends StatelessWidget {
-  const _LanguageSheet({required this.selected, required this.onSelect});
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Select Language',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1F2937),
-              fontFamily: 'Plus Jakarta Sans',
-            ),
-          ),
-          const SizedBox(height: 24),
-          _LanguageOption(
-            label: 'English',
-            isSelected: selected == 'English',
-            onTap: () => onSelect('English'),
-          ),
-          _LanguageOption(
-            label: 'Sinhala',
-            isSelected: selected == 'Sinhala',
-            onTap: () => onSelect('Sinhala'),
-          ),
-          _LanguageOption(
-            label: 'Tamil',
-            isSelected: selected == 'Tamil',
-            onTap: () => onSelect('Tamil'),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
-class _LanguageOption extends StatelessWidget {
-  const _LanguageOption({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE0F4FA) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF2E6B7F) : const Color(0xFFF3F4F6),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF2E6B7F) : const Color(0xFF4B5563),
-                fontFamily: 'Plus Jakarta Sans',
-              ),
-            ),
-            const Spacer(),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF2E6B7F)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 

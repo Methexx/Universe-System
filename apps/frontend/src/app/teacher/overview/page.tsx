@@ -96,7 +96,7 @@ export default function TeacherOverviewPage() {
                   />
                   <StatCard title="Today's Gate Attendance" value={stats?.todayAttendance?.toString() ?? "0"} icon={Eye} />
                   <StatCard title="Late Attendance" value="0" icon={Eye} variant="danger" />
-                  <StatCard title="Today Absentees" value={Math.max(0, (stats?.activeStudents ?? 0) - (stats?.todayAttendance ?? 0)).toString()} icon={Eye} variant="danger" />
+                  <StatCard title="Today Absentees" value={Math.max(0, (stats?.activeStudents ?? 0) - (stats?.todayClassroomPresent ?? 0)).toString()} icon={Eye} variant="danger" />
                 </div>
 
                 <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
