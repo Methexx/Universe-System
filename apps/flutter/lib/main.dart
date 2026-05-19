@@ -16,11 +16,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e, st) {
+    debugPrint('Firebase init failed: $e\n$st');
+  }
 
   final sl = ServiceLocator.instance;
-  await sl.setup();
+  try {
+    await sl.setup();
+  } catch (e, st) {
+    debugPrint('ServiceLocator setup failed: $e\n$st');
+  }
 
   runApp(UniverseApp(
     authViewModel: AuthViewModel(
