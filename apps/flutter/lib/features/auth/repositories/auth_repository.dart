@@ -44,18 +44,26 @@ class ApiAuthRepository implements AuthRepository {
 
   String _extractMessage(DioException error) {
     final dynamic data = error.response?.data;
+    final int? status = error.response?.statusCode;
+
     if (data is Map<String, dynamic>) {
       final dynamic message = data['message'] ?? data['error'];
       if (message is String && message.isNotEmpty) {
         return message;
       }
-    } else if (data is String && data.isNotEmpty) {
-      return data;
     }
 
-    if (error.type == DioExceptionType.connectionTimeout || 
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return 'Could not connect to the server. Please check your API IP address.';
+      return 'Cannot reach the server. Please check your internet connection.';
+    }
+
+    if (data is String && data.isNotEmpty) {
+      final String snippet = data.length > 120 ? '${data.substring(0, 120)}…' : data;
+      return 'Server unreachable (HTTP ${status ?? '?'}): $snippet\n'
+          'The backend may be down or misconfigured. Please contact support.';
     }
 
     return error.message ?? 'Request failed. Please try again.';
