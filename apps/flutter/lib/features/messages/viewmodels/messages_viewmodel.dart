@@ -105,17 +105,34 @@ class MessagesViewModel extends ChangeNotifier {
     String? studentId,
     String? userId,
   }) async {
+    final temp = MessageModel(
+      id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
+      senderId: userId ?? '',
+      receiverId: receiverId,
+      studentId: studentId,
+      content: content,
+      isRead: false,
+      createdAt: DateTime.now(),
+      sender: MessageUser(id: userId ?? '', role: ''),
+      receiver: MessageUser(id: receiverId, role: ''),
+      isPending: true,
+    );
+
+    _messages = [..._messages, temp];
+    notifyListeners();
+
     try {
       await _repository.sendMessage(
         receiverId: receiverId,
         content: content,
         studentId: studentId,
       );
-      await fetchThread(receiverId, userId: userId);
+      await fetchThread(receiverId, userId: userId); // real list replaces temp
       // Refresh inbox list so last message and unread counts update
       await fetchInbox(userId: userId);
       return true;
     } catch (e) {
+      _messages = _messages.where((m) => m.id != temp.id).toList(); // roll back
       _error = e.toString();
       notifyListeners();
       return false;

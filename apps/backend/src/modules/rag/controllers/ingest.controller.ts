@@ -60,7 +60,7 @@ export async function ingestDocument(request: FastifyRequest, reply: FastifyRepl
     return reply.status(500).send({ error: `Storage upload failed: ${storageError.message}` });
   }
 
-  // Create DB record as unprocessed first so admin sees it immediately
+  // Create DB record in 'processing' state first so admin sees it immediately
   const doc = await prisma.policyDocument.create({
     data: {
       uploader: { connect: { id: userId } },
@@ -68,14 +68,14 @@ export async function ingestDocument(request: FastifyRequest, reply: FastifyRepl
       display_name: displayName,
       storage_path: storagePath,
       file_hash: fileHash,
-      is_processed: false,
+      status: 'processing',
     },
   });
 
   processingJobs.add(doc.id);
 
   // Run ingestion pipeline asynchronously — reply immediately so admin UI isn't blocked
-  reply.status(202).send({ id: doc.id, display_name: displayName, is_processed: false });
+  reply.status(202).send({ id: doc.id, display_name: displayName, status: 'processing' });
 
   try {
     const chunks = isPdf ? await chunkPdf(buffer) : await chunkText(buffer);
@@ -98,13 +98,16 @@ export async function ingestDocument(request: FastifyRequest, reply: FastifyRepl
 
     await prisma.policyDocument.update({
       where: { id: doc.id },
-      data: { is_processed: true, chunk_count: chunks.length },
+      data: { status: 'completed', chunk_count: chunks.length },
     });
   } catch (err) {
-    // Mark as failed so admin knows processing didn't complete
+    // Mark as failed and store the reason so admin knows processing didn't complete
     await prisma.policyDocument.update({
       where: { id: doc.id },
-      data: { is_processed: false },
+      data: {
+        status: 'failed',
+        error_message: err instanceof Error ? err.message : String(err),
+      },
     });
     request.log.error({ err }, 'Ingestion pipeline failed for document ' + doc.id);
   } finally {

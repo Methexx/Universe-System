@@ -35,6 +35,7 @@ export const SIDEBAR_MENU: Record<Role, MenuItem[]> = {
     { title: "Notice Board", icon: ClipboardList, path: "/admin/notices" },
     { title: "Calendar", icon: Calendar, path: "/admin/calendar" },
     { title: "Complain Management", icon: AlertOctagon, path: "/admin/complaints" },
+    { title: "Lost & Found", icon: Search, path: "/admin/lost-and-found" },
     { title: "Logs", icon: FileText, path: "/admin/logs" },
     { title: "Profile", icon: User, path: "/admin/profile" },
   ],

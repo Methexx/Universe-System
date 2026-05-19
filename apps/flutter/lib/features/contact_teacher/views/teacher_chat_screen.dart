@@ -113,6 +113,9 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
     final messagesVm = context.read<MessagesViewModel>();
     final profileVm = context.read<ProfileViewModel>();
     
+    _inputController.clear();
+    _scrollToBottom();
+    
     final success = await messagesVm.sendMessage(
       receiverId: _targetTeacher!.id,
       content: text,
@@ -120,9 +123,10 @@ class _TeacherChatScreenState extends State<TeacherChatScreen>
       userId: _userId,
     );
 
-    if (success) {
-      _inputController.clear();
-      _scrollToBottom();
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(messagesVm.error ?? 'Failed to send message')),
+      );
     }
   }
 
@@ -604,11 +608,18 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     if (mine) ...<Widget>[
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.done_all_rounded,
-                        size: 14,
-                        color: message.isRead ? const Color(0xFF3EA8D8) : const Color(0xFF94A3B0),
-                      ),
+                      if (message.isPending)
+                        const Icon(
+                          Icons.schedule_rounded,
+                          size: 12,
+                          color: Color(0xFF94A3B0),
+                        )
+                      else
+                        Icon(
+                          Icons.done_all_rounded,
+                          size: 14,
+                          color: message.isRead ? const Color(0xFF3EA8D8) : const Color(0xFF94A3B0),
+                        ),
                     ],
                   ],
                 ),

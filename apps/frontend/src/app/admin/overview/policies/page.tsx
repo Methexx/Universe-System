@@ -12,6 +12,7 @@ import {
   Search,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
 import {
   createClass,
@@ -457,7 +458,7 @@ export default function PoliciesPage() {
     if (!res.ok) { alert(res.error); return; }
     // Add optimistic row — will show as processing until page refresh
     setDocuments((prev) => [
-      { id: res.data.id, file_name: file.name, display_name: res.data.display_name, is_processed: false, chunk_count: 0, created_at: new Date().toISOString() },
+      { id: res.data.id, file_name: file.name, display_name: res.data.display_name, status: "processing", error_message: null, chunk_count: 0, created_at: new Date().toISOString() },
       ...prev,
     ]);
     // Poll once after 5s to update processed status
@@ -646,15 +647,22 @@ export default function PoliciesPage() {
                       <p className="text-[11px] font-semibold text-[#94a3b8]">{doc.file_name}</p>
                     </td>
                     <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
-                      {doc.is_processed ? doc.chunk_count : "—"}
+                      {doc.status === "completed" ? doc.chunk_count : "—"}
                     </td>
                     <td className="px-6 py-[18px] text-[13px] font-semibold text-[#64748b]">
                       {new Date(doc.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-[18px]">
-                      {doc.is_processed ? (
+                      {doc.status === "completed" ? (
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#16a34a]">
                           <CheckCircle className="h-3.5 w-3.5" /> Ready
+                        </span>
+                      ) : doc.status === "failed" ? (
+                        <span
+                          title={doc.error_message ?? "Processing failed"}
+                          className="flex items-center gap-1 text-[11px] font-bold text-[#dc2626] cursor-help"
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Failed
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#d97706]">

@@ -168,12 +168,13 @@ export function deleteStudent(id: string) {
   });
 }
 
-export type OverviewStats = {
+export interface OverviewStats {
   activeStudents: number;
   suspendedStudents: number;
   lockedAccounts: number;
   todayAttendance: number;
   yesterdayAttendance: number;
+  todayClassroomPresent?: number;
 };
 
 export function getOverviewStats(classId?: string) {

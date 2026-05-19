@@ -48,12 +48,32 @@ model User {
   policy_documents      PolicyDocument[]   @relation("PolicyDocuments")
   result_sets           ResultSet[]
   terms                 Term[]
+  events_created        CalendarEvent[]    @relation("EventsCreated")
+  lost_found_comments   LostFoundComment[]
+  settings              UserSettings?
+  notifications         Notification[]     @relation("UserNotifications")
 
   @@index([email])
   @@index([role])
   @@index([is_active])
   @@index([role, is_active])
   @@map("users")
+}
+
+model Notification {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  recipient_id String   @db.Uuid
+  recipient    User     @relation("UserNotifications", fields: [recipient_id], references: [id], onDelete: Cascade)
+  type         String   // 'gate' | 'message' | 'announcement' | 'attendance' | 'result'
+  title        String
+  body         String   @db.Text
+  data         Json?    // deep-link payload, e.g. { route, studentId, ... }
+  is_read      Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@index([recipient_id, is_read])
+  @@index([recipient_id, created_at])
+  @@map("notifications")
 }
 
 model OtpVerification {
@@ -297,6 +317,7 @@ model LostFoundItem {
   status       String   @default("unclaimed") // 'unclaimed' | 'collected'
   collected_at DateTime? @db.Timestamptz()
   created_at   DateTime @default(now()) @db.Timestamptz()
+  comments     LostFoundComment[]
 
   @@index([posted_by])
   @@index([status])
@@ -315,10 +336,28 @@ model LostFoundReport {
   date_lost   DateTime? @db.Date
   status      String   @default("open") // 'open' | 'recovered'
   created_at  DateTime @default(now()) @db.Timestamptz()
+  comments    LostFoundComment[]
 
   @@index([parent_id])
   @@index([status])
   @@map("lost_found_reports")
+}
+
+model LostFoundComment {
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  author_id       String           @db.Uuid
+  author          User             @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  content         String           @db.Text
+  item_id         String?          @db.Uuid
+  item            LostFoundItem?   @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  report_id       String?          @db.Uuid
+  report          LostFoundReport? @relation(fields: [report_id], references: [id], onDelete: Cascade)
+  created_at      DateTime         @default(now()) @db.Timestamptz()
+
+  @@index([author_id])
+  @@index([item_id])
+  @@index([report_id])
+  @@map("lost_found_comments")
 }
 
 // ==========================================
@@ -333,7 +372,8 @@ model PolicyDocument {
   display_name String
   storage_path String
   file_hash    String?         @unique
-  is_processed Boolean         @default(false)
+  status       String          @default("processing") // 'processing' | 'completed' | 'failed'
+  error_message String?        @db.Text
   chunk_count  Int             @default(0)
   created_at   DateTime        @default(now()) @db.Timestamptz()
   updated_at   DateTime        @default(now()) @db.Timestamptz()
@@ -440,4 +480,39 @@ model StudentGrade {
   @@index([result_set_id])
   @@index([student_id])
   @@map("student_grades")
+}
+// ==========================================
+// PHASE 8: CALENDAR
+// ==========================================
+
+model CalendarEvent {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String
+  description String?  @db.Text
+  start_time  DateTime @db.Timestamptz()
+  end_time    DateTime @db.Timestamptz()
+  location    String?
+  type        String   @default("event") // 'event' | 'holiday' | 'exam' | 'meeting'
+  created_by  String   @db.Uuid
+  creator     User     @relation("EventsCreated", fields: [created_by], references: [id])
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([created_by])
+  @@map("calendar_events")
+}
+
+model UserSettings {
+  id                      String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                  String   @unique @db.Uuid
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications      Boolean  @default(true)
+  pushNotifications       Boolean  @default(true)
+  attendanceAlerts        Boolean  @default(true)
+  examAlerts              Boolean  @default(true)
+  feeAlerts               Boolean  @default(true)
+  generalAnnouncements    Boolean  @default(true)
+  updated_at              DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("user_settings")
 }

@@ -8,7 +8,9 @@ import {
   postReport,
   getMyReports,
   markRecovered,
-  getAllReports
+  getAllReports,
+  getCommunityBoard,
+  postComment
 } from './lost-found.controller';
 
 async function lostFoundRoutes(app: FastifyInstance) {
@@ -25,6 +27,8 @@ async function lostFoundRoutes(app: FastifyInstance) {
   app.get('/reports/my', getMyReports);
   app.put('/reports/:id/recovered', markRecovered);
   app.get('/reports', getAllReports);
+  app.get('/board', getCommunityBoard);
+  app.post('/comments', postComment);
 }
 
 export default lostFoundRoutes;

@@ -15,11 +15,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<ApiR
   }
 }
 
+export type DocumentStatus = 'processing' | 'completed' | 'failed';
+
 export type PolicyDocument = {
   id: string;
   file_name: string;
   display_name: string;
-  is_processed: boolean;
+  status: DocumentStatus;
+  error_message: string | null;
   chunk_count: number;
   created_at: string;
 };
@@ -30,7 +33,7 @@ export async function listDocuments(): Promise<ApiResult<PolicyDocument[]>> {
   return { ok: true, data: res.data.documents };
 }
 
-export async function uploadDocument(file: File): Promise<ApiResult<{ id: string; display_name: string; is_processed: boolean }>> {
+export async function uploadDocument(file: File): Promise<ApiResult<{ id: string; display_name: string; status: DocumentStatus }>> {
   const form = new FormData();
   form.append('file', file);
   return request('/api/rag/documents', { method: 'POST', body: form });

@@ -8,11 +8,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDummy1234567890ABCDEFGHIJKLMNOPQRS',
-    appId: '1:451261949462:android:abc123def456ghi789jkl',
-    messagingSenderId: '451261949462',
+    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSyA26E5DcOTTE-tDHurMeU6j7d6A1QPgrvs'),
+    appId: String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '1:746560263890:android:2ef9040c8213ecf5e53f0b'),
+    messagingSenderId: '746560263890',
     projectId: 'universe-fireabse',
-    storageBucket: 'universe-fireabse.appspot.com',
+    storageBucket: 'universe-fireabse.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(

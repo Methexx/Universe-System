@@ -136,15 +136,6 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
 
         {/* Bottom Actions / Footer */}
         <div className="shrink-0 p-4 border-t border-[#ecece8]">
-          <div className="mb-4 flex items-center justify-between px-2">
-            <span className="text-sm font-semibold text-gray-600">Dark Mode</span>
-            {/* Simple styling placeholder for a toggle switch */}
-            <div className="relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full bg-gray-200">
-              <span className="sr-only">Toggle Dark Mode</span>
-              <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform ease-in-out translate-x-1" />
-            </div>
-          </div>
-          
           <button 
             onClick={() => setIsLogoutModalOpen(true)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e31f26] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#c9181f]"

@@ -11,6 +11,7 @@ class MessageModel {
   final MessageUser sender;
   final MessageUser receiver;
   final MessageStudent? student;
+  final bool isPending;
 
   MessageModel({
     required this.id,
@@ -23,7 +24,36 @@ class MessageModel {
     required this.sender,
     required this.receiver,
     this.student,
+    this.isPending = false,
   });
+
+  MessageModel copyWith({
+    String? id,
+    String? senderId,
+    String? receiverId,
+    String? studentId,
+    String? content,
+    bool? isRead,
+    DateTime? createdAt,
+    MessageUser? sender,
+    MessageUser? receiver,
+    MessageStudent? student,
+    bool? isPending,
+  }) {
+    return MessageModel(
+      id: id ?? this.id,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      studentId: studentId ?? this.studentId,
+      content: content ?? this.content,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      sender: sender ?? this.sender,
+      receiver: receiver ?? this.receiver,
+      student: student ?? this.student,
+      isPending: isPending ?? this.isPending,
+    );
+  }
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
@@ -37,6 +67,7 @@ class MessageModel {
       sender: MessageUser.fromJson(json['sender']),
       receiver: MessageUser.fromJson(json['receiver']),
       student: json['student'] != null ? MessageStudent.fromJson(json['student']) : null,
+      isPending: false, // Do not read from JSON so cached threads don't persist it
     );
   }
 
@@ -51,6 +82,7 @@ class MessageModel {
         'sender': sender.toJson(),
         'receiver': receiver.toJson(),
         if (student != null) 'student': student!.toJson(),
+        // isPending is intentionally omitted from toJson so it's not cached
       };
 
   static List<MessageModel> listFromJsonString(String jsonString) {

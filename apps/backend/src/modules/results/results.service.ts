@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { CreateTermInput, UpdateTermInput, CreateResultSetInput, SaveResultSetInput } from './results.schema';
+import { notifyUsers } from '../notifications/notifications.service';
 
 export class ResultsService {
 
@@ -117,11 +118,32 @@ export class ResultsService {
 
   static async publishResultSet(resultSetId: string, teacherId: string) {
     await ResultsService.assertTeacherOwnsResultSet(resultSetId, teacherId);
-    return prisma.resultSet.update({
+    const resultSet = await prisma.resultSet.update({
       where: { id: resultSetId },
       data: { status: 'published', published_at: new Date() },
       include: { term: true, modules: { orderBy: { order_index: 'asc' } }, grades: true },
     });
+
+    // Notify the parents of every student in the class (in-app notification + push)
+    try {
+      const links = await prisma.parentStudent.findMany({
+        where: { student: { class_id: resultSet.class_id } },
+        select: { parent_id: true },
+      });
+      const parentIds = links.map((l) => l.parent_id);
+      if (parentIds.length > 0) {
+        await notifyUsers(parentIds, {
+          type: 'result',
+          title: 'Results Published',
+          body: `${resultSet.term?.label ?? 'New'} results have been published. Tap to view.`,
+          data: { route: '/results' },
+        });
+      }
+    } catch (notifyErr) {
+      console.error('[results] publish notification failed:', notifyErr);
+    }
+
+    return resultSet;
   }
 
   static async unpublishResultSet(resultSetId: string, teacherId: string) {

@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/prisma';
 import { ScanQrInput } from './gate.schema';
 import { getOrSetCache, delCacheByPattern } from '../../common/utils/cache';
-import { sendFcmNotification } from '../../config/firebase';
+import { notifyUser } from '../notifications/notifications.service';
 
 export class GateController {
   
@@ -58,26 +58,22 @@ export class GateController {
       // Invalidate gate caches on every scan
       await delCacheByPattern('gate:*');
 
-      // 4. Notify linked parent via FCM (fire-and-forget — never block the scan response)
-      try {
-        const parentLink = await prisma.parentStudent.findFirst({
-          where: { student_id: student.id },
-          select: { parent: { select: { fcm_token: true } } },
+      // 4. Notify the linked parent — persists an in-app notification + FCM push.
+      //    notifyUser never throws, so the scan response is never blocked.
+      const parentLink = await prisma.parentStudent.findFirst({
+        where: { student_id: student.id },
+        select: { parent_id: true },
+      });
+      if (parentLink?.parent_id) {
+        const isIn = direction === 'IN';
+        await notifyUser(parentLink.parent_id, {
+          type: 'gate',
+          title: isIn ? '✅ Student Arrived' : '🚶 Student Left School',
+          body: isIn
+            ? `${student.full_name} has entered the school.`
+            : `${student.full_name} has left the school.`,
+          data: { route: '/gate-status', direction, studentId: student.id },
         });
-        const fcmToken = (parentLink as any)?.parent?.fcm_token;
-        if (fcmToken) {
-          const isIn = direction === 'IN';
-          await sendFcmNotification(
-            fcmToken,
-            isIn ? '✅ Student Arrived' : '🚶 Student Left School',
-            isIn
-              ? `${student.full_name} has entered the school.`
-              : `${student.full_name} has left the school.`,
-            { type: 'gate_event', direction, student_id: student.id }
-          );
-        }
-      } catch (_notifErr) {
-        // Notification failure must never fail the scan response
       }
 
       // 5. Return success to display on the security app screen

@@ -3,6 +3,7 @@ import { Kumbh_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { UnreadMessagesProvider } from "@/features/messages/context/UnreadMessagesContext";
+import { Toaster } from "react-hot-toast";
 
 const kumbhSans = Kumbh_Sans({
   variable: "--font-kumbh-sans",
@@ -27,7 +28,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <UnreadMessagesProvider>{children}</UnreadMessagesProvider>
+          <UnreadMessagesProvider>
+            {children}
+            <Toaster position="bottom-right" reverseOrder={false} />
+          </UnreadMessagesProvider>
         </AuthProvider>
       </body>
     </html>

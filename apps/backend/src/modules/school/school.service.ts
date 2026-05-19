@@ -256,13 +256,15 @@ export class SchoolService {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const [activeStudents, suspendedStudents, todayGateCheckIns, yesterdayGateCheckIns] = await Promise.all([
+    const [activeStudents, suspendedStudents, todayGateCheckIns, yesterdayGateCheckIns, todayClassroomPresent] = await Promise.all([
       prisma.student.count({ where: { is_active: true, ...(classId ? { class_id: classId } : {}) } }),
       // Suspended students = students with is_active: false
       prisma.student.count({ where: { is_active: false, ...(classId ? { class_id: classId } : {}) } }),
       // Gate check-ins as the attendance figure (matches attendance page stat card)
       prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: today }, ...(classId ? { student: { class_id: classId } } : {}) } }),
       prisma.gateEvent.count({ where: { direction: 'IN', timestamp: { gte: yesterday, lt: today }, ...(classId ? { student: { class_id: classId } } : {}) } }),
+      // Classroom present/late marks
+      prisma.attendanceRecord.count({ where: { date: { gte: today }, status: { in: ['present', 'late'] }, ...(classId ? { student: { class_id: classId } } : {}) } }),
     ]);
 
     return {
@@ -272,6 +274,7 @@ export class SchoolService {
       lockedAccounts: suspendedStudents,
       todayAttendance: todayGateCheckIns,
       yesterdayAttendance: yesterdayGateCheckIns,
+      todayClassroomPresent,
     };
   }
 

@@ -25,6 +25,8 @@ import 'package:universe_app/features/profile/views/profile_screen.dart';
 import 'package:universe_app/features/settings/views/settings_screen.dart';
 import 'package:universe_app/features/notices/views/notices_screen.dart';
 import 'package:universe_app/features/notifications/views/notifications_screen.dart';
+import 'package:universe_app/features/settings/views/privacy_policy_screen.dart';
+import 'package:universe_app/features/settings/views/terms_of_service_screen.dart';
 
 CustomTransitionPage<void> _slideTransition({
   required LocalKey key,
@@ -210,6 +212,20 @@ class AppRouter {
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
           child: const NotificationsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.privacyPolicy,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const PrivacyPolicyScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.termsOfService,
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const TermsOfServiceScreen(),
         ),
       ),
     ],

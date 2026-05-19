@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:universe_app/core/constants/app_routes.dart';
 import 'package:universe_app/core/constants/app_colors.dart';
 import 'package:universe_app/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:universe_app/features/notifications/models/notification_model.dart';
+import 'package:universe_app/features/notifications/viewmodels/notifications_viewmodel.dart';
 import 'package:universe_app/features/notifications/views/notifications_screen.dart';
 import 'package:universe_app/features/gate/viewmodels/gate_viewmodel.dart';
 import 'package:universe_app/features/profile/viewmodels/profile_viewmodel.dart';
@@ -42,6 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   late final AnimationController _entryController;
   late final Animation<Offset> _slideAnim;
   late final Animation<double> _fadeAnim;
+  bool _isRefreshing = false;
 
   OverlayEntry? _bellOverlay;
 
@@ -65,11 +68,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     _entryController.forward();
 
-    // Fetch fresh profile data and gate status
+    // Fetch fresh profile data, gate status and notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ProfileViewModel>().loadProfile();
         context.read<GateViewModel>().loadGateStatus();
+        context.read<NotificationsViewModel>().load();
       }
     });
   }
@@ -83,8 +87,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     _entryController.forward(from: 0);
   }
 
+  Future<void> _refreshHome() async {
+    if (_isRefreshing) return;
+
+    setState(() => _isRefreshing = true);
+    try {
+      await Future.wait(<Future<void>>[
+        context.read<ProfileViewModel>().loadProfile(),
+        context.read<GateViewModel>().loadGateStatus(),
+        context.read<NoticesViewModel>().refresh(),
+      ]);
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
+    }
+  }
+
   void _showBellPopup() {
-    final unread = kNotifications.where((n) => !n.isRead).toList();
+    final List<NotificationModel> unread =
+        context.read<NotificationsViewModel>().unread;
     if (unread.isEmpty) {
       context.push(AppRoutes.notifications);
       return;
@@ -97,6 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _bellOverlay = OverlayEntry(
       builder: (_) => _BellOverlay(
         topInset: topInset,
+        unread: unread,
         onViewAll: () {
           _dismissBellPopup();
           context.push(AppRoutes.notifications);
@@ -134,6 +157,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     final bool? isInsideSchool = context.select<GateViewModel, bool?>(
       (GateViewModel vm) => vm.isInsideSchool,
     );
+    final int unreadCount = context.select<NotificationsViewModel, int>(
+      (NotificationsViewModel vm) => vm.unreadCount,
+    );
     final String displayName = studentName ?? _displayNameFromEmail(userEmail);
     final double topInset = MediaQuery.paddingOf(context).top;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -144,66 +170,74 @@ class _DashboardScreenState extends State<DashboardScreen>
       body: Stack(
         children: <Widget>[
           // Scrollable content
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              children: <Widget>[
-                _TopHeader(
-                  displayName: displayName,
-                  photoUrl: photoUrl,
-                  isInsideSchool: isInsideSchool,
-                  topInset: topInset,
-                  onBellTap: _showBellPopup,
-                ),
-                // Slide-up + fade for white card section
-                SlideTransition(
-                  position: _slideAnim,
-                  child: FadeTransition(
-                    opacity: _fadeAnim,
-                    child: Container(
-                      width: double.infinity,
-                      clipBehavior: Clip.none,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF4FAFB),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          topRight: Radius.circular(32),
+          RefreshIndicator(
+            onRefresh: _refreshHome,
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              child: Column(
+                children: <Widget>[
+                  _TopHeader(
+                    displayName: displayName,
+                    photoUrl: photoUrl,
+                    isInsideSchool: isInsideSchool,
+                    isRefreshing: _isRefreshing,
+                    topInset: topInset,
+                    unreadCount: unreadCount,
+                    onBellTap: _showBellPopup,
+                  ),
+                  // Slide-up + fade for white card section
+                  SlideTransition(
+                    position: _slideAnim,
+                    child: FadeTransition(
+                      opacity: _fadeAnim,
+                      child: Container(
+                        width: double.infinity,
+                        clipBehavior: Clip.none,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF4FAFB),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(32),
+                            topRight: Radius.circular(32),
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
-                            child: const _NoticesSection(),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 28, 18, 24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                const _SectionLabel('Quick Actions'),
-                                const SizedBox(height: 6),
-                                _ActionGrid(
-                                  onGateTap: () async {
-                                    await context.push(AppRoutes.gateStatus);
-                                    _playEntryAnimation();
-                                  },
-                                  onAttendanceTap: () async {
-                                    await context.push(AppRoutes.attendance);
-                                    _playEntryAnimation();
-                                  },
-                                ),
-                                SizedBox(height: bottomInset + navBarHeight + 16),
-                              ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                              child: const _NoticesSection(),
                             ),
-                          ),
-                        ],
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 28, 18, 24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  const _SectionLabel('Quick Actions'),
+                                  const SizedBox(height: 6),
+                                  _ActionGrid(
+                                    onGateTap: () async {
+                                      await context.push(AppRoutes.gateStatus);
+                                      _playEntryAnimation();
+                                    },
+                                    onAttendanceTap: () async {
+                                      await context.push(AppRoutes.attendance);
+                                      _playEntryAnimation();
+                                    },
+                                  ),
+                                  SizedBox(height: bottomInset + navBarHeight + 16),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           // Bottom nav — also slides up
@@ -219,7 +253,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 parent: _entryController,
                 curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
               )),
-              child: _BottomNavBar(bottomInset: bottomInset),
+              child: _BottomNavBar(
+                bottomInset: bottomInset,
+                unreadCount: unreadCount,
+              ),
             ),
           ),
         ],
@@ -247,6 +284,8 @@ class _TopHeader extends StatefulWidget {
     required this.displayName,
     required this.topInset,
     required this.onBellTap,
+    required this.isRefreshing,
+    required this.unreadCount,
     this.photoUrl,
     this.isInsideSchool,
   });
@@ -254,7 +293,9 @@ class _TopHeader extends StatefulWidget {
   final String displayName;
   final String? photoUrl;
   final bool? isInsideSchool;
+  final bool isRefreshing;
   final double topInset;
+  final int unreadCount;
   final VoidCallback onBellTap;
 
   @override
@@ -320,7 +361,7 @@ class _TopHeaderState extends State<_TopHeader> with TickerProviderStateMixin {
       color: AppColors.primary,
       child: Column(
         children: <Widget>[
-          // Row: avatar + greeting | notification bell
+          // Row: avatar + greeting | status badge | notification bell
           Row(
             children: <Widget>[
               GestureDetector(
@@ -365,7 +406,25 @@ class _TopHeaderState extends State<_TopHeader> with TickerProviderStateMixin {
                 ],
               ),
               const Spacer(),
-              // Notification bell
+              if (widget.isRefreshing) ...<Widget>[
+                Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+              ],
               GestureDetector(
                 onTap: widget.onBellTap,
                 child: Stack(
@@ -383,19 +442,35 @@ class _TopHeaderState extends State<_TopHeader> with TickerProviderStateMixin {
                         size: 24,
                       ),
                     ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDF5B6D),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                    if (widget.unreadCount > 0)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          constraints: const BoxConstraints(minWidth: 18),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDF5B6D),
+                            borderRadius: BorderRadius.circular(9),
+                            border:
+                                Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Text(
+                            widget.unreadCount > 99
+                                ? '99+'
+                                : '${widget.unreadCount}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.3,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -662,19 +737,22 @@ class _NoticeCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Read More',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: announcement.gradientColors.last,
+                GestureDetector(
+                  onTap: () => context.push(AppRoutes.notices),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Read More',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: announcement.gradientColors.last,
+                      ),
                     ),
                   ),
                 ),
@@ -916,9 +994,10 @@ class _AttendanceBadge extends StatelessWidget {
 // ─── Bottom nav ───────────────────────────────────────────────────────────────
 
 class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar({required this.bottomInset});
+  const _BottomNavBar({required this.bottomInset, required this.unreadCount});
 
   final double bottomInset;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -943,6 +1022,7 @@ class _BottomNavBar extends StatelessWidget {
             _NavItem(
               icon: Icons.notifications_rounded,
               label: 'Notifications',
+              badgeCount: unreadCount,
               onTap: () => context.push(AppRoutes.notifications),
             ),
             _NavItem(
@@ -967,12 +1047,14 @@ class _BottomNavBar extends StatelessWidget {
 class _BellOverlay extends StatelessWidget {
   const _BellOverlay({
     required this.topInset,
+    required this.unread,
     required this.onViewAll,
     required this.onDismiss,
     required this.onBarrierTap,
   });
 
   final double topInset;
+  final List<NotificationModel> unread;
   final VoidCallback onViewAll;
   final VoidCallback onDismiss;
   final VoidCallback onBarrierTap;
@@ -996,6 +1078,7 @@ class _BellOverlay extends StatelessWidget {
           top: topInset + 66,
           right: 18,
           child: UnreadNotificationPopup(
+            unread: unread,
             onViewAll: onViewAll,
             onDismiss: onDismiss,
           ),
@@ -1012,12 +1095,14 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     this.isActive = false,
+    this.badgeCount = 0,
     this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool isActive;
+  final int badgeCount;
   final VoidCallback? onTap;
 
   @override
@@ -1030,18 +1115,56 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            if (isActive)
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 22, color: Colors.white),
-              )
-            else
-              Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.55)),
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                if (isActive)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 22, color: Colors.white),
+                  )
+                else
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Icon(icon,
+                        size: 22,
+                        color: Colors.white.withValues(alpha: 0.55)),
+                  ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDF5B6D),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFF1A3A44), width: 1.5),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
               label,
