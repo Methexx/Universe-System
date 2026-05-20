@@ -35,7 +35,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen>
     with SingleTickerProviderStateMixin {
   bool _biometric = false;
-  bool _autoLock = true;
 
   // ── Entry animation ────────────────────────────────────────────────────────
   late final AnimationController _entryCtrl;
@@ -235,37 +234,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                           ),
                           const SizedBox(height: 20),
 
-                          // ── Appearance ────────────────────────────────────
-                          _SectionHeader(
-                            icon: Icons.palette_rounded,
-                            iconColor: const Color(0xFFD47A2E),
-                            iconBg: const Color(0xFFFFF3E8),
-                            title: 'Appearance',
-                          ),
-                          const SizedBox(height: 10),
-                          _SettingsCard(
-                            children: [
-                              _TapRow(
-                                label: 'Theme Color',
-                                subtitle: 'Customize app accent',
-                                icon: Icons.color_lens_outlined,
-                                iconColor: const Color(0xFFD47A2E),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _ColorDot(color: AppColors.primary, isSelected: true),
-                                    const SizedBox(width: 8),
-                                    _ColorDot(color: const Color(0xFF5C3D8F)),
-                                    const SizedBox(width: 8),
-                                    _ColorDot(color: const Color(0xFF1A6B4A)),
-                                  ],
-                                ),
-                                onTap: () {},
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
                           // ── Security ──────────────────────────────────────
                           _SectionHeader(
                             icon: Icons.shield_rounded,
@@ -312,24 +280,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                                     await sl.secureStorageService.setBiometricEnabled(true);
                                   }
                                 },
-                              ),
-                              _Divider(),
-                              _ToggleRow(
-                                label: 'Auto Lock',
-                                subtitle: 'Lock after 5 min idle',
-                                icon: Icons.lock_clock_rounded,
-                                value: _autoLock,
-                                activeColor: const Color(0xFF1A6B4A),
-                                onChanged: (v) =>
-                                    setState(() => _autoLock = v),
-                              ),
-                              _Divider(),
-                              _TapRow(
-                                label: 'Change Password',
-                                subtitle: 'Update your password',
-                                icon: Icons.key_rounded,
-                                iconColor: const Color(0xFF1A6B4A),
-                                onTap: () {},
                               ),
                             ],
                           ),
