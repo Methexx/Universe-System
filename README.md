@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🎓 UniVerse — School Management Platform
-
+ 
 ![Fastify](https://img.shields.io/badge/Fastify-5.7-000000?style=for-the-badge&logo=fastify&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
